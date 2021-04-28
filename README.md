@@ -6,7 +6,7 @@
 ![Contributors](https://img.shields.io/github/contributors/OkaeriPoland/okaeri-persistence)
 [![Discord](https://img.shields.io/discord/589089838200913930)](https://discord.gg/hASN5eX)
 
-Object Document Mapping (ODM) library allowing that allows to focus on data instead of the storage player.
+Object Document Mapping (ODM) library allowing to focus on data instead of the storage layer.
 Originally developed for and part of the [okaeri-platform](https://github.com/OkaeriPoland/okaeri-platform).
 
 ## Backends
@@ -91,3 +91,30 @@ Example pipeline of the stream:
 - Optional document filter for readByProperty
 - Optional mapping to the custom object
 - Your filters and processing
+
+## Installation
+### Maven
+Add repository to the `repositories` section:
+```xml
+<repository>
+    <id>okaeri-repo</id>
+    <url>https://storehouse.okaeri.eu/repository/maven-public/</url>
+</repository>
+```
+Add dependency to the `dependencies` section:
+```xml
+<dependency>
+  <groupId>eu.okaeri</groupId>
+  <artifactId>okaeri-persistence-[type]</artifactId>
+  <version>1.0.0</version>
+</dependency>
+```
+### Gradle
+Add repository to the `repositories` section:
+```groovy
+maven { url "https://storehouse.okaeri.eu/repository/maven-public/" }
+```
+Add dependency to the `maven` section:
+```groovy
+implementation 'eu.okaeri:okaeri-persistence-[type]:1.0.0'
+```
