@@ -1,6 +1,6 @@
-package eu.okaeri.platform.persistence;
+package eu.okaeri.persistence;
 
-import eu.okaeri.platform.persistence.document.Document;
+import eu.okaeri.persistence.document.Document;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 

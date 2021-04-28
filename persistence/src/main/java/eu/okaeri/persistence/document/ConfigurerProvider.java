@@ -1,4 +1,4 @@
-package eu.okaeri.platform.persistence.document;
+package eu.okaeri.persistence.document;
 
 import eu.okaeri.configs.configurer.Configurer;
 

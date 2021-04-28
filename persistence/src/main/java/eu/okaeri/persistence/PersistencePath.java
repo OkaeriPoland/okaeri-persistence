@@ -1,4 +1,4 @@
-package eu.okaeri.platform.persistence;
+package eu.okaeri.persistence;
 
 import lombok.*;
 

@@ -1,14 +1,14 @@
-package eu.okaeri.platform.persistence.flat;
+package eu.okaeri.persistence.flat;
 
 import eu.okaeri.configs.ConfigManager;
 import eu.okaeri.configs.configurer.InMemoryConfigurer;
-import eu.okaeri.platform.persistence.PersistenceCollection;
-import eu.okaeri.platform.persistence.PersistenceEntity;
-import eu.okaeri.platform.persistence.PersistencePath;
-import eu.okaeri.platform.persistence.document.ConfigurerProvider;
-import eu.okaeri.platform.persistence.index.InMemoryIndex;
-import eu.okaeri.platform.persistence.index.IndexProperty;
-import eu.okaeri.platform.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.persistence.document.ConfigurerProvider;
+import eu.okaeri.persistence.index.InMemoryIndex;
+import eu.okaeri.persistence.index.IndexProperty;
+import eu.okaeri.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.PersistenceCollection;
+import eu.okaeri.persistence.PersistenceEntity;
 import lombok.*;
 
 import java.io.BufferedWriter;
