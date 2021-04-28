@@ -7,7 +7,7 @@
 [![Discord](https://img.shields.io/discord/589089838200913930)](https://discord.gg/hASN5eX)
 
 Object Document Mapping (ODM) library allowing that allows to focus on data instead of the storage player.
-Part of the [okaeri-platform](https://github.com/OkaeriPoland/okaeri-platform).
+Originally developed for and part of the [okaeri-platform](https://github.com/OkaeriPoland/okaeri-platform).
 
 ## Backends
 
