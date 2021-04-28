@@ -1,6 +1,6 @@
-package eu.okaeri.platform.persistence.index;
+package eu.okaeri.persistence.index;
 
-import eu.okaeri.platform.persistence.document.Document;
+import eu.okaeri.persistence.document.Document;
 import lombok.Getter;
 
 import java.util.HashMap;

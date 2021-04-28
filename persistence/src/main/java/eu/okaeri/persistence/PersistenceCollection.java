@@ -1,6 +1,6 @@
-package eu.okaeri.platform.persistence;
+package eu.okaeri.persistence;
 
-import eu.okaeri.platform.persistence.index.IndexProperty;
+import eu.okaeri.persistence.index.IndexProperty;
 import lombok.Getter;
 import lombok.ToString;
 

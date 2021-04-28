@@ -1,10 +1,10 @@
-package eu.okaeri.platform.persistence.raw;
+package eu.okaeri.persistence.raw;
 
-import eu.okaeri.platform.persistence.Persistence;
-import eu.okaeri.platform.persistence.PersistenceCollection;
-import eu.okaeri.platform.persistence.PersistenceEntity;
-import eu.okaeri.platform.persistence.PersistencePath;
-import eu.okaeri.platform.persistence.index.IndexProperty;
+import eu.okaeri.persistence.index.IndexProperty;
+import eu.okaeri.persistence.Persistence;
+import eu.okaeri.persistence.PersistenceCollection;
+import eu.okaeri.persistence.PersistenceEntity;
+import eu.okaeri.persistence.PersistencePath;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;

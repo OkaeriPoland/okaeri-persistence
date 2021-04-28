@@ -1,4 +1,4 @@
-package eu.okaeri.platform.persistence.document;
+package eu.okaeri.persistence.document;
 
 import eu.okaeri.configs.ConfigManager;
 import eu.okaeri.configs.configurer.Configurer;
@@ -6,12 +6,12 @@ import eu.okaeri.configs.serdes.OkaeriSerdesPack;
 import eu.okaeri.configs.serdes.TransformerRegistry;
 import eu.okaeri.configs.serdes.commons.SerdesCommons;
 import eu.okaeri.configs.serdes.standard.StandardSerdes;
-import eu.okaeri.platform.persistence.Persistence;
-import eu.okaeri.platform.persistence.PersistenceCollection;
-import eu.okaeri.platform.persistence.PersistenceEntity;
-import eu.okaeri.platform.persistence.PersistencePath;
-import eu.okaeri.platform.persistence.index.IndexProperty;
-import eu.okaeri.platform.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.index.IndexProperty;
+import eu.okaeri.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.Persistence;
+import eu.okaeri.persistence.PersistenceCollection;
+import eu.okaeri.persistence.PersistenceEntity;
+import eu.okaeri.persistence.PersistencePath;
 import lombok.Getter;
 
 import java.util.*;

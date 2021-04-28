@@ -1,4 +1,4 @@
-package eu.okaeri.platform.persistence.cache;
+package eu.okaeri.persistence.cache;
 
 import lombok.*;
 

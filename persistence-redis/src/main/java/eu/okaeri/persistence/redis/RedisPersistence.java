@@ -1,10 +1,10 @@
-package eu.okaeri.platform.persistence.redis;
+package eu.okaeri.persistence.redis;
 
-import eu.okaeri.platform.persistence.PersistenceCollection;
-import eu.okaeri.platform.persistence.PersistenceEntity;
-import eu.okaeri.platform.persistence.PersistencePath;
-import eu.okaeri.platform.persistence.index.IndexProperty;
-import eu.okaeri.platform.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.index.IndexProperty;
+import eu.okaeri.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.PersistenceCollection;
+import eu.okaeri.persistence.PersistenceEntity;
+import eu.okaeri.persistence.PersistencePath;
 import io.lettuce.core.*;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
