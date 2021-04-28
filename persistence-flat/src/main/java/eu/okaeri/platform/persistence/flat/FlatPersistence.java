@@ -1,7 +1,6 @@
 package eu.okaeri.platform.persistence.flat;
 
 import eu.okaeri.configs.ConfigManager;
-import eu.okaeri.configs.binary.obdf.ObdfConfigurer;
 import eu.okaeri.configs.configurer.InMemoryConfigurer;
 import eu.okaeri.platform.persistence.PersistenceCollection;
 import eu.okaeri.platform.persistence.PersistenceEntity;
