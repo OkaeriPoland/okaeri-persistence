@@ -156,6 +156,10 @@ public class FlatPersistence extends RawPersistence {
     @Override
     public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
 
+        if (!this.canUseToString(propertyValue)) {
+            return this.streamAll(collection);
+        }
+
         InMemoryIndex flatIndex = this.indexMap.get(collection).get(property.getValue());
         if (flatIndex == null) return this.streamAll(collection);
 

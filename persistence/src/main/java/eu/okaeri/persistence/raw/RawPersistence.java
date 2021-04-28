@@ -99,5 +99,9 @@ public abstract class RawPersistence implements Persistence<String> {
         IndexProperty indexProperty = IndexProperty.of(path.getValue());
         return collectionIndexes.contains(indexProperty);
     }
+
+    public boolean canUseToString(Object value) {
+        return (value instanceof String) || (value instanceof Integer) || (value instanceof UUID);
+    }
 }
 
