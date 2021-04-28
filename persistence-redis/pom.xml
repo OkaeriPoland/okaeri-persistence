@@ -19,7 +19,7 @@
     <dependencies>
         <dependency>
             <groupId>eu.okaeri</groupId>
-            <artifactId>okaeri-persistence</artifactId>
+            <artifactId>okaeri-persistence-core</artifactId>
             <version>1.0.0</version>
         </dependency>
 
