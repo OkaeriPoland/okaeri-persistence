@@ -14,6 +14,7 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import lombok.Getter;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -122,7 +123,7 @@ public class DocumentPersistence implements Persistence<Document> {
 
         for (IndexProperty index : collectionIndexes) {
             Object value = this.extractValue(documentMap, index.toParts());
-            if ((value != null) && !this.canUseToString(value)) {
+            if ((value != null) && !this.getRaw().canUseToString(value)) {
                 throw new RuntimeException("cannot transform " + value + " to index as string");
             }
             boolean changed = this.updateIndex(collection, index, path, (value == null) ? null : String.valueOf(value));
@@ -186,10 +187,10 @@ public class DocumentPersistence implements Persistence<Document> {
         List<String> pathParts = property.toParts();
         Predicate<PersistenceEntity<Document>> documentFilter = entity -> {
             if (pathParts.size() == 1) {
-                return propertyValue.equals(entity.getValue().get(pathParts.get(0)));
+                return this.compare(propertyValue, entity.getValue().get(pathParts.get(0)));
             }
             Map<String, Object> document = entity.getValue().asMap(this.simplifier, true);
-            return propertyValue.equals(this.extractValue(document, pathParts));
+            return this.compare(propertyValue, this.extractValue(document, pathParts));
         };
 
         // native read implementation may or may not filter entries
@@ -203,7 +204,7 @@ public class DocumentPersistence implements Persistence<Document> {
 
         // streaming search optimzied with string search can
         // greatly reduce search time removing parsing overhead
-        boolean stringSearch = this.getRaw().isUseStringSearch() && this.canUseToString(propertyValue);
+        boolean stringSearch = this.getRaw().isUseStringSearch() && this.getRaw().canUseToString(propertyValue);
         return this.getRaw().streamAll(collection)
                 .filter(entity -> !stringSearch || entity.getValue().contains(String.valueOf(propertyValue)))
                 .map(this.entityToDocumentMapper(collection))
@@ -270,7 +271,32 @@ public class DocumentPersistence implements Persistence<Document> {
         return null;
     }
 
-    private boolean canUseToString(Object value) {
-        return (value instanceof String) || (value instanceof Integer) || (value instanceof UUID);
+    private boolean compare(Object object1, Object object2) {
+
+        if ((object1 == null) && (object2 == null)) {
+            return true;
+        }
+
+        if ((object1 == null) || (object2 == null)) {
+            return false;
+        }
+
+        if ((object1 instanceof Number) && (object2 instanceof Number)) {
+            return ((Number) object1).doubleValue() == ((Number) object2).doubleValue();
+        }
+
+        if (object1.getClass() == object2.getClass()) {
+            return object1.equals(object2);
+        }
+
+        if (((object1 instanceof String) && (object2 instanceof Number)) || ((object1 instanceof Number) && (object2 instanceof String))) {
+            try {
+                return new BigDecimal(String.valueOf(object1)).compareTo(new BigDecimal(String.valueOf(object2))) == 0;
+            } catch (NumberFormatException ignored) {
+                return false;
+            }
+        }
+
+        throw new IllegalArgumentException("cannot compare " + object1 + " [" + object1.getClass() + "] to " + object2 + " [" + object2.getClass() + "]");
     }
 }

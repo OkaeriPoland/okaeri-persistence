@@ -2,11 +2,11 @@ package eu.okaeri.persistence.jdbc;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import eu.okaeri.persistence.index.IndexProperty;
-import eu.okaeri.persistence.raw.RawPersistence;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.persistence.index.IndexProperty;
+import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
 import lombok.SneakyThrows;
 
@@ -51,9 +51,8 @@ public class JdbcPersistence extends RawPersistence {
     public void registerCollection(PersistenceCollection collection) {
 
         String sql = "create table if not exists `" + this.table(collection) + "` (" +
-                "`key` varchar(" + collection.getKeyLength() + ") unique primary key not null," +
-                "`value` json not null)" +
-                "engine = InnoDB character set = utf8mb4;";
+                "`key` varchar(" + collection.getKeyLength() + ") primary key not null," +
+                "`value` text not null)";
 
         try (Connection connection = this.dataSource.getConnection()) {
             connection.createStatement().execute(sql);
@@ -74,16 +73,21 @@ public class JdbcPersistence extends RawPersistence {
         int keyLength = collection.getKeyLength();
         String indexTable = this.indexTable(collection);
 
-        String sql = "create table if not exists `" + indexTable + "` (" +
+        String tableSql = "create table if not exists `" + indexTable + "` (" +
                 "`key` varchar(" + keyLength + ") not null," +
                 "`property` varchar(" + propertyLength + ") not null," +
                 "`identity` varchar(" + identityLength + ") not null," +
-                "primary key(`key`, `property`)," +
-                "index (`identity`))" +
-                "engine = InnoDB character set = utf8mb4;";
+                "primary key(`key`, `property`))";
+        String indexSql = "create index `identity` on `" + indexTable + "`(`identity`)";
 
         try (Connection connection = this.dataSource.getConnection()) {
-            connection.createStatement().execute(sql);
+            connection.createStatement().execute(tableSql);
+            try {
+                connection.createStatement().execute(indexSql);
+            } catch (SQLException ignored) {
+                // index already exists or worse cannot be created
+                // and we don't know about that. heh
+            }
         } catch (SQLException exception) {
             throw new RuntimeException("cannot register collection", exception);
         }
@@ -130,15 +134,39 @@ public class JdbcPersistence extends RawPersistence {
 
         this.checkCollectionRegistered(collection);
         String indexTable = this.indexTable(collection);
-        String sql = "insert into `" + indexTable + "` (`key`, `property`, `identity`) values (?, ?, ?) on duplicate key update `identity` = ?";
         String key = path.getValue();
+        boolean exists;
 
+        try (Connection connection = this.dataSource.getConnection()) {
+            String sql = "select count(0) from `" + indexTable + "` where `key` = ? and `property` = ?";
+            PreparedStatement prepared = connection.prepareStatement(sql);
+            prepared.setString(1, key);
+            prepared.setString(2, property.getValue());
+            ResultSet resultSet = prepared.executeQuery();
+            exists = resultSet.next();
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot update index " + indexTable + " -> " + key + " = " + identity, exception);
+        }
+
+        if (exists) {
+            String sql = "update `" + indexTable + "` set `identity` = ? where `key` = ? and `property` = ?";
+            try (Connection connection = this.dataSource.getConnection()) {
+                PreparedStatement prepared = connection.prepareStatement(sql);
+                prepared.setString(1, identity);
+                prepared.setString(2, key);
+                prepared.setString(3, property.getValue());
+                return prepared.executeUpdate() > 0;
+            } catch (SQLException exception) {
+                throw new RuntimeException("cannot update index " + indexTable + " -> " + key + " = " + identity, exception);
+            }
+        }
+
+        String sql = "insert into `" + indexTable + "` (`key`, `property`, `identity`) values (?, ?, ?)";
         try (Connection connection = this.dataSource.getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, key);
             prepared.setString(2, property.getValue());
             prepared.setString(3, identity);
-            prepared.setString(4, identity);
             return prepared.executeUpdate() > 0;
         } catch (SQLException exception) {
             throw new RuntimeException("cannot update index " + indexTable + " -> " + key + " = " + identity, exception);
@@ -244,10 +272,14 @@ public class JdbcPersistence extends RawPersistence {
     public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
         return this.isIndexed(collection, property)
                 ? this.readByPropertyIndexed(collection, IndexProperty.of(property.getValue()), propertyValue)
-                : this.readByPropertyJsonExtract(collection, property, propertyValue);
+                : this.streamAll(collection);
     }
 
-    private Stream<PersistenceEntity<String>> readByPropertyIndexed(PersistenceCollection collection, IndexProperty indexProperty, Object propertyValue) {
+    protected Stream<PersistenceEntity<String>> readByPropertyIndexed(PersistenceCollection collection, IndexProperty indexProperty, Object propertyValue) {
+
+        if (!this.canUseToString(propertyValue)) {
+            return this.streamAll(collection);
+        }
 
         this.checkCollectionRegistered(collection);
         String table = this.table(collection);
@@ -255,40 +287,13 @@ public class JdbcPersistence extends RawPersistence {
 
         String sql = "select indexer.`key`, `value` from `" + table + "`" +
                 " join `" + indexTable + "` indexer on `" + table + "`.`key` = indexer.`key`" +
-                " where indexer.`property` = ? and indexer.`identity` = ?"; //  and json_extract(value, ?) = ? // double checking ???
+                " where indexer.`property` = ? and indexer.`identity` = ?";
 
         try (Connection connection = this.dataSource.getConnection()) {
 
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, indexProperty.getValue());
-            prepared.setObject(2, propertyValue);
-//            prepared.setObject(3, indexProperty.toSqlJsonPath());
-//            prepared.setObject(4, propertyValue);
-            ResultSet resultSet = prepared.executeQuery();
-            List<PersistenceEntity<String>> results = new ArrayList<>();
-
-            while (resultSet.next()) {
-                String key = resultSet.getString("key");
-                String value = resultSet.getString("value");
-                results.add(new PersistenceEntity<>(PersistencePath.of(key), value));
-            }
-
-            return StreamSupport.stream(Spliterators.spliterator(results.iterator(), resultSet.getFetchSize(), Spliterator.NONNULL), false);
-        } catch (SQLException exception) {
-            throw new RuntimeException("cannot ready by property from " + collection, exception);
-        }
-    }
-
-    private Stream<PersistenceEntity<String>> readByPropertyJsonExtract(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
-
-        this.checkCollectionRegistered(collection);
-        String sql = "select `key`, `value` from `" + this.table(collection) + "` where json_extract(value, ?) = ?";
-
-        try (Connection connection = this.dataSource.getConnection()) {
-
-            PreparedStatement prepared = connection.prepareStatement(sql);
-            prepared.setString(1, property.toSqlJsonPath());
-            prepared.setObject(2, propertyValue);
+            prepared.setString(2, String.valueOf(propertyValue));
             ResultSet resultSet = prepared.executeQuery();
             List<PersistenceEntity<String>> results = new ArrayList<>();
 
@@ -347,14 +352,23 @@ public class JdbcPersistence extends RawPersistence {
     @Override
     public boolean write(PersistenceCollection collection, PersistencePath path, String raw) {
 
-        this.checkCollectionRegistered(collection);
-        String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?) on duplicate key update `value` = ?";
+        if (this.read(collection, path) == null) {
+            String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?)";
+            try (Connection connection = this.dataSource.getConnection()) {
+                PreparedStatement prepared = connection.prepareStatement(sql);
+                prepared.setString(1, path.getValue());
+                prepared.setString(2, raw);
+                return prepared.executeUpdate() > 0;
+            } catch (SQLException exception) {
+                throw new RuntimeException("cannot write " + path + " to " + collection, exception);
+            }
+        }
 
+        String sql = "update `" + this.table(collection) + "` set `value` = ? where `key` = ?";
         try (Connection connection = this.dataSource.getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
-            prepared.setString(1, path.getValue());
-            prepared.setString(2, raw);
-            prepared.setString(3, raw);
+            prepared.setString(1, raw);
+            prepared.setString(2, path.getValue());
             return prepared.executeUpdate() > 0;
         } catch (SQLException exception) {
             throw new RuntimeException("cannot write " + path + " to " + collection, exception);
@@ -409,11 +423,11 @@ public class JdbcPersistence extends RawPersistence {
                 .count();
     }
 
-    private String table(PersistenceCollection collection) {
+    protected String table(PersistenceCollection collection) {
         return this.getBasePath().sub(collection).toSqlIdentifier();
     }
 
-    private String indexTable(PersistenceCollection collection) {
+    protected String indexTable(PersistenceCollection collection) {
         return this.getBasePath().sub(collection).sub("index").toSqlIdentifier();
     }
 }

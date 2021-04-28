@@ -11,11 +11,13 @@ Originally developed for and part of the [okaeri-platform](https://github.com/Ok
 
 ## Backends
 
-| Name | Indexes | Comment |
-|-|-|-|
-| FlatPersistence | Yes (in-memory or file based) | Allows managing collections of the configuration files with the possibility to index certain properties for quick search, any okaeri-configs provider can be used. With the default saveIndex=false index is automatically created every startup. One may choose to save index to disk. However, we highly advise against using persistent index, especially in write intensive applications. |
-| JdbcPersistence | Yes (additional table) | Created with MySQL/MariaDB in mind using native JSON datatype, makes use of the json_extract for filtering by properties even when property is not marked as indexed. |
-| RedisPersistence | Yes (additional hashes and sets) | Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties. Currently the fastest implementation avaibile. |
+| Name | Type | Indexes | Comment |
+|-|-|-|-|
+| FlatPersistence | `flat` | Yes (in-memory or file based) | Allows managing collections of the configuration files with the possibility to index certain properties for quick search, any okaeri-configs provider can be used. With the default saveIndex=false index is automatically created every startup. One may choose to save index to disk. However, we highly advise against using persistent index, especially in write intensive applications. |
+| MariaDbPersistence | `jdbc` | Yes (additional table) | Created with MySQL/MariaDB in mind using native JSON datatype, makes use of the json_extract for filtering by properties even when property is not marked as indexed. |
+| H2Persistence | `jdbc` | Yes (additional table) | Created for H2 databases in `mode=mysql`. Stores JSON in the text field, makes use of the instr for prefiltering when possible. |
+| JdbcPersistence | `jdbc` | Yes (additional table) | Created for generic JDBC support. Stores JSON in the text field, makes no use of any prefiltering whatsoever. Data writes take two queries. |
+| RedisPersistence | `redis` | Yes (additional hashes and sets) | Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties. Currently the fastest implementation avaibile. |
 
 ## Genesis
 
@@ -74,7 +76,7 @@ best performance possible on the specific backend and it just works.
 ```java
 PersistenceCollection.of("player", 36)
     .index(IndexProperty.of("name", 24))
-    .index(IndexProperty.parse("lastJoinedLocation.world").maxLength(64))
+    .index(IndexProperty.of("lastJoinedLocation").sub("world").maxLength(64))
 ```
 
 ## Streams
@@ -111,7 +113,7 @@ Add dependency to the `dependencies` section:
 <dependency>
   <groupId>eu.okaeri</groupId>
   <artifactId>okaeri-persistence-[type]</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
 </dependency>
 ```
 ### Gradle
@@ -121,5 +123,5 @@ maven { url "https://storehouse.okaeri.eu/repository/maven-public/" }
 ```
 Add dependency to the `maven` section:
 ```groovy
-implementation 'eu.okaeri:okaeri-persistence-[type]:1.0.0'
+implementation 'eu.okaeri:okaeri-persistence-[type]:1.0.1'
 ```
