@@ -95,7 +95,7 @@ Example pipeline of the stream:
 ## Examples
 See [PlayerPersistence](https://github.com/OkaeriPoland/okaeri-platform/blob/master/bukkit-example/src/main/java/org/example/okaeriplatformtest/persistence/PlayerPersistence.java) in the okaeri-platform example.
 For the methods available in Persistence classes refer to the [source code comments](https://github.com/OkaeriPoland/okaeri-persistence/blob/master/persistence/src/main/java/eu/okaeri/persistence/Persistence.java).
-Thank you for the interest in the project, we wish you an enjoyable stay or a pleasant onward journey.
+Thank you for the interest in the project. We wish you an enjoyable stay or a pleasant onward journey.
 
 ## Installation
 ### Maven
