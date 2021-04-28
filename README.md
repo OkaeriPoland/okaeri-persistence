@@ -1,0 +1,93 @@
+# Okaeri Persistence
+
+![License](https://img.shields.io/github/license/OkaeriPoland/okaeri-persistence)
+![Total lines](https://img.shields.io/tokei/lines/github/OkaeriPoland/okaeri-persistence)
+![Repo size](https://img.shields.io/github/repo-size/OkaeriPoland/okaeri-persistence)
+![Contributors](https://img.shields.io/github/contributors/OkaeriPoland/okaeri-persistence)
+[![Discord](https://img.shields.io/discord/589089838200913930)](https://discord.gg/hASN5eX)
+
+Object Document Mapping (ODM) library allowing that allows to focus on data instead of the storage player.
+Part of the [okaeri-platform](https://github.com/OkaeriPoland/okaeri-platform).
+
+## Backends
+
+| Name | Indexes | Comment |
+|-|-|-|
+| FlatPersistence | Yes (in-memory or file based) | Allows managing collections of the configuration files with the possibility to index certain properties for quick search, any okaeri-configs provider can be used. With the default saveIndex=false index is automatically created every startup. One may choose to save index to disk. However, we highly advise against using persistent index, especially in write intensive applications. |
+| JdbcPersistence | Yes (additional table) | Created with MySQL/MariaDB in mind using native JSON datatype, makes use of the json_extract for filtering by properties even when property is not marked as indexed. |
+| RedisPersistence | Yes (additional hashes and sets) | Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties. Currently the fastest implementation avaibile. |
+
+## Genesis
+
+The library is composed based on the [okaeri-configs](https://github.com/OkaeriPoland/okaeri-configs) and is intended 
+to be used as an extension to store configurations or other documents without thinking about a specific backend.
+
+```java
+new DocumentPersistence(new JdbcPersistence(basePath, hikari), JsonSimpleConfigurer::new)
+```
+
+## Documents
+
+Being based on the documents allows supporting practically any platform possible. Store as a file? No problem, YAML, HJSON, anything.
+What about the databases? Dedicated for the document stores, NoSQL or abusing relational database to store JSON? No problem!
+
+Documents come at the additional benefit of not having to worry about complex relations based on the multiple tables which can
+limit the developer possibilities for storing the data. Storing objects in the relational database isn't fun when it comes
+to nested maps and lists and may require the change of the project core concepts or means accepting the limitations and potential
+performance impact of the complex joins and queries.
+
+There is a great place for optimizations of the object structure and relational databases, but sometimes it is just not the right fit.
+We value flexibility and fast development. Carefully designing fine-tuned 6 table schemas to store just a few tens of thousands objects
+is the opposite of that.
+
+You are developing a simple concept TODO app, you can take your time and manually create your tables and then write really complex
+queries just to get poor performance. You can use complex ORM framework like Hibernate and skip most of the queries part. But then
+you realize that you probably just fetch the data for the single user all the time, so why bother? Documents just fit in here.
+
+Anything that closely bounds to some identifier and is used almost exclusively for that scope is the perfect example where spending
+time thinking about your database backend may be just not worth it. You just need to define your expectations and make a decision
+what do you value more.
+
+```java
+// example document vs tables used in the relational databases
+public class UserProperties extends Document {
+    private UUID uuid;
+    private List<Instant> lastLogins; // table: user_logins
+    private String name;
+    private List<String> aliases; // table: user_aliases
+    private Map<String, List<String>> todoLists; // table: user_todo, user_todo_task
+    private List<UUID> friends; // table: user_friends
+}
+```
+
+## Indexes
+
+Implementations may provide indexing support. The idea is the developer does not need to care about the specifics.
+The backends just work, better or worse. That does not mean your apps would be poorly performing. It just means
+that if you want to leave the choice to the user you can do that. There is nothing wrong with file based storage
+for small game server or local app, but a real database may be required for the more demanding environments.
+
+Fetching by indexed property is expected to be almost as quick as using ID, but when the implementation does not 
+provide it, fallback methods are used for slower but still working filtering. Thanks to that you can get the
+best performance possible on the specific backend and it just works.
+
+```java
+PersistenceCollection.of("player", 36)
+    .index(IndexProperty.of("name", 24))
+    .index(IndexProperty.parse("lastJoinedLocation.world").maxLength(64))
+```
+
+## Streams
+
+Streaming API opens multiple possibilities, e.g. filters can be automatically optimized. Implementations may fetch
+data in partitions and then parsing is done only when document is about to get into the stream. Everything is 
+done automatically and can decrease fetch times dramatically. Smart tricks like prefiltering can be applied to prevent
+parsing documents determined to not include searched property.
+
+Example pipeline of the stream:
+- Redis cursor, Files.list or other generator
+- Optional string prefilter for readByProperty calls
+- Format to Document mapper (basically parsing JSON/YAML)
+- Optional document filter for readByProperty
+- Optional mapping to the custom object
+- Your filters and processing
