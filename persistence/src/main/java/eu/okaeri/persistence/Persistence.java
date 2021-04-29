@@ -2,7 +2,9 @@ package eu.okaeri.persistence;
 
 import eu.okaeri.persistence.index.IndexProperty;
 
+import java.util.Collection;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -45,13 +47,25 @@ public interface Persistence<T> {
     // basic group "ExamplePlugin:" -> "example_plugin:player:USER_IDENTIFIER"
     PersistencePath getBasePath();
 
+    // count of all the entities in the collection
+    long count(PersistenceCollection collection);
+
     // check if element exists
     // important as it is advised that read returns empty objects
     // instead of throwing an exception
     boolean exists(PersistenceCollection collection, PersistencePath path);
 
     // read saved object at key
-    T read(PersistenceCollection collection, PersistencePath path);
+    Optional<T> read(PersistenceCollection collection, PersistencePath path);
+
+    // read or create saved object at key
+    T readOrEmpty(PersistenceCollection collection, PersistencePath path);
+
+    // read objects saved at the paths
+    Map<PersistencePath, T> read(PersistenceCollection collection, Collection<PersistencePath> paths);
+
+    // read or created objects saved at the paths
+    Map<PersistencePath, T> readOrEmpty(PersistenceCollection collection, Collection<PersistencePath> paths);
 
     // read all saved objects in the collection
     Map<PersistencePath, T> readAll(PersistenceCollection collection);
@@ -67,6 +81,9 @@ public interface Persistence<T> {
 
     // delete single
     boolean delete(PersistenceCollection collection, PersistencePath path);
+
+    // delete multiple
+    long delete(PersistenceCollection collection, Collection<PersistencePath> paths);
 
     // delete all from collection
     boolean deleteAll(PersistenceCollection collection);

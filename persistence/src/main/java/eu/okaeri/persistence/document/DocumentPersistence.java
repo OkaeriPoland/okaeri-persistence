@@ -140,8 +140,8 @@ public class DocumentPersistence implements Persistence<Document> {
             return false;
         }
 
-        Document document = this.read(collection, path);
-        return this.updateIndex(collection, path, document);
+        Optional<Document> document = this.read(collection, path);
+        return document.map(value -> this.updateIndex(collection, path, value)).isPresent();
     }
 
     @Override
@@ -165,11 +165,42 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public Document read(PersistenceCollection collection, PersistencePath path) {
+    public Document readOrEmpty(PersistenceCollection collection, PersistencePath path) {
+        return this.read(collection, path).orElse(this.createDocument(collection, path));
+    }
+
+    @Override
+    public Optional<Document> read(PersistenceCollection collection, PersistencePath path) {
+
+        Optional<String> data = this.getRaw().read(collection, path);
+        if (!data.isPresent()) {
+            return Optional.empty();
+        }
+
         Document document = this.createDocument(collection, path);
-        String read = this.getRaw().read(collection, path);
-        if (read == null) return document;
-        return (Document) document.load(read);
+        return Optional.of((Document) document.load(data.get()));
+    }
+
+    @Override
+    public Map<PersistencePath, Document> readOrEmpty(PersistenceCollection collection, Collection<PersistencePath> paths) {
+
+        Map<PersistencePath, Document> map = new LinkedHashMap<>();
+        Map<PersistencePath, Document> data = this.read(collection, paths);
+
+        for (PersistencePath path : paths) {
+            map.put(path, data.getOrDefault(path, this.createDocument(collection, path)));
+        }
+
+        return map;
+    }
+
+    @Override
+    public Map<PersistencePath, Document> read(PersistenceCollection collection, Collection<PersistencePath> paths) {
+        return this.getRaw().read(collection, paths).entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
+                    Document document = this.createDocument(collection, entry.getKey());
+                    return (Document) document.load(entry.getValue());
+                }));
     }
 
     @Override
@@ -217,6 +248,11 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
+    public long count(PersistenceCollection collection) {
+        return this.getRaw().count(collection);
+    }
+
+    @Override
     public boolean exists(PersistenceCollection collection, PersistencePath path) {
         return this.getRaw().exists(collection, path);
     }
@@ -230,6 +266,11 @@ public class DocumentPersistence implements Persistence<Document> {
     @Override
     public boolean delete(PersistenceCollection collection, PersistencePath path) {
         return this.getRaw().delete(collection, path);
+    }
+
+    @Override
+    public long delete(PersistenceCollection collection, Collection<PersistencePath> paths) {
+        return this.getRaw().delete(collection, paths);
     }
 
     @Override

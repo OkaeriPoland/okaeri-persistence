@@ -69,6 +69,25 @@ public abstract class RawPersistence implements Persistence<String> {
     }
 
     @Override
+    public String readOrEmpty(PersistenceCollection collection, PersistencePath path) {
+        return this.read(collection, path).orElse("");
+    }
+
+    @Override
+    public Map<PersistencePath, String> readOrEmpty(PersistenceCollection collection, Collection<PersistencePath> paths) {
+
+        this.checkCollectionRegistered(collection);
+        Map<PersistencePath, String> map = new LinkedHashMap<>();
+        Map<PersistencePath, String> data = this.read(collection, paths);
+
+        for (PersistencePath path : paths) {
+            map.put(path, data.getOrDefault(path, ""));
+        }
+
+        return map;
+    }
+
+    @Override
     public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
         throw new RuntimeException("not implemented yet");
     }

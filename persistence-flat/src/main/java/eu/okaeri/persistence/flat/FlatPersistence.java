@@ -2,13 +2,13 @@ package eu.okaeri.persistence.flat;
 
 import eu.okaeri.configs.ConfigManager;
 import eu.okaeri.configs.configurer.InMemoryConfigurer;
+import eu.okaeri.persistence.PersistenceCollection;
+import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.ConfigurerProvider;
 import eu.okaeri.persistence.index.InMemoryIndex;
 import eu.okaeri.persistence.index.IndexProperty;
 import eu.okaeri.persistence.raw.RawPersistence;
-import eu.okaeri.persistence.PersistenceCollection;
-import eu.okaeri.persistence.PersistenceEntity;
 import lombok.*;
 
 import java.io.BufferedWriter;
@@ -40,7 +40,9 @@ public class FlatPersistence extends RawPersistence {
     @Getter private final PersistencePath basePath;
     @Getter private final String fileSuffix;
     @Getter private final ConfigurerProvider indexProvider;
-    @Getter @Setter private boolean saveIndex;
+    @Getter
+    @Setter
+    private boolean saveIndex;
 
     public FlatPersistence(File basePath, String fileSuffix) {
         this(basePath, fileSuffix, InMemoryConfigurer::new, false);
@@ -168,10 +170,17 @@ public class FlatPersistence extends RawPersistence {
             return Stream.of();
         }
 
-        return keys.stream().map(key -> {
-            PersistencePath path = PersistencePath.of(key);
-            return new PersistenceEntity<>(path, this.read(collection, path));
-        });
+        return keys.stream()
+                .map(key -> {
+                    PersistencePath path = PersistencePath.of(key);
+                    return this.read(collection, path)
+                            .map(data -> new PersistenceEntity<>(path, data))
+                            .orElseGet(() -> {
+                                this.dropIndex(collection, path);
+                                return null;
+                            });
+                })
+                .filter(Objects::nonNull);
     }
 
     @Override
@@ -204,10 +213,26 @@ public class FlatPersistence extends RawPersistence {
     }
 
     @Override
-    public String read(PersistenceCollection collection, PersistencePath path) {
+    public Optional<String> read(PersistenceCollection collection, PersistencePath path) {
         this.checkCollectionRegistered(collection);
         File file = this.toFullPath(collection, path).toFile();
-        return this.fileToString(file);
+        return file.exists() ? Optional.ofNullable(this.fileToString(file)) : Optional.empty();
+    }
+
+    @Override
+    public Map<PersistencePath, String> read(PersistenceCollection collection, Collection<PersistencePath> paths) {
+        return paths.stream()
+                .distinct()
+                .map(path -> new PersistenceEntity<>(path, this.read(collection, path).orElse(null)))
+                .filter(entity -> entity.getValue() != null)
+                .collect(Collectors.toMap(PersistenceEntity::getPath, PersistenceEntity::getValue));
+    }
+
+    @Override
+    public Map<PersistencePath, String> readOrEmpty(PersistenceCollection collection, Collection<PersistencePath> paths) {
+        return paths.stream()
+                .distinct()
+                .collect(Collectors.toMap(path -> path, path -> this.readOrEmpty(collection, path)));
     }
 
     @Override
@@ -223,6 +248,16 @@ public class FlatPersistence extends RawPersistence {
         Path collectionFile = this.getBasePath().sub(collection).toPath();
 
         return Files.list(collectionFile).map(this.pathToEntityMapper);
+    }
+
+    @Override
+    @SneakyThrows
+    public long count(PersistenceCollection collection) {
+
+        this.checkCollectionRegistered(collection);
+        Path collectionFile = this.getBasePath().sub(collection).toPath();
+
+        return Files.list(collectionFile).count();
     }
 
     @Override
@@ -250,8 +285,23 @@ public class FlatPersistence extends RawPersistence {
 
     @Override
     public boolean delete(PersistenceCollection collection, PersistencePath path) {
+
         this.checkCollectionRegistered(collection);
+        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection);
+
+        if (collectionIndexes != null) {
+            collectionIndexes.forEach(index -> this.dropIndex(collection, path));
+        }
+
         return this.toFullPath(collection, path).toFile().delete();
+    }
+
+    @Override
+    public long delete(PersistenceCollection collection, Collection<PersistencePath> paths) {
+        return paths.stream()
+                .map(path -> this.delete(collection, path))
+                .filter(Predicate.isEqual(true))
+                .count();
     }
 
     @Override
@@ -260,6 +310,12 @@ public class FlatPersistence extends RawPersistence {
 
         this.checkCollectionRegistered(collection);
         File collectionFile = this.getBasePath().sub(collection).toFile();
+        this.checkCollectionRegistered(collection);
+        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection);
+
+        if (collectionIndexes != null) {
+            collectionIndexes.forEach(index -> this.dropIndex(collection, index));
+        }
 
         return collectionFile.exists() && (this.delete(collectionFile) > 0);
     }
@@ -301,7 +357,7 @@ public class FlatPersistence extends RawPersistence {
         try {
             return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
         } catch (IOException ignored) {
-            return "";
+            return null;
         }
     }
 
