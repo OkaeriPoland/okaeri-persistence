@@ -225,7 +225,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public String read(PersistenceCollection collection, PersistencePath path) {
+    public Optional<String> read(PersistenceCollection collection, PersistencePath path) {
 
         this.checkCollectionRegistered(collection);
         String sql = "select `value` from `" + this.table(collection) + "` where `key` = ? limit 1";
@@ -235,13 +235,40 @@ public class JdbcPersistence extends RawPersistence {
             prepared.setString(1, path.getValue());
             ResultSet resultSet = prepared.executeQuery();
             if (resultSet.next()) {
-                return resultSet.getString("value");
+                return Optional.ofNullable(resultSet.getString("value"));
             }
         } catch (SQLException exception) {
             throw new RuntimeException("cannot read " + path + " from " + collection, exception);
         }
 
-        return null;
+        return Optional.empty();
+    }
+
+    @Override
+    public Map<PersistencePath, String> read(PersistenceCollection collection, Collection<PersistencePath> paths) {
+
+        this.checkCollectionRegistered(collection);
+        String keys = paths.stream().map(path -> "`key` = ?").collect(Collectors.joining(" or "));
+        String sql = "select `key`, `value` from `" + this.table(collection) + "` where " + keys;
+        Map<PersistencePath, String> map = new LinkedHashMap<>();
+
+        try (Connection connection = this.dataSource.getConnection()) {
+            PreparedStatement prepared = connection.prepareStatement(sql);
+            int currentIndex = 1;
+            for (PersistencePath path : paths) {
+                prepared.setString(currentIndex++, path.getValue());
+            }
+            ResultSet resultSet = prepared.executeQuery();
+            while (resultSet.next()) {
+                String key = resultSet.getString("key");
+                String value = resultSet.getString("value");
+                map.put(PersistencePath.of(key), value);
+            }
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot read " + paths + " from " + collection, exception);
+        }
+
+        return map;
     }
 
     @Override
@@ -334,6 +361,25 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
+    public long count(PersistenceCollection collection) {
+
+        this.checkCollectionRegistered(collection);
+        String sql = "select count(0) from `" + this.table(collection) + "`";
+
+        try (Connection connection = this.dataSource.getConnection()) {
+            PreparedStatement prepared = connection.prepareStatement(sql);
+            ResultSet resultSet = prepared.executeQuery();
+            if (resultSet.next()) {
+                return resultSet.getLong(1);
+            }
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot count " + collection, exception);
+        }
+
+        return 0;
+    }
+
+    @Override
     public boolean exists(PersistenceCollection collection, PersistencePath path) {
 
         this.checkCollectionRegistered(collection);
@@ -397,19 +443,59 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
+    public long delete(PersistenceCollection collection, Collection<PersistencePath> paths) {
+
+        this.checkCollectionRegistered(collection);
+        if (paths.isEmpty()) {
+            return 0;
+        }
+
+        this.checkCollectionRegistered(collection);
+        String keys = paths.stream().map(path -> "`key` = ?").collect(Collectors.joining(" or "));
+        String deleteSql = "delete from `" + this.table(collection) + "` where " + keys;
+        String deleteIndexSql = "delete from `" + this.indexTable(collection) + "` where " + keys;
+
+        try (Connection connection = this.dataSource.getConnection()) {
+            PreparedStatement prepared = connection.prepareStatement(deleteIndexSql);
+            int currentIndex = 1;
+            for (PersistencePath path : paths) {
+                prepared.setString(currentIndex++, path.getValue());
+            }
+            prepared.executeUpdate();
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot delete " + paths + " from " + collection, exception);
+        }
+
+        try (Connection connection = this.dataSource.getConnection()) {
+            PreparedStatement prepared = connection.prepareStatement(deleteSql);
+            int currentIndex = 1;
+            for (PersistencePath path : paths) {
+                prepared.setString(currentIndex++, path.getValue());
+            }
+            return prepared.executeUpdate();
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot delete " + paths + " from " + collection, exception);
+        }
+    }
+
+    @Override
     public boolean deleteAll(PersistenceCollection collection) {
 
         this.checkCollectionRegistered(collection);
         String sql = "truncate table `" + this.table(collection) + "`";
+        String indexSql = "truncate table `" + this.indexTable(collection) + "`";
 
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection);
-        if (collectionIndexes != null) {
-            collectionIndexes.forEach(index -> this.dropIndex(collection, index));
+        try (Connection connection = this.dataSource.getConnection()) {
+            PreparedStatement prepared = connection.prepareStatement(indexSql);
+            prepared.executeUpdate();
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot truncate " + collection, exception);
         }
 
         try (Connection connection = this.dataSource.getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
-            return prepared.executeUpdate() > 0;
+            prepared.executeUpdate();
+            return true;
         } catch (SQLException exception) {
             throw new RuntimeException("cannot truncate " + collection, exception);
         }
