@@ -40,6 +40,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
         Class<?> pathType = (Class<?>) types[0];
         Class<? extends Document> entityType = (Class<? extends Document>) types[1];
         DefaultDocumentRepository defaultRepository = new DefaultDocumentRepository(persistence, collection, entityType);
+        Map<Method, Method> defaultRepositoryMethods = new HashMap<>();
 
         return (T) Proxy.newProxyInstance(classLoader, new Class[]{this.type}, (proxy, method, args) -> {
 
@@ -57,8 +58,12 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
             }
 
             try {
-                Method defaultRepositoryMethod = defaultRepository.getClass().getMethod(method.getName(), method.getParameterTypes());
-                return defaultRepositoryMethod.invoke(defaultRepository, args);
+                Method defaultMethod = defaultRepositoryMethods.get(method);
+                if (defaultMethod == null) {
+                    defaultMethod = defaultRepository.getClass().getMethod(method.getName(), method.getParameterTypes());
+                    defaultRepositoryMethods.put(method, defaultMethod);
+                }
+                return defaultMethod.invoke(defaultRepository, args);
             } catch (NoSuchMethodException | SecurityException ignored) {
             }
 
