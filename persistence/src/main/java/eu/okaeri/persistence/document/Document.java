@@ -4,6 +4,7 @@ import eu.okaeri.configs.ConfigManager;
 import eu.okaeri.configs.OkaeriConfig;
 import eu.okaeri.configs.annotation.Exclude;
 import eu.okaeri.configs.exception.OkaeriException;
+import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistencePath;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,7 +19,9 @@ public class Document extends OkaeriConfig {
     @Exclude private static final Logger LOGGER = Logger.getLogger(Document.class.getName());
 
     @Exclude @Getter @Setter private DocumentSaver saver;
+    @Exclude @Getter @Setter private DocumentPersistence persistence;
     @Exclude @Getter @Setter private PersistencePath path;
+    @Exclude @Getter @Setter private PersistenceCollection collection;
     @Exclude private Document cachedInto = this;
 
     @Override
@@ -61,6 +64,8 @@ public class Document extends OkaeriConfig {
             T newEntity = ConfigManager.transformCopy(this.cachedInto, configClazz);
             newEntity.setSaver(this.cachedInto.getSaver());
             newEntity.setPath(this.cachedInto.getPath());
+            newEntity.setCollection(this.cachedInto.getCollection());
+            newEntity.setPersistence(this.cachedInto.getPersistence());
             this.cachedInto = newEntity;
         }
 

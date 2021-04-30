@@ -17,7 +17,7 @@ public abstract class RawPersistence implements Persistence<String> {
 
     @Getter private final PersistencePath basePath;
     @Getter private final Map<String, PersistenceCollection> knownCollections = new HashMap<>();
-    @Getter private final Map<PersistenceCollection, Set<IndexProperty>> knownIndexes = new HashMap<>();
+    @Getter private final Map<String, Set<IndexProperty>> knownIndexes = new HashMap<>();
     @Getter private final boolean nativeReadByProperty;
     @Getter private final boolean nativeIndexes;
     @Getter @Setter private boolean useStringSearch;
@@ -26,7 +26,7 @@ public abstract class RawPersistence implements Persistence<String> {
     @Override
     public void registerCollection(PersistenceCollection collection) {
         this.knownCollections.put(collection.getValue(), collection);
-        this.knownIndexes.put(collection, collection.getIndexes());
+        this.knownIndexes.put(collection.getValue(), collection.getIndexes());
     }
 
     @Override
@@ -110,7 +110,7 @@ public abstract class RawPersistence implements Persistence<String> {
 
     public boolean isIndexed(PersistenceCollection collection, PersistencePath path) {
 
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection);
+        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
         if (collectionIndexes == null) {
             return false;
         }

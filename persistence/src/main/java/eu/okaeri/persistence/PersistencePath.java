@@ -103,4 +103,8 @@ public class PersistencePath {
     public String toSafeFileName() {
         return this.toSafeFilePath().replace(File.separator, "_");
     }
+
+    public UUID toUUID() {
+        return UUID.fromString(this.value);
+    }
 }

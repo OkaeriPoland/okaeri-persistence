@@ -121,7 +121,7 @@ public class FlatPersistence extends RawPersistence {
 
     @Override
     public boolean dropIndex(PersistenceCollection collection, PersistencePath path) {
-        return this.getKnownIndexes().getOrDefault(collection, Collections.emptySet()).stream()
+        return this.getKnownIndexes().getOrDefault(collection.getValue(), Collections.emptySet()).stream()
                 .map(index -> this.dropIndex(collection, index, path))
                 .anyMatch(Predicate.isEqual(true));
     }
@@ -287,7 +287,7 @@ public class FlatPersistence extends RawPersistence {
     public boolean delete(PersistenceCollection collection, PersistencePath path) {
 
         this.checkCollectionRegistered(collection);
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection);
+        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
 
         if (collectionIndexes != null) {
             collectionIndexes.forEach(index -> this.dropIndex(collection, path));
@@ -311,7 +311,7 @@ public class FlatPersistence extends RawPersistence {
         this.checkCollectionRegistered(collection);
         File collectionFile = this.getBasePath().sub(collection).toFile();
         this.checkCollectionRegistered(collection);
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection);
+        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
 
         if (collectionIndexes != null) {
             collectionIndexes.forEach(index -> this.dropIndex(collection, index));

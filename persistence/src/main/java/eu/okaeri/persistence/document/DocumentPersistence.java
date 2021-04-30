@@ -68,7 +68,7 @@ public class DocumentPersistence implements Persistence<Document> {
             return;
         }
 
-        Set<IndexProperty> indexes = this.getRaw().getKnownIndexes().getOrDefault(collection, new HashSet<>());
+        Set<IndexProperty> indexes = this.getRaw().getKnownIndexes().getOrDefault(collection.getValue(), new HashSet<>());
         Set<PersistencePath> withMissingIndexes = this.findMissingIndexes(collection, indexes);
 
         if (withMissingIndexes.isEmpty()) {
@@ -113,7 +113,7 @@ public class DocumentPersistence implements Persistence<Document> {
             return false;
         }
 
-        Set<IndexProperty> collectionIndexes = this.getRaw().getKnownIndexes().get(collection);
+        Set<IndexProperty> collectionIndexes = this.getRaw().getKnownIndexes().get(collection.getValue());
         if (collectionIndexes == null) {
             return false;
         }
@@ -288,7 +288,9 @@ public class DocumentPersistence implements Persistence<Document> {
         Document config = ConfigManager.create(Document.class);
         config.withConfigurer(this.configurerProvider.get());
         config.getConfigurer().setRegistry(this.transformerRegistry);
-        config.setSaver(document -> this.write(collection, document.getPath(), document));
+        config.setSaver(document -> this.write(document.getCollection(), document.getPath(), document));
+        config.setCollection(collection);
+        config.setPersistence(this);
         config.setPath(path);
         return config;
     }
