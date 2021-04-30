@@ -6,7 +6,6 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.DocumentPersistence;
-import eu.okaeri.persistence.index.IndexProperty;
 import eu.okaeri.persistence.jdbc.H2Persistence;
 import eu.okaeri.persistence.repository.RepositoryDeclaration;
 import eu.okaeri.persistencetestjdbc.entity.User;
@@ -18,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -44,10 +44,8 @@ public class TestPersistenceJdbc {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl("jdbc:h2:mem:test;mode=mysql");
 
-        // create collection FIXME: read from @Collection using RepositoryDeclaration
-        this.collection = PersistenceCollection.of("user", 36)
-                .index(IndexProperty.of("shortId", 8))
-                .index(IndexProperty.of("meta").sub("name").maxLength(64));
+        // create collection
+        this.collection = PersistenceCollection.of(UserRepository.class);
 
         // prepare persistence backend
         this.persistence = new DocumentPersistence(new H2Persistence(path, config), JsonSimpleConfigurer::new);
@@ -148,5 +146,57 @@ public class TestPersistenceJdbc {
         assertNull(this.repository.findByPath(UUID.randomUUID()).orElse(null));
         // test real user
         assertEquals(this.lastUser, this.repository.findByPath(this.lastUser.getId()).orElse(null));
+    }
+
+    @Test
+    public void test_repository_custom_optional_entity_by_shortid() {
+        // test non-existent user
+        assertFalse(this.repository.findEntityByShortId("XYZ").isPresent());
+        // test real user
+        assertEquals(new PersistenceEntity<>(this.lastUser.getPath(), this.lastUser), this.repository.findEntityByShortId(this.lastUser.getShortId()).orElse(null));
+    }
+
+    @Test
+    public void test_repository_custom_stream_entity_by_shortid() {
+        // test non-existent user
+        assertEquals(0, this.repository.streamEntityByShortId("XYZ").count());
+        // test real user
+        List<PersistenceEntity<User>> entities = this.repository.streamEntityByShortId(this.lastUser.getShortId()).collect(Collectors.toList());
+        assertEquals(1, entities.size());
+        assertEquals(new PersistenceEntity<>(this.lastUser.getPath(), this.lastUser), entities.get(0));
+    }
+
+    @Test
+    public void test_repository_custom_list_entity_by_shortid() {
+        // test non-existent user
+        assertEquals(0, this.repository.listEntityByShortId("XYZ").size());
+        // test real user
+        List<PersistenceEntity<User>> entities = this.repository.listEntityByShortId(this.lastUser.getShortId());
+        assertEquals(1, entities.size());
+        assertEquals(new PersistenceEntity<>(this.lastUser.getPath(), this.lastUser), entities.get(0));
+    }
+
+    @Test
+    public void test_repository_custom_optional_by_shortid() {
+        // test non-existent user
+        assertFalse(this.repository.findByShortId("XYZ").isPresent());
+        // test real user
+        assertEquals(this.lastUser, this.repository.findByShortId(this.lastUser.getShortId()).orElse(null));
+    }
+
+    @Test
+    public void test_repository_custom_stream_by_shortid() {
+        // test non-existent user
+        assertEquals(0, this.repository.streamByShortId("XYZ").count());
+        // test real user
+        assertEquals(this.lastUser, this.repository.streamByShortId(this.lastUser.getShortId()).findFirst().orElse(null));
+    }
+
+    @Test
+    public void test_repository_custom_list_by_shortid() {
+        // test non-existent user
+        assertEquals(0, this.repository.listByShortId("XYZ").size());
+        // test real user
+        assertIterableEquals(Collections.singletonList(this.lastUser), this.repository.listByShortId(this.lastUser.getShortId()));
     }
 }

@@ -1,6 +1,8 @@
 package eu.okaeri.persistence;
 
 import eu.okaeri.persistence.index.IndexProperty;
+import eu.okaeri.persistence.repository.annotation.Collection;
+import eu.okaeri.persistence.repository.annotation.Index;
 import lombok.Getter;
 import lombok.ToString;
 
@@ -10,6 +12,21 @@ import java.util.Set;
 @Getter
 @ToString(callSuper = true)
 public class PersistenceCollection extends PersistencePath {
+
+    public static PersistenceCollection of(Class<?> clazz) {
+
+        Collection collection = clazz.getAnnotation(Collection.class);
+        if (collection == null) {
+            throw new IllegalArgumentException(clazz + " is not annotated with @Collection");
+        }
+
+        PersistenceCollection out = PersistenceCollection.of(collection.path(), collection.keyLength());
+        for (Index index : collection.indexes()) {
+            out.index(IndexProperty.parse(index.path()).maxLength(index.maxLength()));
+        }
+
+        return out;
+    }
 
     public static PersistenceCollection of(String path) {
         return new PersistenceCollection(path, 255);

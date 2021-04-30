@@ -288,7 +288,8 @@ public class DocumentPersistence implements Persistence<Document> {
         Document config = ConfigManager.create(Document.class);
         config.withConfigurer(this.configurerProvider.get());
         config.getConfigurer().setRegistry(this.transformerRegistry);
-        config.setSaver(document -> this.write(collection, path, document));
+        config.setSaver(document -> this.write(collection, document.getPath(), document));
+        config.setPath(path);
         return config;
     }
 

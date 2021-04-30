@@ -72,13 +72,6 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
                 .map(value -> value.into(this.documentType));
     }
 
-    private static PersistencePath toPath(Object object) {
-        if (object instanceof PersistencePath) {
-            return (PersistencePath) object;
-        }
-        return PersistencePath.of(String.valueOf(object));
-    }
-
     @Override
     public T save(T document) {
         document.save();
@@ -89,5 +82,12 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     public Iterable<T> saveAll(Iterable<T> documents) {
         documents.forEach(Document::save);
         return documents;
+    }
+
+    private static PersistencePath toPath(Object object) {
+        if (object instanceof PersistencePath) {
+            return (PersistencePath) object;
+        }
+        return PersistencePath.of(String.valueOf(object));
     }
 }
