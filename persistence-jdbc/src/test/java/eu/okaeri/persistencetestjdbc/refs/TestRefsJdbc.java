@@ -10,6 +10,7 @@ import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.document.ref.EagerRef;
 import eu.okaeri.persistence.document.ref.Ref;
 import eu.okaeri.persistence.jdbc.H2Persistence;
+import eu.okaeri.persistence.jdbc.commons.JdbcHelper;
 import eu.okaeri.persistence.repository.RepositoryDeclaration;
 import eu.okaeri.persistencetestjdbc.refs.entity.Author;
 import eu.okaeri.persistencetestjdbc.refs.entity.Book;
@@ -39,14 +40,8 @@ public class TestRefsJdbc {
     @BeforeAll
     public void setup() {
 
-        try {
-            Class.forName("org.h2.Driver");
-        } catch (ClassNotFoundException ignored) {
-        }
-
         // setup hikari
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:h2:mem:test;mode=mysql");
+        HikariConfig config = JdbcHelper.configureHikari("jdbc:h2:mem:test;mode=mysql", "org.h2.Driver");
 
         // create collections
         this.bookCollection = PersistenceCollection.of(BookRepository.class);
