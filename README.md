@@ -98,7 +98,7 @@ Example pipeline of the stream:
 
 Reducing boilerplate is one of the primary goals for the project. We provide DocumentRepository<PATH, T> interface which allows to access basic methods similar to 
 Spring Boot's CrudRepository and allows for simple filters to be automatically implemented. Example repository setup and usage can be found in 
-the [TestPersistenceJdbc](https://github.com/OkaeriPoland/okaeri-persistence/blob/master/persistence-jdbc/src/test/java/eu/okaeri/persistencetestjdbc/TestPersistenceJdbc.java).
+the [TestPersistenceJdbc](https://github.com/OkaeriPoland/okaeri-persistence/blob/master/persistence-jdbc/src/test/java/eu/okaeri/persistencetestjdbc/basic/TestPersistenceJdbc.java).
 
 ### Default methods
 ```java

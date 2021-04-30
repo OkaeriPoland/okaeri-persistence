@@ -36,7 +36,7 @@ public class H2Persistence extends JdbcPersistence {
             prepared.setString(4, identity);
             return prepared.executeUpdate() > 0;
         } catch (SQLException exception) {
-            throw new RuntimeException("cannot update index " + indexTable + " -> " + key + " = " + identity, exception);
+            throw new RuntimeException("cannot update index " + indexTable + "[" + property.getValue() + "] -> " + key + " = " + identity, exception);
         }
     }
 

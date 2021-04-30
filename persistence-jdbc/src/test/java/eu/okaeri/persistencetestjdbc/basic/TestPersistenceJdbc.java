@@ -1,4 +1,4 @@
-package eu.okaeri.persistencetestjdbc;
+package eu.okaeri.persistencetestjdbc.basic;
 
 import com.zaxxer.hikari.HikariConfig;
 import eu.okaeri.configs.json.simple.JsonSimpleConfigurer;
@@ -8,9 +8,9 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.jdbc.H2Persistence;
 import eu.okaeri.persistence.repository.RepositoryDeclaration;
-import eu.okaeri.persistencetestjdbc.entity.User;
-import eu.okaeri.persistencetestjdbc.entity.UserMeta;
-import eu.okaeri.persistencetestjdbc.repository.UserRepository;
+import eu.okaeri.persistencetestjdbc.basic.entity.User;
+import eu.okaeri.persistencetestjdbc.basic.entity.UserMeta;
+import eu.okaeri.persistencetestjdbc.basic.repository.UserRepository;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +40,6 @@ public class TestPersistenceJdbc {
         }
 
         // setup hikari
-        PersistencePath path = PersistencePath.of("user");
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl("jdbc:h2:mem:test;mode=mysql");
 
@@ -48,12 +47,11 @@ public class TestPersistenceJdbc {
         this.collection = PersistenceCollection.of(UserRepository.class);
 
         // prepare persistence backend
-        this.persistence = new DocumentPersistence(new H2Persistence(path, config), JsonSimpleConfigurer::new);
+        this.persistence = new DocumentPersistence(new H2Persistence(PersistencePath.of("storage"), config), JsonSimpleConfigurer::new);
         this.persistence.registerCollection(this.collection);
 
         // create repository instance
-        this.repository = RepositoryDeclaration.of(UserRepository.class)
-                .newProxy(this.persistence, this.collection, TestPersistenceJdbc.class.getClassLoader());
+        this.repository = RepositoryDeclaration.of(UserRepository.class).newProxy(this.persistence, this.collection, TestPersistenceJdbc.class.getClassLoader());
     }
 
     @BeforeEach

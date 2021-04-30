@@ -87,7 +87,7 @@ public class RedisPersistence extends RawPersistence {
 
     @Override
     public boolean dropIndex(PersistenceCollection collection, PersistencePath path) {
-        return this.getKnownIndexes().getOrDefault(collection, Collections.emptySet()).stream()
+        return this.getKnownIndexes().getOrDefault(collection.getValue(), Collections.emptySet()).stream()
                 .map(index -> this.dropIndex(collection, index, path))
                 .anyMatch(Predicate.isEqual(true));
     }
@@ -302,7 +302,7 @@ public class RedisPersistence extends RawPersistence {
     public boolean delete(PersistenceCollection collection, PersistencePath path) {
 
         this.checkCollectionRegistered(collection);
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection);
+        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
 
         if (collectionIndexes != null) {
             collectionIndexes.forEach(index -> this.dropIndex(collection, path));
@@ -316,7 +316,7 @@ public class RedisPersistence extends RawPersistence {
     public long delete(PersistenceCollection collection, Collection<PersistencePath> paths) {
 
         this.checkCollectionRegistered(collection);
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection);
+        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
 
         if (collectionIndexes != null) {
             for (PersistencePath path : paths) {
@@ -334,7 +334,7 @@ public class RedisPersistence extends RawPersistence {
     public boolean deleteAll(PersistenceCollection collection) {
 
         this.checkCollectionRegistered(collection);
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection);
+        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
 
         if (collectionIndexes != null) {
             collectionIndexes.forEach(index -> this.dropIndex(collection, index));

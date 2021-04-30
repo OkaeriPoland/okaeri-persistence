@@ -1,4 +1,4 @@
-package eu.okaeri.persistencetestjdbc.entity;
+package eu.okaeri.persistencetestjdbc.relations.entity;
 
 import eu.okaeri.persistence.document.Document;
 import lombok.Data;
@@ -6,8 +6,7 @@ import lombok.EqualsAndHashCode;
 
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class UserMeta extends Document {
+public class Author extends Document {
     private String name;
-    private String fullName;
-    private String description;
+//    private List<Book> books;
 }

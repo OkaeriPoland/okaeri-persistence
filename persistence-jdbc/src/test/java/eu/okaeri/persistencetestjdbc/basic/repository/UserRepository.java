@@ -1,11 +1,11 @@
-package eu.okaeri.persistencetestjdbc.repository;
+package eu.okaeri.persistencetestjdbc.basic.repository;
 
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.repository.DocumentRepository;
 import eu.okaeri.persistence.repository.annotation.Collection;
 import eu.okaeri.persistence.repository.annotation.Index;
 import eu.okaeri.persistence.repository.annotation.PropertyPath;
-import eu.okaeri.persistencetestjdbc.entity.User;
+import eu.okaeri.persistencetestjdbc.basic.entity.User;
 
 import java.util.List;
 import java.util.Optional;

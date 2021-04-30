@@ -145,7 +145,7 @@ public class JdbcPersistence extends RawPersistence {
             ResultSet resultSet = prepared.executeQuery();
             exists = resultSet.next();
         } catch (SQLException exception) {
-            throw new RuntimeException("cannot update index " + indexTable + " -> " + key + " = " + identity, exception);
+            throw new RuntimeException("cannot update index " + indexTable + "[" + property.getValue() + "] -> " + key + " = " + identity, exception);
         }
 
         if (exists) {
@@ -157,7 +157,7 @@ public class JdbcPersistence extends RawPersistence {
                 prepared.setString(3, property.getValue());
                 return prepared.executeUpdate() > 0;
             } catch (SQLException exception) {
-                throw new RuntimeException("cannot update index " + indexTable + " -> " + key + " = " + identity, exception);
+                throw new RuntimeException("cannot update index " + indexTable + "[" + property.getValue() + "] -> " + key + " = " + identity, exception);
             }
         }
 
@@ -169,7 +169,7 @@ public class JdbcPersistence extends RawPersistence {
             prepared.setString(3, identity);
             return prepared.executeUpdate() > 0;
         } catch (SQLException exception) {
-            throw new RuntimeException("cannot update index " + indexTable + " -> " + key + " = " + identity, exception);
+            throw new RuntimeException("cannot update index " + indexTable + "[" + property.getValue() + "] -> " + key + " = " + identity, exception);
         }
     }
 
@@ -187,7 +187,7 @@ public class JdbcPersistence extends RawPersistence {
             prepared.setString(2, key);
             return prepared.executeUpdate() > 0;
         } catch (SQLException exception) {
-            throw new RuntimeException("cannot delete from index " + indexTable + "property = " + property.getValue() + " , key = " + key, exception);
+            throw new RuntimeException("cannot delete from index " + indexTable + "[" + property.getValue() + "] key = " + key, exception);
         }
     }
 
@@ -428,7 +428,7 @@ public class JdbcPersistence extends RawPersistence {
         String sql = "delete from `" + this.table(collection) + "` where `key` = ?";
         String key = path.getValue();
 
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection);
+        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
         if (collectionIndexes != null) {
             collectionIndexes.forEach(index -> this.dropIndex(collection, path));
         }
