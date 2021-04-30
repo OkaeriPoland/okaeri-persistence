@@ -1,12 +1,17 @@
 package eu.okaeri.persistence.repository;
 
+import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.document.Document;
+import eu.okaeri.persistence.document.DocumentPersistence;
 
 import java.util.Collection;
 import java.util.Optional;
 import java.util.stream.Stream;
 
 public interface DocumentRepository<PATH, T extends Document> {
+    DocumentPersistence getPersistence();
+    PersistenceCollection getCollection();
+    Class<? extends Document> getDocumentType();
     long count();
     boolean deleteAll();
     long deleteAllByPath(Iterable<? extends PATH> paths);

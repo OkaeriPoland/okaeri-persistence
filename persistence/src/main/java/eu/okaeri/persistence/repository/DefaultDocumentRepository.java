@@ -5,6 +5,7 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import java.util.*;
@@ -13,6 +14,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+@Getter
 @RequiredArgsConstructor
 public class DefaultDocumentRepository<T extends Document> implements DocumentRepository<Object, T> {
 

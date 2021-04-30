@@ -103,6 +103,9 @@ the [TestPersistenceJdbc](https://github.com/OkaeriPoland/okaeri-persistence/blo
 ### Default methods
 ```java
 public interface DocumentRepository<PATH, T extends Document> {
+    DocumentPersistence getPersistence();
+    PersistenceCollection getCollection();
+    Class<? extends Document> getDocumentType();
     long count();
     boolean deleteAll();
     long deleteAllByPath(Iterable<? extends PATH> paths);
