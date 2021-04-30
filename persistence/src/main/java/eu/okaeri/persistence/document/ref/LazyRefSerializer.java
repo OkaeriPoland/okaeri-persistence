@@ -16,7 +16,7 @@ public class LazyRefSerializer implements ObjectSerializer<Ref<? extends Documen
 
     @Override
     public boolean supports(Class clazz) {
-        return Ref.class.isAssignableFrom(clazz);
+        return LazyRef.class.isAssignableFrom(clazz);
     }
 
     @Override
