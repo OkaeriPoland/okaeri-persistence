@@ -94,6 +94,67 @@ Example pipeline of the stream:
 - Optional mapping to the custom object
 - Your filters and processing
 
+## Repositories
+
+Reducing boilerplate is one of the primary goals for the project. We provide DocumentRepository<PATH, T> interface which allows to access basic methods similar to 
+Spring Boot's CrudRepository and allows for simple filters to be automatically implemented. Example repository setup and usage can be found in 
+the [TestPersistenceJdbc](https://github.com/OkaeriPoland/okaeri-persistence/blob/master/persistence-jdbc/src/test/java/eu/okaeri/persistencetestjdbc/TestPersistenceJdbc.java).
+
+### Default methods
+```java
+public interface DocumentRepository<PATH, T extends Document> {
+    long count();
+    boolean deleteAll();
+    long deleteAllByPath(Iterable<? extends PATH> paths);
+    boolean deleteByPath(PATH path);
+    boolean existsByPath(PATH path);
+    Stream<PersistenceEntity<T>> findAll();
+    Collection<PersistenceEntity<T>> findAllByPath(Iterable<? extends PATH> paths);
+    Optional<T> findByPath(PATH path);
+    T save(T document);
+    Iterable<T> saveAll(Iterable<T> documents);
+}
+
+```
+
+### Example repository
+```java
+@Collection(path = "user", keyLength = 36, indexes = {
+        @Index(path = "shortId", maxLength = 8),
+        @Index(path = "meta.name", maxLength = 64)
+})
+public interface UserRepository extends DocumentRepository<UUID, User> {
+
+    @PropertyPath("shortId")
+    Stream<User> streamByShortId(String shortId);
+
+    @PropertyPath("shortId")
+    Optional<User> findByShortId(String shortId);
+
+    @PropertyPath("shortId")
+    List<User> listByShortId(String shortId);
+
+    @PropertyPath("shortId")
+    Stream<PersistenceEntity<User>> streamEntityByShortId(String shortId);
+
+    @PropertyPath("shortId")
+    Optional<PersistenceEntity<User>> findEntityByShortId(String shortId);
+
+    @PropertyPath("shortId")
+    List<PersistenceEntity<User>> listEntityByShortId(String shortId);
+
+    @PropertyPath("meta.name")
+    Stream<User> streamByMetaName(String name);
+
+    // custom method
+    default String getMetaDescriptionById(UUID id) {
+        return this.findByPath(id)
+                .map(user -> user.getMeta().getDescription())
+                .orElse(null);
+    }
+}
+```
+
 ## Examples
 See [PlayerPersistence](https://github.com/OkaeriPoland/okaeri-platform/blob/master/bukkit-example/src/main/java/org/example/okaeriplatformtest/persistence/PlayerPersistence.java) in the okaeri-platform example.
 For the methods available in Persistence classes refer to the [source code comments](https://github.com/OkaeriPoland/okaeri-persistence/blob/master/persistence/src/main/java/eu/okaeri/persistence/Persistence.java).
