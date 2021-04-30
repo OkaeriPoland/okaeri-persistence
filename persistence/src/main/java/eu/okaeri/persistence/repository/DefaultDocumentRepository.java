@@ -67,9 +67,27 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     }
 
     @Override
+    public Collection<PersistenceEntity<T>> findOrCreateAllByPath(Iterable<?> paths) {
+
+        Set<PersistencePath> pathSet = StreamSupport.stream(paths.spliterator(), false)
+                .map(DefaultDocumentRepository::toPath)
+                .collect(Collectors.toSet());
+
+        return this.persistence.readOrEmpty(this.collection, pathSet).entrySet().stream()
+                .map(entry -> new PersistenceEntity<>(entry.getKey(), entry.getValue().into(this.documentType)))
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public Optional<T> findByPath(Object path) {
         return this.persistence.read(this.collection, toPath(path))
                 .map(value -> value.into(this.documentType));
+    }
+
+    @Override
+    public T findOrCreateByPath(Object path) {
+        Document document = this.persistence.readOrEmpty(this.collection, toPath(path));
+        return document.into(this.documentType);
     }
 
     @Override
