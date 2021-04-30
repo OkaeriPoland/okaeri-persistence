@@ -3,28 +3,25 @@ package eu.okaeri.persistencetestjdbc.relations;
 
 import com.zaxxer.hikari.HikariConfig;
 import eu.okaeri.configs.json.simple.JsonSimpleConfigurer;
-import eu.okaeri.configs.schema.GenericsDeclaration;
-import eu.okaeri.configs.serdes.DeserializationData;
-import eu.okaeri.configs.serdes.ObjectSerializer;
-import eu.okaeri.configs.serdes.OkaeriSerdesPack;
-import eu.okaeri.configs.serdes.SerializationData;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
+import eu.okaeri.persistence.document.ref.LazyRef;
 import eu.okaeri.persistence.jdbc.H2Persistence;
 import eu.okaeri.persistence.repository.RepositoryDeclaration;
 import eu.okaeri.persistencetestjdbc.relations.entity.Author;
 import eu.okaeri.persistencetestjdbc.relations.entity.Book;
 import eu.okaeri.persistencetestjdbc.relations.repository.AuthorRepository;
 import eu.okaeri.persistencetestjdbc.relations.repository.BookRepository;
-import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -54,41 +51,8 @@ public class TestRelationsJdbc {
         this.bookCollection = PersistenceCollection.of(BookRepository.class);
         this.authorCollection = PersistenceCollection.of(AuthorRepository.class);
 
-        // cringe
-        Map<String, Class<? extends Document>> nameToType = Collections.singletonMap("Author", Author.class);
-        Map<Class<? extends Document>, String> typeToName = Collections.singletonMap(Author.class, "Author");
-
-        // magic
-        OkaeriSerdesPack serdesPack = registry -> registry.register(new ObjectSerializer<LazyRef<? extends Document>>() {
-            @Override
-            public boolean supports(Class clazz) {
-                return LazyRef.class.isAssignableFrom(clazz);
-            }
-
-            @Override
-            public void serialize(LazyRef lazyRef, SerializationData serializationData) {
-                serializationData.add("_id", lazyRef.getId().getValue());
-                serializationData.add("_type", typeToName.getOrDefault(lazyRef.getValueType(), lazyRef.getValueType().getName()));
-                serializationData.add("_collection", lazyRef.getCollection().getValue());
-            }
-
-            @Override
-            @SneakyThrows
-            @SuppressWarnings("unchecked")
-            public LazyRef<? extends Document> deserialize(DeserializationData deserializationData, GenericsDeclaration genericsDeclaration) {
-
-                PersistencePath id = PersistencePath.of(deserializationData.get("_id", String.class));
-                String typeString = deserializationData.get("_type", String.class);
-                Class<? extends Document> type = nameToType.get(typeString);
-                if (type == null) type = (Class<? extends Document>) Class.forName(typeString);
-                PersistencePath collection = PersistencePath.of(deserializationData.get("_collection", String.class));
-
-                return new LazyRef<>(id, collection, type, null, false, TestRelationsJdbc.this.persistence);
-            }
-        });
-
         // prepare persistence backend
-        this.persistence = new DocumentPersistence(new H2Persistence(PersistencePath.of("storage"), config), JsonSimpleConfigurer::new, serdesPack);
+        this.persistence = new DocumentPersistence(new H2Persistence(PersistencePath.of("storage"), config), JsonSimpleConfigurer::new);
         this.persistence.registerCollection(this.bookCollection);
         this.persistence.registerCollection(this.authorCollection);
 
