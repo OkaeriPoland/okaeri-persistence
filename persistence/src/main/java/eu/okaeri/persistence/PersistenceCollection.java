@@ -17,7 +17,7 @@ public class PersistenceCollection extends PersistencePath {
 
         DocumentCollection collection = clazz.getAnnotation(DocumentCollection.class);
         if (collection == null) {
-            throw new IllegalArgumentException(clazz + " is not annotated with @Collection");
+            throw new IllegalArgumentException(clazz + " is not annotated with @DocumentCollection");
         }
 
         PersistenceCollection out = PersistenceCollection.of(collection.path(), collection.keyLength());

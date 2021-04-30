@@ -7,6 +7,7 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.jdbc.H2Persistence;
+import eu.okaeri.persistence.jdbc.commons.JdbcHelper;
 import eu.okaeri.persistence.repository.RepositoryDeclaration;
 import eu.okaeri.persistencetestjdbc.basic.entity.User;
 import eu.okaeri.persistencetestjdbc.basic.entity.UserMeta;
@@ -34,14 +35,8 @@ public class TestPersistenceJdbc {
     @BeforeAll
     public void setup() {
 
-        try {
-            Class.forName("org.h2.Driver");
-        } catch (ClassNotFoundException ignored) {
-        }
-
         // setup hikari
-        HikariConfig config = new HikariConfig();
-        config.setJdbcUrl("jdbc:h2:mem:test;mode=mysql");
+        HikariConfig config = JdbcHelper.configureHikari("jdbc:h2:mem:test;mode=mysql", "org.h2.Driver");
 
         // create collection
         this.collection = PersistenceCollection.of(UserRepository.class);
