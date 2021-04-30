@@ -130,12 +130,16 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
             }
 
             try {
-                Method defaultMethod = defaultRepositoryMethods.get(method);
-                if (defaultMethod == null) {
+                Method defaultMethod;
+                if (defaultRepositoryMethods.containsKey(method)) {
+                    defaultMethod = defaultRepositoryMethods.get(method);
+                } else {
                     defaultMethod = defaultRepository.getClass().getMethod(method.getName(), method.getParameterTypes());
                     defaultRepositoryMethods.put(method, defaultMethod);
                 }
-                return defaultMethod.invoke(defaultRepository, args);
+                if (defaultMethod != null) {
+                    return defaultMethod.invoke(defaultRepository, args);
+                }
             } catch (NoSuchMethodException | SecurityException ignored) {
                 defaultRepositoryMethods.put(method, null);
             }
