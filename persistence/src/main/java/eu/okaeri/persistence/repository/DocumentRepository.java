@@ -15,7 +15,9 @@ public interface DocumentRepository<PATH, T extends Document> {
     boolean existsByPath(PATH path);
     Stream<PersistenceEntity<T>> findAll();
     Collection<PersistenceEntity<T>> findAllByPath(Iterable<? extends PATH> paths);
+    Collection<PersistenceEntity<T>> findOrCreateAllByPath(Iterable<? extends PATH> paths);
     Optional<T> findByPath(PATH path);
+    T findOrCreateByPath(PATH path);
     T save(T document);
     Iterable<T> saveAll(Iterable<T> documents);
 }

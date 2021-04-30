@@ -149,6 +149,14 @@ public class TestPersistenceJdbc {
     }
 
     @Test
+    public void test_repository_find_or_create() {
+        // test non-existent user
+        assertEquals(new User(), this.repository.findOrCreateByPath(UUID.randomUUID()));
+        // test real user
+        assertEquals(this.lastUser, this.repository.findOrCreateByPath(this.lastUser.getId()));
+    }
+
+    @Test
     public void test_repository_custom_optional_entity_by_shortid() {
         // test non-existent user
         assertFalse(this.repository.findEntityByShortId("XYZ").isPresent());

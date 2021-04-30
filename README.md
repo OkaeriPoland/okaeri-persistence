@@ -110,11 +110,12 @@ public interface DocumentRepository<PATH, T extends Document> {
     boolean existsByPath(PATH path);
     Stream<PersistenceEntity<T>> findAll();
     Collection<PersistenceEntity<T>> findAllByPath(Iterable<? extends PATH> paths);
+    Collection<PersistenceEntity<T>> findOrCreateAllByPath(Iterable<? extends PATH> paths);
     Optional<T> findByPath(PATH path);
+    T findOrCreateByPath(PATH path);
     T save(T document);
     Iterable<T> saveAll(Iterable<T> documents);
 }
-
 ```
 
 ### Example repository
@@ -174,7 +175,7 @@ Add dependency to the `dependencies` section:
 <dependency>
   <groupId>eu.okaeri</groupId>
   <artifactId>okaeri-persistence-[type]</artifactId>
-  <version>1.1.0</version>
+  <version>1.2.0</version>
 </dependency>
 ```
 ### Gradle
@@ -184,5 +185,5 @@ maven { url "https://storehouse.okaeri.eu/repository/maven-public/" }
 ```
 Add dependency to the `maven` section:
 ```groovy
-implementation 'eu.okaeri:okaeri-persistence-[type]:1.1.0'
+implementation 'eu.okaeri:okaeri-persistence-[type]:1.2.0'
 ```
