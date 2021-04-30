@@ -1,7 +1,7 @@
 package eu.okaeri.persistencetestjdbc.relations.entity;
 
 import eu.okaeri.persistence.document.Document;
-import eu.okaeri.persistencetestjdbc.relations.LazyRef;
+import eu.okaeri.persistence.document.ref.LazyRef;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;

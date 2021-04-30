@@ -6,6 +6,7 @@ import eu.okaeri.configs.serdes.OkaeriSerdesPack;
 import eu.okaeri.configs.serdes.TransformerRegistry;
 import eu.okaeri.configs.serdes.commons.SerdesCommons;
 import eu.okaeri.configs.serdes.standard.StandardSerdes;
+import eu.okaeri.persistence.document.ref.LazyRefSerializer;
 import eu.okaeri.persistence.index.IndexProperty;
 import eu.okaeri.persistence.raw.RawPersistence;
 import eu.okaeri.persistence.Persistence;
@@ -39,6 +40,7 @@ public class DocumentPersistence implements Persistence<Document> {
         // shared transform registry for faster transformations
         this.transformerRegistry = new TransformerRegistry();
         Stream.concat(Stream.of(new StandardSerdes(), new SerdesCommons()), Stream.of(this.serdesPacks)).forEach(pack -> pack.register(this.transformerRegistry));
+        this.transformerRegistry.register(new LazyRefSerializer(this));
         // simplifier for document mappings
         this.simplifier = configurerProvider.get();
         this.simplifier.setRegistry(this.transformerRegistry);
