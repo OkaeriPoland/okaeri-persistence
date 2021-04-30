@@ -1,6 +1,5 @@
 package eu.okaeri.persistence.repository;
 
-import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.document.Document;
 
 import java.util.Collection;
@@ -13,9 +12,9 @@ public interface DocumentRepository<PATH, T extends Document> {
     long deleteAllByPath(Iterable<? extends PATH> paths);
     boolean deleteByPath(PATH path);
     boolean existsByPath(PATH path);
-    Stream<PersistenceEntity<T>> findAll();
-    Collection<PersistenceEntity<T>> findAllByPath(Iterable<? extends PATH> paths);
-    Collection<PersistenceEntity<T>> findOrCreateAllByPath(Iterable<? extends PATH> paths);
+    Stream<T> findAll();
+    Collection<T> findAllByPath(Iterable<? extends PATH> paths);
+    Collection<T> findOrCreateAllByPath(Iterable<? extends PATH> paths);
     Optional<T> findByPath(PATH path);
     T findOrCreateByPath(PATH path);
     T save(T document);

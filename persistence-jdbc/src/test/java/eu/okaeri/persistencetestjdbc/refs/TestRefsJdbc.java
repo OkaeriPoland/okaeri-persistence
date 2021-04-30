@@ -8,7 +8,7 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.document.ref.EagerRef;
-import eu.okaeri.persistence.document.ref.LazyRef;
+import eu.okaeri.persistence.document.ref.Ref;
 import eu.okaeri.persistence.jdbc.H2Persistence;
 import eu.okaeri.persistence.repository.RepositoryDeclaration;
 import eu.okaeri.persistencetestjdbc.refs.entity.Author;
@@ -113,11 +113,9 @@ public class TestRefsJdbc {
         Book book = this.bookRepository.findByPath(this.book3.getPath().toUUID()).get();
         System.out.println(book);
 
-        for (LazyRef<Author> author : book.getAuthors()) {
-            Author authorr = author.get();
-            System.out.println(authorr);
+        for (Ref<Author> authorRef : book.getAuthors()) {
+            Author author = authorRef.get().orElse(null);
+            System.out.println(author);
         }
-
-//        System.out.println(book.saveToString());
     }
 }

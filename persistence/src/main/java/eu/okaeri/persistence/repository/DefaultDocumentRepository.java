@@ -7,9 +7,8 @@ import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import lombok.RequiredArgsConstructor;
 
-import java.util.Collection;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -49,13 +48,14 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     }
 
     @Override
-    public Stream<PersistenceEntity<T>> findAll() {
+    public Stream<T> findAll() {
         return this.persistence.streamAll(this.collection)
-                .map(entity -> entity.into(this.documentType));
+                .map(entity -> entity.into(this.documentType))
+                .map(PersistenceEntity::getValue);
     }
 
     @Override
-    public Collection<PersistenceEntity<T>> findAllByPath(Iterable<?> paths) {
+    public Collection<T> findAllByPath(Iterable<?> paths) {
 
         Set<PersistencePath> pathSet = StreamSupport.stream(paths.spliterator(), false)
                 .map(DefaultDocumentRepository::toPath)
@@ -63,11 +63,12 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
 
         return this.persistence.read(this.collection, pathSet).entrySet().stream()
                 .map(entry -> new PersistenceEntity<>(entry.getKey(), entry.getValue().into(this.documentType)))
+                .map(PersistenceEntity::getValue)
                 .collect(Collectors.toList());
     }
 
     @Override
-    public Collection<PersistenceEntity<T>> findOrCreateAllByPath(Iterable<?> paths) {
+    public Collection<T> findOrCreateAllByPath(Iterable<?> paths) {
 
         Set<PersistencePath> pathSet = StreamSupport.stream(paths.spliterator(), false)
                 .map(DefaultDocumentRepository::toPath)
@@ -75,6 +76,7 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
 
         return this.persistence.readOrEmpty(this.collection, pathSet).entrySet().stream()
                 .map(entry -> new PersistenceEntity<>(entry.getKey(), entry.getValue().into(this.documentType)))
+                .map(PersistenceEntity::getValue)
                 .collect(Collectors.toList());
     }
 
@@ -98,7 +100,9 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
 
     @Override
     public Iterable<T> saveAll(Iterable<T> documents) {
-        documents.forEach(Document::save);
+        Map<PersistencePath, Document> documentMap = StreamSupport.stream(documents.spliterator(), false)
+                .collect(Collectors.toMap(Document::getPath, Function.identity()));
+        this.persistence.write(this.collection, documentMap);
         return documents;
     }
 

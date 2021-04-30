@@ -268,6 +268,19 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
+    public long write(PersistenceCollection collection, Map<PersistencePath, Document> entities) {
+
+        Map<PersistencePath, String> rawMap = new LinkedHashMap<>();
+
+        for (Map.Entry<PersistencePath, Document> entry : entities.entrySet()) {
+            this.updateIndex(collection, entry.getKey(), entry.getValue());
+            rawMap.put(entry.getKey(), entry.getValue().saveToString());
+        }
+
+        return this.getRaw().write(collection, rawMap);
+    }
+
+    @Override
     public boolean delete(PersistenceCollection collection, PersistencePath path) {
         return this.getRaw().delete(collection, path);
     }

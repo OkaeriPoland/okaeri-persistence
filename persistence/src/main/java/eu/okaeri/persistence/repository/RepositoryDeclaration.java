@@ -5,7 +5,7 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
-import eu.okaeri.persistence.repository.annotation.PropertyPath;
+import eu.okaeri.persistence.repository.annotation.DocumentPath;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
@@ -33,7 +33,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
 
         for (Method method : clazz.getDeclaredMethods()) {
 
-            PropertyPath property = method.getAnnotation(PropertyPath.class);
+            DocumentPath property = method.getAnnotation(DocumentPath.class);
             if (property == null) {
                 continue;
             }

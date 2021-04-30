@@ -91,4 +91,27 @@ public class H2Persistence extends JdbcPersistence {
             throw new RuntimeException("cannot write " + path + " to " + collection, exception);
         }
     }
+
+    @Override
+    public long write(PersistenceCollection collection, Map<PersistencePath, String> entities) {
+
+        this.checkCollectionRegistered(collection);
+        String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?) on duplicate key update `value` = ?";
+
+        try (Connection connection = this.getDataSource().getConnection()) {
+            PreparedStatement prepared = connection.prepareStatement(sql);
+            connection.setAutoCommit(false);
+            for (Map.Entry<PersistencePath, String> entry : entities.entrySet()) {
+                prepared.setString(1, entry.getKey().getValue());
+                prepared.setString(2, entry.getValue());
+                prepared.setString(3, entry.getValue());
+                prepared.addBatch();
+            }
+            int changes = prepared.executeUpdate();
+            connection.commit();
+            return changes;
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot write " + entities + " to " + collection, exception);
+        }
+    }
 }

@@ -1,8 +1,8 @@
 package eu.okaeri.persistence;
 
 import eu.okaeri.persistence.index.IndexProperty;
-import eu.okaeri.persistence.repository.annotation.Collection;
-import eu.okaeri.persistence.repository.annotation.Index;
+import eu.okaeri.persistence.repository.annotation.DocumentCollection;
+import eu.okaeri.persistence.repository.annotation.DocumentIndex;
 import lombok.Getter;
 import lombok.ToString;
 
@@ -15,13 +15,13 @@ public class PersistenceCollection extends PersistencePath {
 
     public static PersistenceCollection of(Class<?> clazz) {
 
-        Collection collection = clazz.getAnnotation(Collection.class);
+        DocumentCollection collection = clazz.getAnnotation(DocumentCollection.class);
         if (collection == null) {
             throw new IllegalArgumentException(clazz + " is not annotated with @Collection");
         }
 
         PersistenceCollection out = PersistenceCollection.of(collection.path(), collection.keyLength());
-        for (Index index : collection.indexes()) {
+        for (DocumentIndex index : collection.indexes()) {
             out.index(IndexProperty.parse(index.path()).maxLength(index.maxLength()));
         }
 

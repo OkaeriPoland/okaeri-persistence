@@ -10,24 +10,24 @@ import eu.okaeri.persistence.document.DocumentPersistence;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-public class LazyRefSerializer implements ObjectSerializer<LazyRef<? extends Document>> {
+public class LazyRefSerializer implements ObjectSerializer<Ref<? extends Document>> {
 
     private final DocumentPersistence persistence;
 
     @Override
     public boolean supports(Class clazz) {
-        return LazyRef.class.isAssignableFrom(clazz);
+        return Ref.class.isAssignableFrom(clazz);
     }
 
     @Override
-    public void serialize(LazyRef lazyRef, SerializationData serializationData) {
+    public void serialize(Ref lazyRef, SerializationData serializationData) {
         serializationData.add("_id", lazyRef.getId().getValue());
         serializationData.add("_collection", lazyRef.getCollection().getValue());
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public LazyRef<? extends Document> deserialize(DeserializationData deserializationData, GenericsDeclaration genericsDeclaration) {
+    public Ref<? extends Document> deserialize(DeserializationData deserializationData, GenericsDeclaration genericsDeclaration) {
 
         PersistencePath id = PersistencePath.of(deserializationData.get("_id", String.class));
         PersistencePath collection = PersistencePath.of(deserializationData.get("_collection", String.class));

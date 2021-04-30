@@ -10,10 +10,7 @@ import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
 import lombok.SneakyThrows;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
@@ -398,23 +395,23 @@ public class JdbcPersistence extends RawPersistence {
     @Override
     public boolean write(PersistenceCollection collection, PersistencePath path, String raw) {
 
-        if (this.read(collection, path) == null) {
-            String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?)";
+        if (this.read(collection, path).isPresent()) {
+            String sql = "update `" + this.table(collection) + "` set `value` = ? where `key` = ?";
             try (Connection connection = this.dataSource.getConnection()) {
                 PreparedStatement prepared = connection.prepareStatement(sql);
-                prepared.setString(1, path.getValue());
-                prepared.setString(2, raw);
+                prepared.setString(1, raw);
+                prepared.setString(2, path.getValue());
                 return prepared.executeUpdate() > 0;
             } catch (SQLException exception) {
                 throw new RuntimeException("cannot write " + path + " to " + collection, exception);
             }
         }
 
-        String sql = "update `" + this.table(collection) + "` set `value` = ? where `key` = ?";
+        String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?)";
         try (Connection connection = this.dataSource.getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
-            prepared.setString(1, raw);
-            prepared.setString(2, path.getValue());
+            prepared.setString(1, path.getValue());
+            prepared.setString(2, raw);
             return prepared.executeUpdate() > 0;
         } catch (SQLException exception) {
             throw new RuntimeException("cannot write " + path + " to " + collection, exception);

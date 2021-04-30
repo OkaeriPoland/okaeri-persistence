@@ -160,7 +160,7 @@ public class RedisPersistence extends RawPersistence {
     @Override
     public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
 
-        if (!this.canUseToString(propertyValue) ||!this.isIndexed(collection, property)) {
+        if (!this.canUseToString(propertyValue) || !this.isIndexed(collection, property)) {
             return this.streamAll(collection);
         }
 

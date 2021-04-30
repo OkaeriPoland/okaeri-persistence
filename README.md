@@ -108,9 +108,9 @@ public interface DocumentRepository<PATH, T extends Document> {
     long deleteAllByPath(Iterable<? extends PATH> paths);
     boolean deleteByPath(PATH path);
     boolean existsByPath(PATH path);
-    Stream<PersistenceEntity<T>> findAll();
-    Collection<PersistenceEntity<T>> findAllByPath(Iterable<? extends PATH> paths);
-    Collection<PersistenceEntity<T>> findOrCreateAllByPath(Iterable<? extends PATH> paths);
+    Stream<T> findAll();
+    Collection<T> findAllByPath(Iterable<? extends PATH> paths);
+    Collection<T> findOrCreateAllByPath(Iterable<? extends PATH> paths);
     Optional<T> findByPath(PATH path);
     T findOrCreateByPath(PATH path);
     T save(T document);
@@ -120,31 +120,31 @@ public interface DocumentRepository<PATH, T extends Document> {
 
 ### Example repository
 ```java
-@Collection(path = "user", keyLength = 36, indexes = {
-        @Index(path = "shortId", maxLength = 8),
-        @Index(path = "meta.name", maxLength = 64)
+@DocumentCollection(path = "user", keyLength = 36, indexes = {
+        @DocumentIndex(path = "shortId", maxLength = 8),
+        @DocumentIndex(path = "meta.name", maxLength = 64)
 })
 public interface UserRepository extends DocumentRepository<UUID, User> {
 
-    @PropertyPath("shortId")
+    @DocumentPath("shortId")
     Stream<User> streamByShortId(String shortId);
 
-    @PropertyPath("shortId")
+    @DocumentPath("shortId")
     Optional<User> findByShortId(String shortId);
 
-    @PropertyPath("shortId")
+    @DocumentPath("shortId")
     List<User> listByShortId(String shortId);
 
-    @PropertyPath("shortId")
+    @DocumentPath("shortId")
     Stream<PersistenceEntity<User>> streamEntityByShortId(String shortId);
 
-    @PropertyPath("shortId")
+    @DocumentPath("shortId")
     Optional<PersistenceEntity<User>> findEntityByShortId(String shortId);
 
-    @PropertyPath("shortId")
+    @DocumentPath("shortId")
     List<PersistenceEntity<User>> listEntityByShortId(String shortId);
 
-    @PropertyPath("meta.name")
+    @DocumentPath("meta.name")
     Stream<User> streamByMetaName(String name);
 
     // custom method

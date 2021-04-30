@@ -2,9 +2,9 @@ package eu.okaeri.persistencetestjdbc.basic.repository;
 
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.repository.DocumentRepository;
-import eu.okaeri.persistence.repository.annotation.Collection;
-import eu.okaeri.persistence.repository.annotation.Index;
-import eu.okaeri.persistence.repository.annotation.PropertyPath;
+import eu.okaeri.persistence.repository.annotation.DocumentCollection;
+import eu.okaeri.persistence.repository.annotation.DocumentIndex;
+import eu.okaeri.persistence.repository.annotation.DocumentPath;
 import eu.okaeri.persistencetestjdbc.basic.entity.User;
 
 import java.util.List;
@@ -12,31 +12,31 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 
-@Collection(path = "user", keyLength = 36, indexes = {
-        @Index(path = "shortId", maxLength = 8),
-        @Index(path = "meta.name", maxLength = 64)
+@DocumentCollection(path = "user", keyLength = 36, indexes = {
+        @DocumentIndex(path = "shortId", maxLength = 8),
+        @DocumentIndex(path = "meta.name", maxLength = 64)
 })
 public interface UserRepository extends DocumentRepository<UUID, User> {
 
-    @PropertyPath("shortId")
+    @DocumentPath("shortId")
     Stream<User> streamByShortId(String shortId);
 
-    @PropertyPath("shortId")
+    @DocumentPath("shortId")
     Optional<User> findByShortId(String shortId);
 
-    @PropertyPath("shortId")
+    @DocumentPath("shortId")
     List<User> listByShortId(String shortId);
 
-    @PropertyPath("shortId")
+    @DocumentPath("shortId")
     Stream<PersistenceEntity<User>> streamEntityByShortId(String shortId);
 
-    @PropertyPath("shortId")
+    @DocumentPath("shortId")
     Optional<PersistenceEntity<User>> findEntityByShortId(String shortId);
 
-    @PropertyPath("shortId")
+    @DocumentPath("shortId")
     List<PersistenceEntity<User>> listEntityByShortId(String shortId);
 
-    @PropertyPath("meta.name")
+    @DocumentPath("meta.name")
     Stream<User> streamByMetaName(String name);
 
     // custom method
