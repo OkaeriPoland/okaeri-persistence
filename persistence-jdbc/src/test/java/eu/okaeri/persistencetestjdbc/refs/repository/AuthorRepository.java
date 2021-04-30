@@ -1,9 +1,9 @@
-package eu.okaeri.persistencetestjdbc.relations.repository;
+package eu.okaeri.persistencetestjdbc.refs.repository;
 
 import eu.okaeri.persistence.repository.DocumentRepository;
 import eu.okaeri.persistence.repository.annotation.Collection;
 import eu.okaeri.persistence.repository.annotation.Index;
-import eu.okaeri.persistencetestjdbc.relations.entity.Author;
+import eu.okaeri.persistencetestjdbc.refs.entity.Author;
 
 import java.util.UUID;
 

@@ -1,4 +1,4 @@
-package eu.okaeri.persistencetestjdbc.relations;
+package eu.okaeri.persistencetestjdbc.refs;
 
 
 import com.zaxxer.hikari.HikariConfig;
@@ -7,13 +7,14 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
+import eu.okaeri.persistence.document.ref.EagerRef;
 import eu.okaeri.persistence.document.ref.LazyRef;
 import eu.okaeri.persistence.jdbc.H2Persistence;
 import eu.okaeri.persistence.repository.RepositoryDeclaration;
-import eu.okaeri.persistencetestjdbc.relations.entity.Author;
-import eu.okaeri.persistencetestjdbc.relations.entity.Book;
-import eu.okaeri.persistencetestjdbc.relations.repository.AuthorRepository;
-import eu.okaeri.persistencetestjdbc.relations.repository.BookRepository;
+import eu.okaeri.persistencetestjdbc.refs.entity.Author;
+import eu.okaeri.persistencetestjdbc.refs.entity.Book;
+import eu.okaeri.persistencetestjdbc.refs.repository.AuthorRepository;
+import eu.okaeri.persistencetestjdbc.refs.repository.BookRepository;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class TestRelationsJdbc {
+public class TestRefsJdbc {
 
     private static final long CREATE_USERS = 1_000;
 
@@ -57,8 +58,8 @@ public class TestRelationsJdbc {
         this.persistence.registerCollection(this.authorCollection);
 
         // create repository instance
-        this.bookRepository = RepositoryDeclaration.of(BookRepository.class).newProxy(this.persistence, this.bookCollection, TestRelationsJdbc.class.getClassLoader());
-        this.authorRepository = RepositoryDeclaration.of(AuthorRepository.class).newProxy(this.persistence, this.authorCollection, TestRelationsJdbc.class.getClassLoader());
+        this.bookRepository = RepositoryDeclaration.of(BookRepository.class).newProxy(this.persistence, this.bookCollection, TestRefsJdbc.class.getClassLoader());
+        this.authorRepository = RepositoryDeclaration.of(AuthorRepository.class).newProxy(this.persistence, this.authorCollection, TestRefsJdbc.class.getClassLoader());
     }
 
     private Author author1;
@@ -88,15 +89,15 @@ public class TestRelationsJdbc {
 
         this.book1 = this.bookRepository.findOrCreateByPath(UUID.randomUUID());
         this.book1.setTitle("Some book: The title of single author book");
-        this.book1.setAuthors(Collections.singletonList(LazyRef.of(this.author1)));
+        this.book1.setAuthors(Collections.singletonList(EagerRef.of(this.author1)));
 
         this.book2 = this.bookRepository.findOrCreateByPath(UUID.randomUUID());
         this.book2.setTitle("Some book: The title of two author book");
-        this.book2.setAuthors(Arrays.asList(LazyRef.of(this.author1), LazyRef.of(this.author2)));
+        this.book2.setAuthors(Arrays.asList(EagerRef.of(this.author1), EagerRef.of(this.author2)));
 
         this.book3 = this.bookRepository.findOrCreateByPath(UUID.randomUUID());
         this.book3.setTitle("Some book: The title of three author book");
-        this.book3.setAuthors(Arrays.asList(LazyRef.of(this.author2), LazyRef.of(this.author3), LazyRef.of(this.author4)));
+        this.book3.setAuthors(Arrays.asList(EagerRef.of(this.author2), EagerRef.of(this.author3), EagerRef.of(this.author4)));
 
         Stream.of(this.author1, this.author2, this.author3, this.author4, this.book1, this.book1, this.book3).forEach(Document::save);
     }

@@ -1,4 +1,4 @@
-package eu.okaeri.persistencetestjdbc.relations.entity;
+package eu.okaeri.persistencetestjdbc.refs.entity;
 
 import eu.okaeri.persistence.document.Document;
 import lombok.Data;

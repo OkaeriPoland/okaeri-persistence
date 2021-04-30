@@ -8,9 +8,14 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import java.util.logging.Logger;
+
 @Data
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 public class LazyRef<T extends Document> {
+
+    private static final boolean DEBUG = Boolean.parseBoolean(System.getProperty("okaeri.platform.debug", "false"));
+    private static final Logger LOGGER = Logger.getLogger(LazyRef.class.getName());
 
     public static <A extends Document> LazyRef<A> of(A document) {
         PersistencePath path = document.getPath();
@@ -37,11 +42,17 @@ public class LazyRef<T extends Document> {
     @SuppressWarnings("unchecked")
     public T fetch() {
 
+        long start = System.currentTimeMillis();
         PersistenceCollection collection = PersistenceCollection.of(this.collection.getValue());
         this.value = (T) this.persistence.read(collection, this.id).orElse(null);
 
         if (this.value != null) {
             this.value = (T) this.value.into(this.valueType);
+        }
+
+        if (DEBUG) {
+            long took = System.currentTimeMillis() - start;
+            LOGGER.info("Fetched document reference for " + this.collection.getValue() + " [" + this.id.getValue() + "]: " + took + " ms");
         }
 
         this.fetched = true;
