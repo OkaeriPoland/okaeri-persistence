@@ -117,7 +117,7 @@ public class TestPersistenceJdbc {
 
     @Test
     public void test_repository_find_all() {
-        assertTrue(this.repository.findAll().anyMatch(entity -> entity.getValue().equals(this.lastUser)));
+        assertTrue(this.repository.findAll().anyMatch(entity -> entity.equals(this.lastUser)));
         assertEquals(CREATE_USERS, this.repository.findAll().count());
     }
 
@@ -127,15 +127,15 @@ public class TestPersistenceJdbc {
         assertEquals(0, this.repository.findAllByPath(Collections.singletonList(UUID.randomUUID())).size());
         assertEquals(0, this.repository.findAllByPath(Arrays.asList(UUID.randomUUID(), UUID.randomUUID())).size());
         // test real user
-        Collection<PersistenceEntity<User>> result1 = this.repository.findAllByPath(Collections.singletonList(this.lastUser.getId()));
+        Collection<User> result1 = this.repository.findAllByPath(Collections.singletonList(this.lastUser.getId()));
         assertEquals(1, result1.size());
         assertEquals(PersistencePath.of(this.lastUser.getId()), new ArrayList<>(result1).get(0).getPath());
-        assertEquals(this.lastUser, new ArrayList<>(result1).get(0).getValue());
+        assertEquals(this.lastUser, new ArrayList<>(result1).get(0));
         // test real user - requires no duplicates
-        Collection<PersistenceEntity<User>> result2 = this.repository.findAllByPath(Arrays.asList(this.lastUser.getId(), this.lastUser.getId()));
+        Collection<User> result2 = this.repository.findAllByPath(Arrays.asList(this.lastUser.getId(), this.lastUser.getId()));
         assertEquals(1, result2.size());
         assertEquals(PersistencePath.of(this.lastUser.getId()), new ArrayList<>(result2).get(0).getPath());
-        assertEquals(this.lastUser, new ArrayList<>(result2).get(0).getValue());
+        assertEquals(this.lastUser, new ArrayList<>(result2).get(0));
     }
 
     @Test

@@ -5,7 +5,7 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
 
-public class EagerRef<T extends Document> extends LazyRef<T> {
+public class EagerRef<T extends Document> extends Ref<T> {
 
     public static <A extends Document> EagerRef<A> of(A document) {
         PersistencePath path = document.getPath();

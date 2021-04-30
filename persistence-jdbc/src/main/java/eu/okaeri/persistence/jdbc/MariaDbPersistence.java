@@ -1,23 +1,16 @@
 package eu.okaeri.persistence.jdbc;
 
 import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
-import eu.okaeri.persistence.index.IndexProperty;
-import eu.okaeri.persistence.raw.RawPersistence;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
-import lombok.Getter;
-import lombok.SneakyThrows;
+import eu.okaeri.persistence.index.IndexProperty;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.function.Predicate;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -135,6 +128,29 @@ public class MariaDbPersistence extends JdbcPersistence {
             return prepared.executeUpdate() > 0;
         } catch (SQLException exception) {
             throw new RuntimeException("cannot write " + path + " to " + collection, exception);
+        }
+    }
+
+    @Override
+    public long write(PersistenceCollection collection, Map<PersistencePath, String> entities) {
+
+        this.checkCollectionRegistered(collection);
+        String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?) on duplicate key update `value` = ?";
+
+        try (Connection connection = this.getDataSource().getConnection()) {
+            PreparedStatement prepared = connection.prepareStatement(sql);
+            connection.setAutoCommit(false);
+            for (Map.Entry<PersistencePath, String> entry : entities.entrySet()) {
+                prepared.setString(1, entry.getKey().getValue());
+                prepared.setString(2, entry.getValue());
+                prepared.setString(3, entry.getValue());
+                prepared.addBatch();
+            }
+            int changes = prepared.executeUpdate();
+            connection.commit();
+            return changes;
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot write " + entities + " to " + collection, exception);
         }
     }
 }

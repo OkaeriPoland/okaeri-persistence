@@ -79,6 +79,9 @@ public interface Persistence<T> {
     // write object to exact key
     boolean write(PersistenceCollection collection, PersistencePath path, T entity);
 
+    // write multiple objects
+    long write(PersistenceCollection collection, Map<PersistencePath, T> entities);
+
     // delete single
     boolean delete(PersistenceCollection collection, PersistencePath path);
 

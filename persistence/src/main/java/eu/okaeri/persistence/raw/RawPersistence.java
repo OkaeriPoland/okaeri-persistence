@@ -1,15 +1,16 @@
 package eu.okaeri.persistence.raw;
 
-import eu.okaeri.persistence.index.IndexProperty;
 import eu.okaeri.persistence.Persistence;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.persistence.index.IndexProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 @AllArgsConstructor
@@ -69,6 +70,11 @@ public abstract class RawPersistence implements Persistence<String> {
     }
 
     @Override
+    public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
+        throw new RuntimeException("not implemented yet");
+    }
+
+    @Override
     public String readOrEmpty(PersistenceCollection collection, PersistencePath path) {
         return this.read(collection, path).orElse("");
     }
@@ -88,8 +94,11 @@ public abstract class RawPersistence implements Persistence<String> {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
-        throw new RuntimeException("not implemented yet");
+    public long write(PersistenceCollection collection, Map<PersistencePath, String> entities) {
+        return entities.entrySet().stream()
+                .map(entry -> this.write(collection, entry.getKey(), entry.getValue()))
+                .filter(Predicate.isEqual(true))
+                .count();
     }
 
     public void checkCollectionRegistered(PersistenceCollection collection) {
