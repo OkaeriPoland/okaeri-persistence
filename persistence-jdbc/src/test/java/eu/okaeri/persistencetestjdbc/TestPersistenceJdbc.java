@@ -199,4 +199,10 @@ public class TestPersistenceJdbc {
         // test real user
         assertIterableEquals(Collections.singletonList(this.lastUser), this.repository.listByShortId(this.lastUser.getShortId()));
     }
+
+    @Test
+    public void test_repository_custom_default() {
+        assertNull(this.repository.getMetaDescriptionById(UUID.randomUUID()));
+        assertEquals(this.lastUser.getMeta().getDescription(), this.repository.getMetaDescriptionById(this.lastUser.getId()));
+    }
 }
