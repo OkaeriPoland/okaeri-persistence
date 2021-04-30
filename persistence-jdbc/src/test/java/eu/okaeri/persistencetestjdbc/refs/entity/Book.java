@@ -1,7 +1,7 @@
-package eu.okaeri.persistencetestjdbc.relations.entity;
+package eu.okaeri.persistencetestjdbc.refs.entity;
 
 import eu.okaeri.persistence.document.Document;
-import eu.okaeri.persistence.document.ref.LazyRef;
+import eu.okaeri.persistence.document.ref.EagerRef;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -13,5 +13,5 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = false)
 public class Book extends Document {
     private String title;
-    private List<LazyRef<Author>> authors;
+    private List<EagerRef<Author>> authors;
 }

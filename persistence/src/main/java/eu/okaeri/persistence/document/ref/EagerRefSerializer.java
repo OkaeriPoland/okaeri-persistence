@@ -10,24 +10,24 @@ import eu.okaeri.persistence.document.DocumentPersistence;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
-public class LazyRefSerializer implements ObjectSerializer<LazyRef<? extends Document>> {
+public class EagerRefSerializer implements ObjectSerializer<EagerRef<? extends Document>> {
 
     private final DocumentPersistence persistence;
 
     @Override
     public boolean supports(Class clazz) {
-        return LazyRef.class.isAssignableFrom(clazz);
+        return EagerRef.class.isAssignableFrom(clazz);
     }
 
     @Override
-    public void serialize(LazyRef lazyRef, SerializationData serializationData) {
-        serializationData.add("_id", lazyRef.getId().getValue());
-        serializationData.add("_collection", lazyRef.getCollection().getValue());
+    public void serialize(EagerRef eagerRef, SerializationData serializationData) {
+        serializationData.add("_id", eagerRef.getId().getValue());
+        serializationData.add("_collection", eagerRef.getCollection().getValue());
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public LazyRef<? extends Document> deserialize(DeserializationData deserializationData, GenericsDeclaration genericsDeclaration) {
+    public EagerRef<? extends Document> deserialize(DeserializationData deserializationData, GenericsDeclaration genericsDeclaration) {
 
         PersistencePath id = PersistencePath.of(deserializationData.get("_id", String.class));
         PersistencePath collection = PersistencePath.of(deserializationData.get("_collection", String.class));
@@ -36,6 +36,9 @@ public class LazyRefSerializer implements ObjectSerializer<LazyRef<? extends Doc
         if (subtype == null) throw new IllegalArgumentException("cannot create LazyRef from " + genericsDeclaration);
         Class<? extends Document> type = (Class<? extends Document>) subtype.getType();
 
-        return new LazyRef<>(id, collection, type, null, false, this.persistence);
+        EagerRef<Document> ref = new EagerRef<>(id, collection, type, null, false, this.persistence);
+        ref.fetch();
+
+        return ref;
     }
 }
