@@ -137,6 +137,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
                 }
                 return defaultMethod.invoke(defaultRepository, args);
             } catch (NoSuchMethodException | SecurityException ignored) {
+                defaultRepositoryMethods.put(method, null);
             }
 
             RepositoryMethod repositoryMethod = RepositoryMethod.of(method);
