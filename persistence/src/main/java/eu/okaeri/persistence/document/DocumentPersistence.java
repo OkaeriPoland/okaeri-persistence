@@ -12,7 +12,7 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.ref.EagerRefSerializer;
 import eu.okaeri.persistence.document.ref.LazyRefSerializer;
-import eu.okaeri.persistence.index.IndexProperty;
+import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
 

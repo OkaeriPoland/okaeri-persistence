@@ -1,4 +1,4 @@
-package eu.okaeri.persistence.index;
+package eu.okaeri.persistence.document.index;
 
 import eu.okaeri.persistence.document.Document;
 import lombok.Getter;

@@ -1,6 +1,6 @@
 package eu.okaeri.persistence;
 
-import eu.okaeri.persistence.index.IndexProperty;
+import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.repository.annotation.DocumentCollection;
 import eu.okaeri.persistence.repository.annotation.DocumentIndex;
 import lombok.Getter;

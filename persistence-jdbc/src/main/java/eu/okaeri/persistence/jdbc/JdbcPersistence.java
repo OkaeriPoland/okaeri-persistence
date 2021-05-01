@@ -5,7 +5,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
-import eu.okaeri.persistence.index.IndexProperty;
+import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
 import lombok.SneakyThrows;
