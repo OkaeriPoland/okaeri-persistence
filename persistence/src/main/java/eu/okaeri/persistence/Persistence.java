@@ -1,6 +1,6 @@
 package eu.okaeri.persistence;
 
-import eu.okaeri.persistence.index.IndexProperty;
+import eu.okaeri.persistence.document.index.IndexProperty;
 
 import java.util.Collection;
 import java.util.Map;

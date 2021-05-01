@@ -4,7 +4,7 @@ import com.zaxxer.hikari.HikariConfig;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
-import eu.okaeri.persistence.index.IndexProperty;
+import eu.okaeri.persistence.document.index.IndexProperty;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
