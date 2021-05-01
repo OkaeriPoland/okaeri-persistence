@@ -11,14 +11,21 @@ Originally developed for and part of the [okaeri-platform](https://github.com/Ok
 
 ## Backends
 
+### Flat & Databases
+
 | Name | Type | Indexes | Comment |
 |-|-|-|-|
-| InMemoryPersistence | `core` | Yes (in-memory) | Included in the core library implementation allowing to manage volatile collections of configurations. Great to store user state, e.g. on gameservers, can store even unserializable entities (it is required to mark them as @Excluded, because indexing still needs to deconstruct documents). Allows to use the power of indexing without the need for database. |
 | FlatPersistence | `flat` | Yes (in-memory or file based) | Allows managing collections of the configuration files with the possibility to index certain properties for quick search, any okaeri-configs provider can be used. With the default saveIndex=false index is automatically created every startup. One may choose to save index to disk. However, we highly advise against using persistent index, especially in write intensive applications. |
 | MariaDbPersistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created with MySQL/MariaDB in mind using native JSON datatype, makes use of the json_extract for filtering by properties even when property is not marked as indexed. |
 | H2Persistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for H2 databases in `mode=mysql`. Stores JSON in the text field, makes use of the instr for prefiltering when possible. |
 | JdbcPersistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for generic JDBC support. Stores JSON in the text field, makes no use of any prefiltering whatsoever. Data writes take two queries. |
 | RedisPersistence | `redis` | Yes (additional hashes and sets) | Uses [Lettuce](https://lettuce.io/). Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties. Currently the fastest implementation avaibile. |
+
+### Special usage
+
+| Name | Type | Indexes | Comment |
+|-|-|-|-|
+| InMemoryDocumentPersistence | `core` | Yes (in-memory) | Included in the core library implementation allowing to manage volatile collections of configurations. Great to store user state, e.g. on gameservers, can store even unserializable entities (it is required to mark them as @Excluded, because indexing still needs to deconstruct documents). Allows to use the power of indexing without the need for database. |
 
 ## Genesis
 
