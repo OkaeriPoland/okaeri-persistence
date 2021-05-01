@@ -6,14 +6,14 @@ import eu.okaeri.configs.serdes.OkaeriSerdesPack;
 import eu.okaeri.configs.serdes.TransformerRegistry;
 import eu.okaeri.configs.serdes.commons.SerdesCommons;
 import eu.okaeri.configs.serdes.standard.StandardSerdes;
-import eu.okaeri.persistence.document.ref.EagerRefSerializer;
-import eu.okaeri.persistence.document.ref.LazyRefSerializer;
-import eu.okaeri.persistence.index.IndexProperty;
-import eu.okaeri.persistence.raw.RawPersistence;
 import eu.okaeri.persistence.Persistence;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.persistence.document.ref.EagerRefSerializer;
+import eu.okaeri.persistence.document.ref.LazyRefSerializer;
+import eu.okaeri.persistence.index.IndexProperty;
+import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
 
 import java.math.BigDecimal;
@@ -320,7 +320,7 @@ public class DocumentPersistence implements Persistence<Document> {
         };
     }
 
-    private Object extractValue(Map<?, ?> document, List<String> pathParts) {
+    protected Object extractValue(Map<?, ?> document, List<String> pathParts) {
         for (String part : pathParts) {
             Object element = document.get(part);
             if (element instanceof Map) {

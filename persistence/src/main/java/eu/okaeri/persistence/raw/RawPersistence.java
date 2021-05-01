@@ -10,6 +10,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -17,8 +18,8 @@ import java.util.stream.Stream;
 public abstract class RawPersistence implements Persistence<String> {
 
     @Getter private final PersistencePath basePath;
-    @Getter private final Map<String, PersistenceCollection> knownCollections = new HashMap<>();
-    @Getter private final Map<String, Set<IndexProperty>> knownIndexes = new HashMap<>();
+    @Getter private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
+    @Getter private final Map<String, Set<IndexProperty>> knownIndexes = new ConcurrentHashMap<>();
     @Getter private final boolean nativeReadByProperty;
     @Getter private final boolean nativeIndexes;
     @Getter @Setter private boolean useStringSearch;

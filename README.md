@@ -13,6 +13,7 @@ Originally developed for and part of the [okaeri-platform](https://github.com/Ok
 
 | Name | Type | Indexes | Comment |
 |-|-|-|-|
+| InMemoryPersistence | `core` | Yes (in-memory) | Included in the core library implementation allowing to manage volatile collections of configurations. Great to store user state, e.g. on gameservers, can store even unserializable entities (it is required to mark them as @Excluded, because indexing still needs to deconstruct documents). Allows to use the power of indexing without the need for database. |
 | FlatPersistence | `flat` | Yes (in-memory or file based) | Allows managing collections of the configuration files with the possibility to index certain properties for quick search, any okaeri-configs provider can be used. With the default saveIndex=false index is automatically created every startup. One may choose to save index to disk. However, we highly advise against using persistent index, especially in write intensive applications. |
 | MariaDbPersistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created with MySQL/MariaDB in mind using native JSON datatype, makes use of the json_extract for filtering by properties even when property is not marked as indexed. |
 | H2Persistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for H2 databases in `mode=mysql`. Stores JSON in the text field, makes use of the instr for prefiltering when possible. |
@@ -74,6 +75,14 @@ for small game server or local app, but a real database may be required for the 
 Fetching by indexed property is expected to be almost as quick as using ID, but when the implementation does not 
 provide it, fallback methods are used for slower but still working filtering. Thanks to that you can get the
 best performance possible on the specific backend and it just works.
+
+Indexing comes at the cost of increased memory or/and storage usage and write penalty, varying depending on the backend. 
+It is highly recommended, same as with every database, to chose your indexes wisely. You are trading some of that write 
+speed and resources for the greatly reduced read times.
+
+Manual changes done to the databases, depending on the backend, may cause emulated indexes to be inaccurate. We guarantee
+however, to never feed you wrong data (e.g. when you are searching by prop=123 you should always get only matching documents).
+It is possible to miss some data in such search, where the database was manually altered without updating indexes.
 
 ```java
 PersistenceCollection.of("player", 36)
