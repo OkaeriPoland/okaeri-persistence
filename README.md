@@ -14,15 +14,17 @@ Originally developed for and part of the [okaeri-platform](https://github.com/Ok
 | Name | Type | Indexes | Comment |
 |-|-|-|-|
 | FlatPersistence | `flat` | Yes (in-memory or file based) | Allows managing collections of the configuration files with the possibility to index certain properties for quick search, any okaeri-configs provider can be used. With the default saveIndex=false index is automatically created every startup. One may choose to save index to disk. However, we highly advise against using persistent index, especially in write intensive applications. |
-| MariaDbPersistence | `jdbc` | Yes (additional table) | Created with MySQL/MariaDB in mind using native JSON datatype, makes use of the json_extract for filtering by properties even when property is not marked as indexed. |
-| H2Persistence | `jdbc` | Yes (additional table) | Created for H2 databases in `mode=mysql`. Stores JSON in the text field, makes use of the instr for prefiltering when possible. |
-| JdbcPersistence | `jdbc` | Yes (additional table) | Created for generic JDBC support. Stores JSON in the text field, makes no use of any prefiltering whatsoever. Data writes take two queries. |
-| RedisPersistence | `redis` | Yes (additional hashes and sets) | Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties. Currently the fastest implementation avaibile. |
+| MariaDbPersistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created with MySQL/MariaDB in mind using native JSON datatype, makes use of the json_extract for filtering by properties even when property is not marked as indexed. |
+| H2Persistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for H2 databases in `mode=mysql`. Stores JSON in the text field, makes use of the instr for prefiltering when possible. |
+| JdbcPersistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for generic JDBC support. Stores JSON in the text field, makes no use of any prefiltering whatsoever. Data writes take two queries. |
+| RedisPersistence | `redis` | Yes (additional hashes and sets) | Uses [Lettuce](https://lettuce.io/). Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties. Currently the fastest implementation avaibile. |
 
 ## Genesis
 
 The library is composed based on the [okaeri-configs](https://github.com/OkaeriPoland/okaeri-configs) and is intended 
-to be used as an extension to store configurations or other documents without thinking about a specific backend.
+to be used as an extension to store configurations or other documents without thinking about a specific backend. 
+Core library provides relatively small footprint with size below 100kB (even with file persistence) and allows to use more
+sophisticated database drivers when needed.
 
 ```java
 new DocumentPersistence(new JdbcPersistence(basePath, hikari), JsonSimpleConfigurer::new)
