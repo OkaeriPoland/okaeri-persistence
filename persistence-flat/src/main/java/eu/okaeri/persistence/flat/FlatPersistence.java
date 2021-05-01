@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -36,13 +37,11 @@ public class FlatPersistence extends RawPersistence {
         return new PersistenceEntity<>(persistencePath, this.fileToString(path.toFile()));
     };
 
-    private final Map<PersistenceCollection, Map<String, InMemoryIndex>> indexMap = new HashMap<>();
+    private final Map<String, Map<String, InMemoryIndex>> indexMap = new ConcurrentHashMap<>();
     @Getter private final PersistencePath basePath;
     @Getter private final String fileSuffix;
     @Getter private final ConfigurerProvider indexProvider;
-    @Getter
-    @Setter
-    private boolean saveIndex;
+    @Getter @Setter private boolean saveIndex;
 
     public FlatPersistence(File basePath, String fileSuffix) {
         this(basePath, fileSuffix, InMemoryConfigurer::new, false);
@@ -70,7 +69,7 @@ public class FlatPersistence extends RawPersistence {
     public boolean updateIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path, String identity) {
 
         // get index
-        InMemoryIndex flatIndex = this.indexMap.get(collection).get(property.getValue());
+        InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).get(property.getValue());
         if (flatIndex == null) throw new IllegalArgumentException("non-indexed property used: " + property);
 
         // get current value by key and remove from mapping
@@ -101,7 +100,7 @@ public class FlatPersistence extends RawPersistence {
     public boolean dropIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path) {
 
         // get index
-        InMemoryIndex flatIndex = this.indexMap.get(collection).get(property.getValue());
+        InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).get(property.getValue());
         if (flatIndex == null) throw new IllegalArgumentException("non-indexed property used: " + property);
 
         // get current value by key and remove from mapping
@@ -130,7 +129,7 @@ public class FlatPersistence extends RawPersistence {
     public boolean dropIndex(PersistenceCollection collection, IndexProperty property) {
 
         // remove from list and get index
-        InMemoryIndex flatIndex = this.indexMap.get(collection).remove(property.getValue());
+        InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).remove(property.getValue());
 
         // delete index file
         return (flatIndex != null) && flatIndex.getBindFile().delete();
@@ -140,7 +139,7 @@ public class FlatPersistence extends RawPersistence {
     @SneakyThrows
     public Set<PersistencePath> findMissingIndexes(PersistenceCollection collection, Set<IndexProperty> indexProperties) {
 
-        Map<String, InMemoryIndex> collectionIndexes = this.indexMap.get(collection);
+        Map<String, InMemoryIndex> collectionIndexes = this.indexMap.get(collection.getValue());
         if (collectionIndexes.isEmpty()) {
             return Collections.emptySet();
         }
@@ -162,7 +161,7 @@ public class FlatPersistence extends RawPersistence {
             return this.streamAll(collection);
         }
 
-        InMemoryIndex flatIndex = this.indexMap.get(collection).get(property.getValue());
+        InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).get(property.getValue());
         if (flatIndex == null) return this.streamAll(collection);
 
         Set<String> keys = flatIndex.getValueToKeys().get(String.valueOf(propertyValue));
@@ -170,7 +169,7 @@ public class FlatPersistence extends RawPersistence {
             return Stream.of();
         }
 
-        return keys.stream()
+        return new ArrayList<>(keys).stream()
                 .map(key -> {
                     PersistencePath path = PersistencePath.of(key);
                     return this.read(collection, path)
@@ -191,7 +190,7 @@ public class FlatPersistence extends RawPersistence {
         File collectionFile = collectionPath.toFile();
         collectionFile.mkdirs();
 
-        Map<String, InMemoryIndex> indexes = this.indexMap.computeIfAbsent(collection, col -> new HashMap<>());
+        Map<String, InMemoryIndex> indexes = this.indexMap.computeIfAbsent(collection.getValue(), col -> new ConcurrentHashMap<>());
 
         for (IndexProperty index : collection.getIndexes()) {
 
