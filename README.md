@@ -102,7 +102,7 @@ PersistenceCollection.of("player", 36)
 Streaming API opens multiple possibilities, e.g. filters can be automatically optimized. Implementations may fetch
 data in partitions and then parsing is done only when document is about to get into the stream. Everything is 
 done automatically and can decrease fetch times dramatically. Smart tricks like prefiltering can be applied to prevent
-parsing documents determined to not include searched property.
+parsing documents determined not to include searched property.
 
 Example pipeline of the stream:
 - Redis cursor, Files.list or other generator
