@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 
 public class DefaultPredicateRenderer implements PredicateRenderer {
 
-    private static final String LITERAL_X = "x";
+    private static final PredicateRendererLiteral LITERAL_X = new PredicateRendererLiteral("x");
 
     @Override
     public String render(Object leftOperand, Predicate<?> predicate) {
@@ -54,8 +54,8 @@ public class DefaultPredicateRenderer implements PredicateRenderer {
             throw new IllegalArgumentException("predicate cannot be null");
         }
 
-        if (operand == LITERAL_X) {
-            return LITERAL_X;
+        if (operand instanceof PredicateRendererLiteral) {
+            return ((PredicateRendererLiteral) operand).getValue();
         }
 
         if (operand instanceof Predicate) {
