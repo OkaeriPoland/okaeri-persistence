@@ -1,4 +1,4 @@
-package persistencetestmem.basic.entity;
+package eu.okaeri.persistencetestmem.basic.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

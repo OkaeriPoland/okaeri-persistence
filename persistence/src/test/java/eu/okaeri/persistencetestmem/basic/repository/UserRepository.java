@@ -1,11 +1,11 @@
-package persistencetestmem.basic.repository;
+package eu.okaeri.persistencetestmem.basic.repository;
 
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.repository.DocumentRepository;
 import eu.okaeri.persistence.repository.annotation.DocumentCollection;
 import eu.okaeri.persistence.repository.annotation.DocumentIndex;
 import eu.okaeri.persistence.repository.annotation.DocumentPath;
-import persistencetestmem.basic.entity.User;
+import eu.okaeri.persistencetestmem.basic.entity.User;
 
 import java.util.List;
 import java.util.Optional;
