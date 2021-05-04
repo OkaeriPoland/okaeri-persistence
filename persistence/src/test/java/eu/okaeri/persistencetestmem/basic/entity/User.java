@@ -1,4 +1,4 @@
-package persistencetestmem.basic.entity;
+package eu.okaeri.persistencetestmem.basic.entity;
 
 import eu.okaeri.configs.annotation.Exclude;
 import eu.okaeri.persistence.document.Document;
