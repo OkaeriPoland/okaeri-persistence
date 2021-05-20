@@ -111,9 +111,15 @@ public class TestPersistenceJdbc {
     }
 
     @Test
+    public void test_repository_stream_all() {
+        assertTrue(this.repository.streamAll().anyMatch(entity -> entity.equals(this.lastUser)));
+        assertEquals(CREATE_USERS, this.repository.streamAll().count());
+    }
+
+    @Test
     public void test_repository_find_all() {
-        assertTrue(this.repository.findAll().anyMatch(entity -> entity.equals(this.lastUser)));
-        assertEquals(CREATE_USERS, this.repository.findAll().count());
+        assertTrue(this.repository.findAll().contains(this.lastUser));
+        assertEquals(CREATE_USERS, this.repository.findAll().size());
     }
 
     @Test
