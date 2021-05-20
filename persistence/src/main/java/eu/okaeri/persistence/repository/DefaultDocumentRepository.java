@@ -50,10 +50,17 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     }
 
     @Override
-    public Stream<T> findAll() {
+    public Stream<T> streamAll() {
         return this.persistence.streamAll(this.collection)
                 .map(entity -> entity.into(this.documentType))
                 .map(PersistenceEntity::getValue);
+    }
+
+    @Override
+    public Collection<T> findAll() {
+        return this.persistence.readAll(this.collection).values().stream()
+                .map(entity -> entity.into(this.documentType))
+                .collect(Collectors.toList());
     }
 
     @Override

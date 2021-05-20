@@ -13,11 +13,11 @@ public class Condition {
     private final PersistencePath path;
     private final Predicate<?>[] predicates;
 
-    public static Condition cond(String path, Predicate<?>... predicates) {
-        return cond(PersistencePath.of(path), predicates);
+    public static Condition on(String path, Predicate<?>... predicates) {
+        return on(PersistencePath.of(path), predicates);
     }
 
-    public static Condition cond(PersistencePath path, Predicate<?>... predicates) {
+    public static Condition on(PersistencePath path, Predicate<?>... predicates) {
         if (predicates.length <= 0) throw new IllegalArgumentException("one or more predicate is required");
         return new Condition(path, predicates);
     }

@@ -129,7 +129,8 @@ public interface DocumentRepository<PATH, T extends Document> {
     long deleteAllByPath(Iterable<? extends PATH> paths);
     boolean deleteByPath(PATH path);
     boolean existsByPath(PATH path);
-    Stream<T> findAll();
+    Collection<T> findAll();
+    Stream<T> streamAll();
     Collection<T> findAllByPath(Iterable<? extends PATH> paths);
     Collection<T> findOrCreateAllByPath(Iterable<? extends PATH> paths);
     Optional<T> findByPath(PATH path);
