@@ -52,7 +52,7 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     @Override
     public Stream<T> streamAll() {
         return this.persistence.streamAll(this.collection)
-                .map(entity -> entity.into(this.documentType))
+                .map(document -> document.into(this.documentType))
                 .map(PersistenceEntity::getValue);
     }
 
@@ -70,9 +70,8 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
                 .map(DefaultDocumentRepository::toPath)
                 .collect(Collectors.toSet());
 
-        return this.persistence.read(this.collection, pathSet).entrySet().stream()
-                .map(entry -> new PersistenceEntity<>(entry.getKey(), entry.getValue().into(this.documentType)))
-                .map(PersistenceEntity::getValue)
+        return this.persistence.read(this.collection, pathSet).values().stream()
+                .map(document -> document.into(this.documentType))
                 .collect(Collectors.toList());
     }
 
@@ -83,16 +82,15 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
                 .map(DefaultDocumentRepository::toPath)
                 .collect(Collectors.toSet());
 
-        return this.persistence.readOrEmpty(this.collection, pathSet).entrySet().stream()
-                .map(entry -> new PersistenceEntity<>(entry.getKey(), entry.getValue().into(this.documentType)))
-                .map(PersistenceEntity::getValue)
+        return this.persistence.readOrEmpty(this.collection, pathSet).values().stream()
+                .map(document -> document.into(this.documentType))
                 .collect(Collectors.toList());
     }
 
     @Override
     public Optional<T> findByPath(Object path) {
         return this.persistence.read(this.collection, toPath(path))
-                .map(value -> value.into(this.documentType));
+                .map(document -> document.into(this.documentType));
     }
 
     @Override
