@@ -15,6 +15,7 @@ import eu.okaeri.persistence.document.ref.LazyRefSerializer;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -34,6 +35,18 @@ public class DocumentPersistence implements Persistence<Document> {
     private TransformerRegistry transformerRegistry;
     private Configurer simplifier;
 
+    /**
+     * Can be disabled in controlled environments where one database
+     * is shared among multiple instances to prevent unnecessary
+     * overhead and to allow fine control over the process.
+     */
+    @Getter @Setter private boolean autoFixIndexes = true;
+
+    /**
+     * @param rawPersistence Base persistence provider
+     * @param configurerProvider Okaeri Config's provider (mostly json)
+     * @param serdesPacks Additional serdes packs for the configurerProvider
+     */
     public DocumentPersistence(RawPersistence rawPersistence, ConfigurerProvider configurerProvider, OkaeriSerdesPack... serdesPacks) {
         this.raw = rawPersistence;
         this.configurerProvider = configurerProvider;
@@ -65,18 +78,25 @@ public class DocumentPersistence implements Persistence<Document> {
 
     @Override
     public void registerCollection(PersistenceCollection collection) {
-
         this.getRaw().registerCollection(collection);
+        if (!this.autoFixIndexes) {
+            return;
+        }
+        this.fixIndexes(collection);
+    }
+
+    @Override
+    public long fixIndexes(PersistenceCollection collection) {
 
         if (!this.getRaw().isNativeIndexes()) {
-            return;
+            return 0;
         }
 
         Set<IndexProperty> indexes = this.getRaw().getKnownIndexes().getOrDefault(collection.getValue(), new HashSet<>());
         Set<PersistencePath> withMissingIndexes = this.findMissingIndexes(collection, indexes);
 
         if (withMissingIndexes.isEmpty()) {
-            return;
+            return 0;
         }
 
         int total = withMissingIndexes.size();
@@ -103,11 +123,12 @@ public class DocumentPersistence implements Persistence<Document> {
         this.setAutoFlush(true);
         this.flush();
         LOGGER.warning("[" + this.getBasePath().sub(collection).getValue() + "] Finished creating indexes! (took: " + (System.currentTimeMillis() - start) + " ms)");
+        return updated;
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path, String identity) {
-        return this.getRaw().isNativeIndexes() && this.getRaw().updateIndex(collection, property, path, identity);
+    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
+        return this.getRaw().isNativeIndexes() && this.getRaw().updateIndex(collection, path, property, identity);
     }
 
     @Override
@@ -130,7 +151,7 @@ public class DocumentPersistence implements Persistence<Document> {
             if ((value != null) && !this.getRaw().canUseToString(value)) {
                 throw new RuntimeException("cannot transform " + value + " to index as string");
             }
-            boolean changed = this.updateIndex(collection, index, path, (value == null) ? null : String.valueOf(value));
+            boolean changed = this.updateIndex(collection, path, index, (value == null) ? null : String.valueOf(value));
             if (changed) changes++;
         }
 
@@ -149,8 +170,8 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path) {
-        return this.getRaw().isNativeIndexes() && this.getRaw().dropIndex(collection, property, path);
+    public boolean dropIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property) {
+        return this.getRaw().isNativeIndexes() && this.getRaw().dropIndex(collection, path, property);
     }
 
     @Override

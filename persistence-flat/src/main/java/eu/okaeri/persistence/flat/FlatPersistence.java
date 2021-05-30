@@ -66,7 +66,7 @@ public class FlatPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path, String identity) {
+    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
 
         // get index
         InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).get(property.getValue());
@@ -97,7 +97,7 @@ public class FlatPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path) {
+    public boolean dropIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property) {
 
         // get index
         InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).get(property.getValue());
@@ -121,7 +121,7 @@ public class FlatPersistence extends RawPersistence {
     @Override
     public boolean dropIndex(PersistenceCollection collection, PersistencePath path) {
         return this.getKnownIndexes().getOrDefault(collection.getValue(), Collections.emptySet()).stream()
-                .map(index -> this.dropIndex(collection, index, path))
+                .map(index -> this.dropIndex(collection, path, index))
                 .anyMatch(Predicate.isEqual(true));
     }
 

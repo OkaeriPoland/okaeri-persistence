@@ -21,7 +21,7 @@ public class MariaDbPersistence extends JdbcPersistence {
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path, String identity) {
+    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
 
         this.checkCollectionRegistered(collection);
         String indexTable = this.indexTable(collection);

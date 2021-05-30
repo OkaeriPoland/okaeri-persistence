@@ -32,11 +32,16 @@ public abstract class RawPersistence implements Persistence<String> {
     }
 
     @Override
+    public long fixIndexes(PersistenceCollection collection) {
+        throw new RuntimeException("not implemented yet");
+    }
+
+    @Override
     public void flush() {
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path, String identity) {
+    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
         throw new RuntimeException("not implemented yet");
     }
 
@@ -51,7 +56,7 @@ public abstract class RawPersistence implements Persistence<String> {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path) {
+    public boolean dropIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property) {
         throw new RuntimeException("not implemented yet");
     }
 

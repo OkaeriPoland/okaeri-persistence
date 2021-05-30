@@ -127,7 +127,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path, String identity) {
+    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
 
         this.checkCollectionRegistered(collection);
         String indexTable = this.indexTable(collection);
@@ -171,7 +171,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path) {
+    public boolean dropIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property) {
 
         this.checkCollectionRegistered(collection);
         String indexTable = this.indexTable(collection);
