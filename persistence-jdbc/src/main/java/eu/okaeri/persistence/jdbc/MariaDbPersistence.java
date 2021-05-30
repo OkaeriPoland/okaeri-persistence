@@ -43,13 +43,18 @@ public class MariaDbPersistence extends JdbcPersistence {
     @Override
     public void registerCollection(PersistenceCollection collection) {
 
-        String sql = "create table if not exists `" + this.table(collection) + "` (" +
-                "`key` varchar(" + collection.getKeyLength() + ") primary key not null," +
+        String collectionTable = this.table(collection);
+        int keyLength = collection.getKeyLength();
+
+        String sql = "create table if not exists `" + collectionTable + "` (" +
+                "`key` varchar(" + keyLength + ") primary key not null," +
                 "`value` json not null)" +
                 "engine = InnoDB character set = utf8mb4;";
+        String alterKeySql = "alter table `" + collectionTable + "` MODIFY COLUMN `key` varchar(" + keyLength + ") not null";
 
         try (Connection connection = this.getDataSource().getConnection()) {
             connection.createStatement().execute(sql);
+            connection.createStatement().execute(alterKeySql);
         } catch (SQLException exception) {
             throw new RuntimeException("cannot register collection", exception);
         }
@@ -67,16 +72,24 @@ public class MariaDbPersistence extends JdbcPersistence {
         int keyLength = collection.getKeyLength();
         String indexTable = this.indexTable(collection);
 
-        String sql = "create table if not exists `" + indexTable + "` (" +
+        String tableSql = "create table if not exists `" + indexTable + "` (" +
                 "`key` varchar(" + keyLength + ") not null," +
                 "`property` varchar(" + propertyLength + ") not null," +
                 "`identity` varchar(" + identityLength + ") not null," +
                 "primary key(`key`, `property`)," +
-                "index (`identity`))" +
+                "index (`identity`)," +
+                "index (`property`, `identity`))" +
                 "engine = InnoDB character set = utf8mb4;";
 
+        String alterKeySql = "alter table `" + indexTable + "` MODIFY COLUMN `key` varchar(" + keyLength + ") not null";
+        String alterPropertySql = "alter table `" + indexTable + "` MODIFY COLUMN `property` varchar(" + propertyLength + ") not null";
+        String alterIdentitySql = "alter table `" + indexTable + "` MODIFY COLUMN `identity` varchar(" + identityLength + ") not null";
+
         try (Connection connection = this.getDataSource().getConnection()) {
-            connection.createStatement().execute(sql);
+            connection.createStatement().execute(tableSql);
+            connection.createStatement().execute(alterKeySql);
+            connection.createStatement().execute(alterPropertySql);
+            connection.createStatement().execute(alterIdentitySql);
         } catch (SQLException exception) {
             throw new RuntimeException("cannot register collection", exception);
         }

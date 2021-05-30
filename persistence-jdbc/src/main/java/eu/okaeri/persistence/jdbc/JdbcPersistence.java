@@ -47,12 +47,17 @@ public class JdbcPersistence extends RawPersistence {
     @Override
     public void registerCollection(PersistenceCollection collection) {
 
-        String sql = "create table if not exists `" + this.table(collection) + "` (" +
-                "`key` varchar(" + collection.getKeyLength() + ") primary key not null," +
-                "`value` text not null)";
+        String collectionTable = this.table(collection);
+        int keyLength = collection.getKeyLength();
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        String sql = "create table if not exists `" + collectionTable + "` (" +
+                "`key` varchar(" + keyLength + ") primary key not null," +
+                "`value` text not null)";
+        String alterKeySql = "alter table `" + collectionTable + "` MODIFY COLUMN `key` varchar(" + keyLength + ") not null";
+
+        try (Connection connection = this.getDataSource().getConnection()) {
             connection.createStatement().execute(sql);
+            connection.createStatement().execute(alterKeySql);
         } catch (SQLException exception) {
             throw new RuntimeException("cannot register collection", exception);
         }
@@ -75,12 +80,27 @@ public class JdbcPersistence extends RawPersistence {
                 "`property` varchar(" + propertyLength + ") not null," +
                 "`identity` varchar(" + identityLength + ") not null," +
                 "primary key(`key`, `property`))";
-        String indexSql = "create index `identity` on `" + indexTable + "`(`identity`)";
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        String alterKeySql = "alter table `" + indexTable + "` MODIFY COLUMN `key` varchar(" + keyLength + ") not null";
+        String alterPropertySql = "alter table `" + indexTable + "` MODIFY COLUMN `property` varchar(" + propertyLength + ") not null";
+        String alterIdentitySql = "alter table `" + indexTable + "` MODIFY COLUMN `identity` varchar(" + identityLength + ") not null";
+
+        String indexSql = "create index `identity` on `" + indexTable + "`(`identity`)";
+        String index2Sql = "create index `property` on `" + indexTable + "`(`property`, identity`)";
+
+        try (Connection connection = this.getDataSource().getConnection()) {
             connection.createStatement().execute(tableSql);
+            connection.createStatement().execute(alterKeySql);
+            connection.createStatement().execute(alterPropertySql);
+            connection.createStatement().execute(alterIdentitySql);
             try {
                 connection.createStatement().execute(indexSql);
+            } catch (SQLException ignored) {
+                // index already exists or worse cannot be created
+                // and we don't know about that. heh
+            }
+            try {
+                connection.createStatement().execute(index2Sql);
             } catch (SQLException ignored) {
                 // index already exists or worse cannot be created
                 // and we don't know about that. heh
@@ -108,7 +128,7 @@ public class JdbcPersistence extends RawPersistence {
         String sql = "select `key` from `" + table + "` " +
                 "where (select count(0) from " + indexTable + " where `key` = `" + table + "`.`key` and `property` in (" + params + ")) != ?";
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             int currentPrepared = 1;
             for (IndexProperty indexProperty : indexProperties) {
@@ -134,7 +154,7 @@ public class JdbcPersistence extends RawPersistence {
         String key = path.getValue();
         boolean exists;
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             String sql = "select count(0) from `" + indexTable + "` where `key` = ? and `property` = ?";
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, key);
@@ -147,7 +167,7 @@ public class JdbcPersistence extends RawPersistence {
 
         if (exists) {
             String sql = "update `" + indexTable + "` set `identity` = ? where `key` = ? and `property` = ?";
-            try (Connection connection = this.dataSource.getConnection()) {
+            try (Connection connection = this.getDataSource().getConnection()) {
                 PreparedStatement prepared = connection.prepareStatement(sql);
                 prepared.setString(1, identity);
                 prepared.setString(2, key);
@@ -159,7 +179,7 @@ public class JdbcPersistence extends RawPersistence {
         }
 
         String sql = "insert into `" + indexTable + "` (`key`, `property`, `identity`) values (?, ?, ?)";
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, key);
             prepared.setString(2, property.getValue());
@@ -178,7 +198,7 @@ public class JdbcPersistence extends RawPersistence {
         String sql = "delete from `" + indexTable + "` where `property` = ? and `key` = ?";
         String key = path.getValue();
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, property.getValue());
             prepared.setString(2, key);
@@ -196,7 +216,7 @@ public class JdbcPersistence extends RawPersistence {
         String sql = "delete from `" + indexTable + "` where `key` = ?";
         String key = path.getValue();
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, key);
             return prepared.executeUpdate() > 0;
@@ -212,7 +232,7 @@ public class JdbcPersistence extends RawPersistence {
         String indexTable = this.indexTable(collection);
         String sql = "delete from `" + indexTable + "` where `property` = ?";
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, property.getValue());
             return prepared.executeUpdate() > 0;
@@ -227,7 +247,7 @@ public class JdbcPersistence extends RawPersistence {
         this.checkCollectionRegistered(collection);
         String sql = "select `value` from `" + this.table(collection) + "` where `key` = ? limit 1";
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, path.getValue());
             ResultSet resultSet = prepared.executeQuery();
@@ -249,7 +269,7 @@ public class JdbcPersistence extends RawPersistence {
         String sql = "select `key`, `value` from `" + this.table(collection) + "` where " + keys;
         Map<PersistencePath, String> map = new LinkedHashMap<>();
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             int currentIndex = 1;
             for (PersistencePath path : paths) {
@@ -275,7 +295,7 @@ public class JdbcPersistence extends RawPersistence {
         String sql = "select `key`, `value` from `" + this.table(collection) + "`";
         Map<PersistencePath, String> map = new LinkedHashMap<>();
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
 
             PreparedStatement prepared = connection.prepareStatement(sql);
             ResultSet resultSet = prepared.executeQuery();
@@ -313,7 +333,7 @@ public class JdbcPersistence extends RawPersistence {
                 " join `" + indexTable + "` indexer on `" + table + "`.`key` = indexer.`key`" +
                 " where indexer.`property` = ? and indexer.`identity` = ?";
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
 
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, indexProperty.getValue());
@@ -339,7 +359,7 @@ public class JdbcPersistence extends RawPersistence {
         this.checkCollectionRegistered(collection);
         String sql = "select `key`, `value` from `" + this.table(collection) + "`";
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
 
             PreparedStatement prepared = connection.prepareStatement(sql);
             ResultSet resultSet = prepared.executeQuery();
@@ -363,7 +383,7 @@ public class JdbcPersistence extends RawPersistence {
         this.checkCollectionRegistered(collection);
         String sql = "select count(0) from `" + this.table(collection) + "`";
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             ResultSet resultSet = prepared.executeQuery();
             if (resultSet.next()) {
@@ -382,7 +402,7 @@ public class JdbcPersistence extends RawPersistence {
         this.checkCollectionRegistered(collection);
         String sql = "select 1 from `" + this.table(collection) + "` where `key` = ? limit 1";
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, path.getValue());
             ResultSet resultSet = prepared.executeQuery();
@@ -397,7 +417,7 @@ public class JdbcPersistence extends RawPersistence {
 
         if (this.read(collection, path).isPresent()) {
             String sql = "update `" + this.table(collection) + "` set `value` = ? where `key` = ?";
-            try (Connection connection = this.dataSource.getConnection()) {
+            try (Connection connection = this.getDataSource().getConnection()) {
                 PreparedStatement prepared = connection.prepareStatement(sql);
                 prepared.setString(1, raw);
                 prepared.setString(2, path.getValue());
@@ -408,7 +428,7 @@ public class JdbcPersistence extends RawPersistence {
         }
 
         String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?)";
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, path.getValue());
             prepared.setString(2, raw);
@@ -430,7 +450,7 @@ public class JdbcPersistence extends RawPersistence {
             collectionIndexes.forEach(index -> this.dropIndex(collection, path));
         }
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, key);
             return prepared.executeUpdate() > 0;
@@ -452,7 +472,7 @@ public class JdbcPersistence extends RawPersistence {
         String deleteSql = "delete from `" + this.table(collection) + "` where " + keys;
         String deleteIndexSql = "delete from `" + this.indexTable(collection) + "` where " + keys;
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(deleteIndexSql);
             int currentIndex = 1;
             for (PersistencePath path : paths) {
@@ -463,7 +483,7 @@ public class JdbcPersistence extends RawPersistence {
             throw new RuntimeException("cannot delete " + paths + " from " + collection, exception);
         }
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(deleteSql);
             int currentIndex = 1;
             for (PersistencePath path : paths) {
@@ -482,14 +502,14 @@ public class JdbcPersistence extends RawPersistence {
         String sql = "truncate table `" + this.table(collection) + "`";
         String indexSql = "truncate table `" + this.indexTable(collection) + "`";
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(indexSql);
             prepared.executeUpdate();
         } catch (SQLException exception) {
             throw new RuntimeException("cannot truncate " + collection, exception);
         }
 
-        try (Connection connection = this.dataSource.getConnection()) {
+        try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.executeUpdate();
             return true;
