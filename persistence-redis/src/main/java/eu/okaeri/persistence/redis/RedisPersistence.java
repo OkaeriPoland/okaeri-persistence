@@ -45,11 +45,11 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path, String identity) {
+    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
 
         // remove from old set value_to_keys
         RedisCommands<String, String> sync = this.connection.sync();
-        this.dropIndex(collection, property, path);
+        this.dropIndex(collection, path, property);
         String indexSet = this.toIndexValueToKeys(collection, property, identity).getValue();
 
         // register new value
@@ -65,7 +65,7 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path) {
+    public boolean dropIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property) {
 
         // get current value by key
         String keyToValue = this.toIndexKeyToValue(collection, property).getValue();
@@ -88,7 +88,7 @@ public class RedisPersistence extends RawPersistence {
     @Override
     public boolean dropIndex(PersistenceCollection collection, PersistencePath path) {
         return this.getKnownIndexes().getOrDefault(collection.getValue(), Collections.emptySet()).stream()
-                .map(index -> this.dropIndex(collection, index, path))
+                .map(index -> this.dropIndex(collection, path, index))
                 .anyMatch(Predicate.isEqual(true));
     }
 

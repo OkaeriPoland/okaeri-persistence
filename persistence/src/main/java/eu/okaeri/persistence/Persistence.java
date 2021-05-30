@@ -10,87 +10,246 @@ import java.util.stream.Stream;
 
 public interface Persistence<T> {
 
-    // allows to track tables etc.
+    /**
+     * Register a collection to be tracked by persistence.
+     *
+     * @param collection Collection to be registered
+     */
     void registerCollection(PersistenceCollection collection);
 
-    // allows to disable flushing to the database
-    // mainly for the filesystem/inmemory persistence backends
-    // not expected to be a guarantee, just something
-    // to use when performing mass changes and hoping
-    // for the implementation to take care of it
+    /**
+     * Automatically scan and fix indexes.
+     *
+     * @param collection Collection to be scanned
+     * @return Count of updated entities
+     */
+    long fixIndexes(PersistenceCollection collection);
+
+    /**
+     * Enable/disable flushing to the database.
+     *
+     * Mainly for the filesystem or in-memory persistence
+     * backends. Not expected to be a guarantee, just
+     * something to use when performing mass changes
+     * and hoping for the implementation to take care of it.
+     *
+     * @param state New autoFlush state
+     */
     void setAutoFlush(boolean state);
 
-    // allows to flush/save when autoflush is disabled
+    /**
+     * Flush data to the database manually, ignoring {@link #setAutoFlush(boolean)}.
+     */
     void flush();
 
-    // allows to update entry of entity's index
-    boolean updateIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path, String identity);
+    /**
+     * Update entry of entity's index.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path Target index path (eg. uuid)
+     * @param property Target property (eg. name)
+     * @param identity New value for property
+     * @return True when index was changed false otherwise
+     */
+    boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity);
 
-    // allows to update whole entity's index using entity
+    /**
+     * Update whole entity's index using entity.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path Target index path (eg. uuid)
+     * @param entity New value for path
+     * @return True when index was changed false otherwise
+     */
     boolean updateIndex(PersistenceCollection collection, PersistencePath path, T entity);
 
-    // allows to update whole entity's index by entity's key
+    /**
+     * Update whole entity's index by entity's key.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path Target index path (eg. uuid)
+     * @return True when index was changed false otherwise
+     */
     boolean updateIndex(PersistenceCollection collection, PersistencePath path);
 
-    // allows to delete entity's index
-    boolean dropIndex(PersistenceCollection collection, IndexProperty property, PersistencePath path);
+    /**
+     * Delete entity's index.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path Target index path (eg. uuid)
+     * @param property Target property (eg. name)
+     * @return True when index was changed false otherwise
+     */
+    boolean dropIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property);
 
-    // allows to delete all entity's indexes
+    /**
+     * Delete all entity's indexes.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path Target index path (eg. uuid)
+     * @return True when index was changed false otherwise
+     */
     boolean dropIndex(PersistenceCollection collection, PersistencePath path);
 
-    // allows to delete whole index
+    /**
+     * Delete whole index.
+     *
+     * @param collection Target collection (eg. player)
+     * @param property Target property (eg. name)
+     * @return True when index was changed false otherwise
+     */
     boolean dropIndex(PersistenceCollection collection, IndexProperty property);
 
-    // allows to search for missing indexes
+    /**
+     * Search for missing indexes.
+     *
+     * @param collection Target collection (eg. player)
+     * @param indexProperties Index properties to be accounted
+     * @return Persistence paths with missing indexes
+     */
     Set<PersistencePath> findMissingIndexes(PersistenceCollection collection, Set<IndexProperty> indexProperties);
 
-    // basic group "ExamplePlugin:" -> "example_plugin:player:USER_IDENTIFIER"
+    /**
+     * Prefix for the storage operations.
+     *
+     * For example:
+     * - Redis: as key prefix "{basePath}:{collection}:{id}"
+     * - MariaDB: in table name "{basePath}_{collection}"
+     *
+     * @return Base storage path
+     */
     PersistencePath getBasePath();
 
-    // count of all the entities in the collection
+    /**
+     * @param collection Target collection (eg. player)
+     * @return Count of all the entities in the collection
+     */
     long count(PersistenceCollection collection);
 
-    // check if element exists
-    // important as it is advised that read returns empty objects
-    // instead of throwing an exception
+    /**
+     * Check existence of an object in specific path.
+     * Important as it is advised that read returns
+     * empty objects instead of throwing an exception.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path Target index path (eg. uuid)
+     * @return True if element exists false otherwise
+     */
     boolean exists(PersistenceCollection collection, PersistencePath path);
 
-    // read saved object at key
+    /**
+     * Fetches entity by path from specific collection.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path Target entity path (eg. uuid)
+     * @return Saved entity
+     */
     Optional<T> read(PersistenceCollection collection, PersistencePath path);
 
-    // read or create saved object at key
+    /**
+     * Fetches entity by path from specific collection.
+     * Creates empty entity if no saved entity was found.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path Target entity path (eg. uuid)
+     * @return Saved entity
+     */
     T readOrEmpty(PersistenceCollection collection, PersistencePath path);
 
-    // read objects saved at the paths
+    /**
+     * Optimized {@link #read(PersistenceCollection, PersistencePath)} for multiple entities.
+     *
+     * @param collection Target collection (eg. player)
+     * @param paths Target entity paths (eg. uuids)
+     * @return Saved entities
+     */
     Map<PersistencePath, T> read(PersistenceCollection collection, Collection<PersistencePath> paths);
 
-    // read or created objects saved at the paths
+    /**
+     * Optimized {@link #readOrEmpty(PersistenceCollection, PersistencePath)} for multiple entities.
+     *
+     * @param collection Target collection (eg. player)
+     * @param paths Target entity paths (eg. uuids)
+     * @return Saved entities
+     */
     Map<PersistencePath, T> readOrEmpty(PersistenceCollection collection, Collection<PersistencePath> paths);
 
-    // read all saved objects in the collection
+    /**
+     * Fetches all entities from the specific collection.
+     *
+     * @param collection Target collection (eg. player)
+     * @return Collection entities
+     */
     Map<PersistencePath, T> readAll(PersistenceCollection collection);
 
-    // read based on property (mostly for document based implementations)
+    /**
+     * Filter document based persistence entities.
+     *
+     * @param collection Target collection (eg. player)
+     * @param property Property to filter on (eg. name)
+     * @param propertyValue Searched property value (eg. SomePlayer)
+     * @return Stream of entities matching the query
+     */
     Stream<PersistenceEntity<T>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue);
 
-    // visit all saved objects in the collection
+    /**
+     * Visit all entities from the specific collection.
+     * Makes use of the partial fetching when possible.
+     *
+     * @param collection Target collection (eg. player)
+     * @return Stream of collection entities
+     */
     Stream<PersistenceEntity<T>> streamAll(PersistenceCollection collection);
 
-    // write object to exact key
+    /**
+     * Write entity to specific collection and path.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path Target entity path (eg. uuid)
+     * @param entity Entity to be saved
+     * @return True when changed else otherwise
+     */
     boolean write(PersistenceCollection collection, PersistencePath path, T entity);
 
-    // write multiple objects
+    /**
+     * Optimized {@link #write(PersistenceCollection, PersistencePath, Object)} for multiple entities.
+     *
+     * @param collection Target collection (eg. player)
+     * @param entities Entities to be saved
+     * @return Count of changes
+     */
     long write(PersistenceCollection collection, Map<PersistencePath, T> entities);
 
-    // delete single
+    /**
+     * Delete single entity from the collection.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path Target entity path (eg. uuid)
+     * @return True when changed else otherwise
+     */
     boolean delete(PersistenceCollection collection, PersistencePath path);
 
-    // delete multiple
+    /**
+     * Delete multiple entities from the collection.
+     *
+     * @param collection Target collection (eg. player)
+     * @param paths Target entities paths (eg. uuids)
+     * @return Count of changes
+     */
     long delete(PersistenceCollection collection, Collection<PersistencePath> paths);
 
-    // delete all from collection
+    /**
+     * Truncate collection.
+     *
+     * @param collection Target collection (eg. player)
+     * @return True when changed else otherwise
+     */
     boolean deleteAll(PersistenceCollection collection);
 
-    // delete all - purge all collections
+    /**
+     * Truncate all registered collections.
+     *
+     * @return Count of changes
+     */
     long deleteAll();
 }
