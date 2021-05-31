@@ -10,12 +10,11 @@ import eu.okaeri.persistence.Persistence;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.document.ref.EagerRefSerializer;
 import eu.okaeri.persistence.document.ref.LazyRefSerializer;
-import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -34,13 +33,6 @@ public class DocumentPersistence implements Persistence<Document> {
     @Getter private final RawPersistence raw;
     private TransformerRegistry transformerRegistry;
     private Configurer simplifier;
-
-    /**
-     * Can be disabled in controlled environments where one database
-     * is shared among multiple instances to prevent unnecessary
-     * overhead and to allow fine control over the process.
-     */
-    @Getter @Setter private boolean autoFixIndexes = true;
 
     /**
      * @param rawPersistence Base persistence provider
@@ -79,7 +71,7 @@ public class DocumentPersistence implements Persistence<Document> {
     @Override
     public void registerCollection(PersistenceCollection collection) {
         this.getRaw().registerCollection(collection);
-        if (!this.autoFixIndexes) {
+        if (!collection.isAutofixIndexes()) {
             return;
         }
         this.fixIndexes(collection);
