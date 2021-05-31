@@ -25,7 +25,7 @@ public class PersistenceCollection extends PersistencePath {
             out.index(IndexProperty.parse(index.path()).maxLength(index.maxLength()));
         }
 
-        return out;
+        return out.autofixIndexes(collection.autofixIndexes());
     }
 
     public static PersistenceCollection of(String path) {
@@ -42,6 +42,7 @@ public class PersistenceCollection extends PersistencePath {
     }
 
     private int keyLength;
+    private boolean autofixIndexes = true;
     private Set<IndexProperty> indexes = new HashSet<>();
 
     public PersistenceCollection keyLength(int keyLength) {
@@ -52,6 +53,11 @@ public class PersistenceCollection extends PersistencePath {
 
     public PersistenceCollection index(IndexProperty indexProperty) {
         this.indexes.add(indexProperty);
+        return this;
+    }
+
+    public PersistenceCollection autofixIndexes(boolean autofixIndexes) {
+        this.autofixIndexes = autofixIndexes;
         return this;
     }
 

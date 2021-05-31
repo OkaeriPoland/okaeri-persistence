@@ -10,5 +10,6 @@ import java.lang.annotation.Target;
 public @interface DocumentCollection {
     String path();
     int keyLength();
+    boolean autofixIndexes() default true;
     DocumentIndex[] indexes();
 }
