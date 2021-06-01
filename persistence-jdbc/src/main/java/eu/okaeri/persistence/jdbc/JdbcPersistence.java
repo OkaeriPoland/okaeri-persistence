@@ -28,6 +28,11 @@ public class JdbcPersistence extends RawPersistence {
         this.connect(hikariConfig);
     }
 
+    public JdbcPersistence(PersistencePath basePath, HikariDataSource dataSource) {
+        super(basePath, true, true, true, true);
+        this.dataSource = dataSource;
+    }
+
     @SneakyThrows
     private void connect(HikariConfig hikariConfig) {
         do {
@@ -126,7 +131,7 @@ public class JdbcPersistence extends RawPersistence {
                 .collect(Collectors.joining(", "));
 
         String sql = "select `key` from `" + table + "` " +
-                "where (select count(0) from " + indexTable + " where `key` = `" + table + "`.`key` and `property` in (" + params + ")) != ?";
+                "where (select count(1) from " + indexTable + " where `key` = `" + table + "`.`key` and `property` in (" + params + ")) != ?";
 
         try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
@@ -155,7 +160,7 @@ public class JdbcPersistence extends RawPersistence {
         boolean exists;
 
         try (Connection connection = this.getDataSource().getConnection()) {
-            String sql = "select count(0) from `" + indexTable + "` where `key` = ? and `property` = ?";
+            String sql = "select count(1) from `" + indexTable + "` where `key` = ? and `property` = ?";
             PreparedStatement prepared = connection.prepareStatement(sql);
             prepared.setString(1, key);
             prepared.setString(2, property.getValue());
@@ -381,7 +386,7 @@ public class JdbcPersistence extends RawPersistence {
     public long count(PersistenceCollection collection) {
 
         this.checkCollectionRegistered(collection);
-        String sql = "select count(0) from `" + this.table(collection) + "`";
+        String sql = "select count(1) from `" + this.table(collection) + "`";
 
         try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);

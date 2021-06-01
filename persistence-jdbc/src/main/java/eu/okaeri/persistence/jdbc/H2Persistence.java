@@ -1,6 +1,7 @@
 package eu.okaeri.persistence.jdbc;
 
 import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
@@ -18,6 +19,10 @@ public class H2Persistence extends JdbcPersistence {
 
     public H2Persistence(PersistencePath basePath, HikariConfig hikariConfig) {
         super(basePath, hikariConfig);
+    }
+
+    public H2Persistence(PersistencePath basePath, HikariDataSource dataSource) {
+        super(basePath, dataSource);
     }
 
     @Override
