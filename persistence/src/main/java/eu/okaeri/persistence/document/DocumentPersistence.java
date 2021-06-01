@@ -201,6 +201,10 @@ public class DocumentPersistence implements Persistence<Document> {
     @Override
     public Map<PersistencePath, Document> readOrEmpty(PersistenceCollection collection, Collection<PersistencePath> paths) {
 
+        if (paths.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
         Map<PersistencePath, Document> map = new LinkedHashMap<>();
         Map<PersistencePath, Document> data = this.read(collection, paths);
 
@@ -213,11 +217,12 @@ public class DocumentPersistence implements Persistence<Document> {
 
     @Override
     public Map<PersistencePath, Document> read(PersistenceCollection collection, Collection<PersistencePath> paths) {
-        return this.getRaw().read(collection, paths).entrySet().stream()
+        return paths.isEmpty() ? Collections.emptyMap() : this.getRaw().read(collection, paths).entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
                     Document document = this.createDocument(collection, entry.getKey());
                     return (Document) document.load(entry.getValue());
                 }));
+
     }
 
     @Override
@@ -282,6 +287,10 @@ public class DocumentPersistence implements Persistence<Document> {
 
     @Override
     public long write(PersistenceCollection collection, Map<PersistencePath, Document> entities) {
+
+        if (entities.isEmpty()) {
+            return 0;
+        }
 
         Map<PersistencePath, String> rawMap = new LinkedHashMap<>();
 
