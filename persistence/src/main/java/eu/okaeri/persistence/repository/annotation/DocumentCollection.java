@@ -11,5 +11,5 @@ public @interface DocumentCollection {
     String path();
     int keyLength();
     boolean autofixIndexes() default true;
-    DocumentIndex[] indexes();
+    DocumentIndex[] indexes() default {};
 }
