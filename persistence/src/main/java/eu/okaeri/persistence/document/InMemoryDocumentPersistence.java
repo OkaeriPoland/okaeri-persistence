@@ -10,6 +10,7 @@ import eu.okaeri.persistence.document.index.InMemoryIndex;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 
 import java.util.*;
@@ -25,7 +26,7 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     private final Map<String, Map<String, InMemoryIndex>> indexMap = new ConcurrentHashMap<>();
     private final Map<String, Map<PersistencePath, Document>> documents = new ConcurrentHashMap<>();
 
-    public InMemoryDocumentPersistence(OkaeriSerdesPack... serdesPacks) {
+    public InMemoryDocumentPersistence(@NonNull OkaeriSerdesPack... serdesPacks) {
         super(new RawPersistence(PersistencePath.of("memory"), true, true, false, true) {
             @Override
             public long count(PersistenceCollection collection) {
@@ -93,7 +94,7 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
-    public void registerCollection(PersistenceCollection collection) {
+    public void registerCollection(@NonNull PersistenceCollection collection) {
 
         this.getRaw().getKnownCollections().put(collection.getValue(), collection);
         this.getRaw().getKnownIndexes().put(collection.getValue(), collection.getIndexes());
@@ -104,7 +105,7 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
+    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
 
         // get index
         InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).get(property.getValue());
@@ -127,7 +128,7 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property) {
+    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property) {
 
         // get index
         InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).get(property.getValue());
@@ -141,14 +142,14 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, PersistencePath path) {
+    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return this.getRaw().getKnownIndexes().getOrDefault(collection.getValue(), Collections.emptySet()).stream()
                 .map(index -> this.dropIndex(collection, path, index))
                 .anyMatch(Predicate.isEqual(true));
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, IndexProperty property) {
+    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property) {
 
         // remove from list and get index
         InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).remove(property.getValue());
@@ -159,7 +160,7 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
 
     @Override
     @SneakyThrows
-    public Set<PersistencePath> findMissingIndexes(PersistenceCollection collection, Set<IndexProperty> indexProperties) {
+    public Set<PersistencePath> findMissingIndexes(@NonNull PersistenceCollection collection, @NonNull Set<IndexProperty> indexProperties) {
 
         Map<String, InMemoryIndex> collectionIndexes = this.indexMap.get(collection.getValue());
         if (collectionIndexes.isEmpty()) {
@@ -176,18 +177,18 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
-    public Document readOrEmpty(PersistenceCollection collection, PersistencePath path) {
+    public Document readOrEmpty(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return this.read(collection, path).orElse(this.createDocument(collection, path));
     }
 
     @Override
-    public Optional<Document> read(PersistenceCollection collection, PersistencePath path) {
+    public Optional<Document> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         this.getRaw().checkCollectionRegistered(collection);
         return Optional.ofNullable(this.documents.get(collection.getValue()).get(path));
     }
 
     @Override
-    public Map<PersistencePath, Document> readOrEmpty(PersistenceCollection collection, Collection<PersistencePath> paths) {
+    public Map<PersistencePath, Document> readOrEmpty(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
 
         this.getRaw().checkCollectionRegistered(collection);
         Map<PersistencePath, Document> map = new LinkedHashMap<>();
@@ -201,7 +202,7 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
-    public Map<PersistencePath, Document> read(PersistenceCollection collection, Collection<PersistencePath> paths) {
+    public Map<PersistencePath, Document> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
         this.getRaw().checkCollectionRegistered(collection);
         return paths.stream()
                 .map(path -> this.documents.get(collection.getValue()).get(path))
@@ -210,12 +211,12 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
-    public Map<PersistencePath, Document> readAll(PersistenceCollection collection) {
+    public Map<PersistencePath, Document> readAll(@NonNull PersistenceCollection collection) {
         return new HashMap<>(this.documents.get(collection.getValue()));
     }
 
     @Override
-    public Stream<PersistenceEntity<Document>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
+    public Stream<PersistenceEntity<Document>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
 
         InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).get(property.getValue());
         if (flatIndex == null) return this.streamAll(collection);
@@ -239,33 +240,33 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<Document>> streamAll(PersistenceCollection collection) {
+    public Stream<PersistenceEntity<Document>> streamAll(@NonNull PersistenceCollection collection) {
         this.getRaw().checkCollectionRegistered(collection);
         Collection<Document> docList = this.documents.get(collection.getValue()).values();
         return docList.stream().map(document -> new PersistenceEntity<>(document.getPath(), document));
     }
 
     @Override
-    public long count(PersistenceCollection collection) {
+    public long count(@NonNull PersistenceCollection collection) {
         this.getRaw().checkCollectionRegistered(collection);
         return this.documents.get(collection.getValue()).size();
     }
 
     @Override
-    public boolean exists(PersistenceCollection collection, PersistencePath path) {
+    public boolean exists(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         this.getRaw().checkCollectionRegistered(collection);
         return this.documents.get(collection.getValue()).containsKey(path);
     }
 
     @Override
-    public boolean write(PersistenceCollection collection, PersistencePath path, Document document) {
+    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
         this.getRaw().checkCollectionRegistered(collection);
         this.updateIndex(collection, path, document);
         return this.documents.get(collection.getValue()).put(path, document) != null;
     }
 
     @Override
-    public long write(PersistenceCollection collection, Map<PersistencePath, Document> entities) {
+    public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, Document> entities) {
         return entities.entrySet().stream()
                 .map(entity -> this.write(collection, entity.getKey(), entity.getValue()))
                 .filter(Predicate.isEqual(true))
@@ -273,18 +274,18 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
-    public boolean delete(PersistenceCollection collection, PersistencePath path) {
+    public boolean delete(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         this.getRaw().checkCollectionRegistered(collection);
         return this.documents.get(collection.getValue()).remove(path) != null;
     }
 
     @Override
-    public long delete(PersistenceCollection collection, Collection<PersistencePath> paths) {
+    public long delete(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
         return paths.stream().map(path -> this.delete(collection, path)).filter(Predicate.isEqual(true)).count();
     }
 
     @Override
-    public boolean deleteAll(PersistenceCollection collection) {
+    public boolean deleteAll(@NonNull PersistenceCollection collection) {
         this.getRaw().checkCollectionRegistered(collection);
         Map<PersistencePath, Document> data = this.documents.get(collection.getValue());
         boolean changed = !data.isEmpty();

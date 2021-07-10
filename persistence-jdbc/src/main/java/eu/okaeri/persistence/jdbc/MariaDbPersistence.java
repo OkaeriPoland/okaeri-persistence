@@ -6,6 +6,7 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
+import lombok.NonNull;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,16 +18,16 @@ import java.util.stream.StreamSupport;
 
 public class MariaDbPersistence extends JdbcPersistence {
 
-    public MariaDbPersistence(PersistencePath basePath, HikariConfig hikariConfig) {
+    public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
         super(basePath, hikariConfig);
     }
 
-    public MariaDbPersistence(PersistencePath basePath, HikariDataSource dataSource) {
+    public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource) {
         super(basePath, dataSource);
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
+    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, @NonNull String identity) {
 
         this.checkCollectionRegistered(collection);
         String indexTable = this.indexTable(collection);
@@ -46,7 +47,7 @@ public class MariaDbPersistence extends JdbcPersistence {
     }
 
     @Override
-    public void registerCollection(PersistenceCollection collection) {
+    public void registerCollection(@NonNull PersistenceCollection collection) {
 
         String collectionTable = this.table(collection);
         int keyLength = collection.getKeyLength();
@@ -72,7 +73,7 @@ public class MariaDbPersistence extends JdbcPersistence {
         super.registerCollection(collection);
     }
 
-    private void registerIndex(PersistenceCollection collection, IndexProperty property, int identityLength, int propertyLength) {
+    private void registerIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property, int identityLength, int propertyLength) {
 
         int keyLength = collection.getKeyLength();
         String indexTable = this.indexTable(collection);
@@ -101,13 +102,13 @@ public class MariaDbPersistence extends JdbcPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
+    public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, @NonNull Object propertyValue) {
         return this.isIndexed(collection, property)
                 ? this.readByPropertyIndexed(collection, IndexProperty.of(property.getValue()), propertyValue)
                 : this.readByPropertyJsonExtract(collection, property, propertyValue);
     }
 
-    private Stream<PersistenceEntity<String>> readByPropertyJsonExtract(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
+    private Stream<PersistenceEntity<String>> readByPropertyJsonExtract(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, @NonNull Object propertyValue) {
 
         this.checkCollectionRegistered(collection);
         String sql = "select `key`, `value` from `" + this.table(collection) + "` where json_extract(`value`, ?) = ?";
@@ -133,7 +134,7 @@ public class MariaDbPersistence extends JdbcPersistence {
     }
 
     @Override
-    public boolean write(PersistenceCollection collection, PersistencePath path, String raw) {
+    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull String raw) {
 
         this.checkCollectionRegistered(collection);
         String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?) on duplicate key update `value` = ?";
@@ -150,7 +151,7 @@ public class MariaDbPersistence extends JdbcPersistence {
     }
 
     @Override
-    public long write(PersistenceCollection collection, Map<PersistencePath, String> entities) {
+    public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, String> entities) {
 
         this.checkCollectionRegistered(collection);
         String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?) on duplicate key update `value` = ?";

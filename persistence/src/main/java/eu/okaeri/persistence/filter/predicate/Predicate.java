@@ -3,6 +3,7 @@ package eu.okaeri.persistence.filter.predicate;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NonNull;
 
 @Data
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
@@ -12,7 +13,7 @@ public abstract class Predicate<T> {
         return new EqPredicate<>(rightOperand);
     }
 
-    public static Predicate<CharSequence> eq(CharSequence rightOperand) {
+    public static Predicate<CharSequence> eq(@NonNull CharSequence rightOperand) {
         return new EqPredicate<>(rightOperand);
     }
 
@@ -20,7 +21,7 @@ public abstract class Predicate<T> {
         return new GePredicate<>(rightOperand);
     }
 
-    public static Predicate<CharSequence> ge(CharSequence rightOperand) {
+    public static Predicate<CharSequence> ge(@NonNull CharSequence rightOperand) {
         return new GePredicate<>(rightOperand);
     }
 
@@ -28,7 +29,7 @@ public abstract class Predicate<T> {
         return new GtPredicate<>(rightOperand);
     }
 
-    public static Predicate<CharSequence> gt(CharSequence rightOperand) {
+    public static Predicate<CharSequence> gt(@NonNull CharSequence rightOperand) {
         return new GtPredicate<>(rightOperand);
     }
 
@@ -36,7 +37,7 @@ public abstract class Predicate<T> {
         return new LePredicate<>(rightOperand);
     }
 
-    public static Predicate<CharSequence> le(CharSequence rightOperand) {
+    public static Predicate<CharSequence> le(@NonNull CharSequence rightOperand) {
         return new LePredicate<>(rightOperand);
     }
 
@@ -44,7 +45,7 @@ public abstract class Predicate<T> {
         return new LtPredicate<>(rightOperand);
     }
 
-    public static Predicate<CharSequence> lt(CharSequence rightOperand) {
+    public static Predicate<CharSequence> lt(@NonNull CharSequence rightOperand) {
         return new LtPredicate<>(rightOperand);
     }
 
@@ -52,7 +53,7 @@ public abstract class Predicate<T> {
         return new NePredicate<>(rightOperand);
     }
 
-    public static Predicate<CharSequence> ne(CharSequence rightOperand) {
+    public static Predicate<CharSequence> ne(@NonNull CharSequence rightOperand) {
         return new NePredicate<>(rightOperand);
     }
 

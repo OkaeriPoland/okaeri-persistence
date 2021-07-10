@@ -7,6 +7,7 @@ import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.repository.annotation.DocumentPath;
 import lombok.AccessLevel;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
@@ -24,7 +25,7 @@ import java.util.stream.Stream;
 public class RepositoryDeclaration<T extends DocumentRepository> {
 
     @SuppressWarnings("unchecked")
-    public static <A extends DocumentRepository> RepositoryDeclaration<A> of(Class<A> clazz) {
+    public static <A extends DocumentRepository> RepositoryDeclaration<A> of(@NonNull Class<A> clazz) {
 
         Map<Method, RepositoryMethodCaller> methods = new HashMap<>();
         Type[] types = ((ParameterizedTypeImpl) clazz.getGenericInterfaces()[0]).getActualTypeArguments();
@@ -108,7 +109,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
     private final Class<? extends Document> entityType;
 
     @SuppressWarnings("unchecked")
-    public T newProxy(DocumentPersistence persistence, PersistenceCollection collection, ClassLoader classLoader) {
+    public T newProxy(@NonNull DocumentPersistence persistence, @NonNull PersistenceCollection collection, @NonNull ClassLoader classLoader) {
 
         DefaultDocumentRepository defaultRepository = new DefaultDocumentRepository(persistence, collection, this.entityType);
         Map<Method, Method> defaultRepositoryMethods = new HashMap<>();

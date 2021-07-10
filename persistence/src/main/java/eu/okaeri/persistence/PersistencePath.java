@@ -18,44 +18,44 @@ public class PersistencePath {
 
     public static final String SEPARATOR = ":";
 
-    public static PersistencePath of(File file) {
+    public static PersistencePath of(@NonNull File file) {
         return new PersistencePath(file.getPath().replace(File.separator, SEPARATOR));
     }
 
-    public static PersistencePath of(UUID uuid) {
+    public static PersistencePath of(@NonNull UUID uuid) {
         return new PersistencePath(String.valueOf(uuid));
     }
 
-    public static PersistencePath of(String path) {
+    public static PersistencePath of(@NonNull String path) {
         return new PersistencePath(path);
     }
 
-    public static PersistencePath parse(String source, String separator) {
+    public static PersistencePath parse(@NonNull String source, @NonNull String separator) {
         return new PersistencePath(source.replace(separator, SEPARATOR));
     }
 
-    public PersistencePath sub(UUID sub) {
+    public PersistencePath sub(@NonNull UUID sub) {
         return this.sub(String.valueOf(sub));
     }
 
-    public PersistencePath sub(PersistencePath sub) {
+    public PersistencePath sub(@NonNull PersistencePath sub) {
         return this.sub(sub.getValue());
     }
 
-    public PersistencePath sub(String sub) {
+    public PersistencePath sub(@NonNull String sub) {
         String separator = (sub.startsWith(SEPARATOR)) ? "" : SEPARATOR;
         return this.append(separator + sub);
     }
 
-    public PersistencePath append(String element) {
+    public PersistencePath append(@NonNull String element) {
         return of(this.value + element);
     }
 
-    public PersistencePath removeStart(String part) {
+    public PersistencePath removeStart(@NonNull String part) {
         return this.value.startsWith(part) ? of(this.value.substring(part.length())) : this;
     }
 
-    public PersistencePath removeStart(PersistencePath path) {
+    public PersistencePath removeStart(@NonNull PersistencePath path) {
         return this.removeStart(path.getValue());
     }
 

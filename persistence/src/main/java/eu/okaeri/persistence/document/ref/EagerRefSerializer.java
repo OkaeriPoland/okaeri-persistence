@@ -7,6 +7,7 @@ import eu.okaeri.configs.serdes.SerializationData;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -15,19 +16,19 @@ public class EagerRefSerializer implements ObjectSerializer<EagerRef<? extends D
     private final DocumentPersistence persistence;
 
     @Override
-    public boolean supports(Class clazz) {
+    public boolean supports(@NonNull Class clazz) {
         return EagerRef.class.isAssignableFrom(clazz);
     }
 
     @Override
-    public void serialize(EagerRef eagerRef, SerializationData serializationData) {
+    public void serialize(@NonNull EagerRef eagerRef, @NonNull SerializationData serializationData) {
         serializationData.add("_id", eagerRef.getId().getValue());
         serializationData.add("_collection", eagerRef.getCollection().getValue());
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public EagerRef<? extends Document> deserialize(DeserializationData deserializationData, GenericsDeclaration genericsDeclaration) {
+    public EagerRef<? extends Document> deserialize(@NonNull DeserializationData deserializationData, @NonNull GenericsDeclaration genericsDeclaration) {
 
         PersistencePath id = PersistencePath.of(deserializationData.get("_id", String.class));
         PersistencePath collection = PersistencePath.of(deserializationData.get("_collection", String.class));

@@ -5,6 +5,7 @@ import eu.okaeri.persistence.filter.predicate.renderer.PredicateRenderer;
 import eu.okaeri.persistence.filter.predicate.renderer.PredicateRendererLiteral;
 import eu.okaeri.persistence.filter.renderer.VariableRenderer;
 import lombok.Data;
+import lombok.NonNull;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -16,7 +17,7 @@ public class DefaultConditionRenderer implements ConditionRenderer {
     private final PredicateRenderer predicateRenderer;
 
     @Override
-    public String render(Condition condition) {
+    public String render(@NonNull Condition condition) {
 
         String variable = this.variableRenderer.render(condition.getPath());
         PredicateRendererLiteral variableLiteral = new PredicateRendererLiteral(variable);

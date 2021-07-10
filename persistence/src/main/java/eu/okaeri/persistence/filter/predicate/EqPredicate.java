@@ -1,12 +1,14 @@
 package eu.okaeri.persistence.filter.predicate;
 
+import lombok.NonNull;
+
 /**
  * VALUE equals X
  * val == x
  */
 public class EqPredicate<T> extends PredicateNumeric<T> {
 
-    public EqPredicate(T rightOperand) {
+    public EqPredicate(@NonNull T rightOperand) {
         super(rightOperand);
     }
 

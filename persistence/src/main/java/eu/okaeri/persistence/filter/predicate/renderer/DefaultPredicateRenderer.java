@@ -1,6 +1,7 @@
 package eu.okaeri.persistence.filter.predicate.renderer;
 
 import eu.okaeri.persistence.filter.predicate.*;
+import lombok.NonNull;
 
 import java.math.BigDecimal;
 
@@ -9,11 +10,7 @@ public class DefaultPredicateRenderer implements PredicateRenderer {
     private static final PredicateRendererLiteral LITERAL_X = new PredicateRendererLiteral("x");
 
     @Override
-    public String render(Object leftOperand, Predicate<?> predicate) {
-
-        if (predicate == null) {
-            throw new IllegalArgumentException("predicate cannot be null");
-        }
+    public String render(@NonNull Object leftOperand, @NonNull Predicate<?> predicate) {
 
         if (predicate instanceof EqPredicate) {
             return "(" + this.renderOperand(leftOperand) + " == " + this.renderOperand(predicate) + ")";
@@ -43,16 +40,12 @@ public class DefaultPredicateRenderer implements PredicateRenderer {
     }
 
     @Override
-    public String render(Predicate<?> predicate) {
+    public String render(@NonNull Predicate<?> predicate) {
         return this.render(LITERAL_X, predicate);
     }
 
     @Override
-    public String renderOperand(Object operand) {
-
-        if (operand == null) {
-            throw new IllegalArgumentException("predicate cannot be null");
-        }
+    public String renderOperand(@NonNull Object operand) {
 
         if (operand instanceof PredicateRendererLiteral) {
             return ((PredicateRendererLiteral) operand).getValue();

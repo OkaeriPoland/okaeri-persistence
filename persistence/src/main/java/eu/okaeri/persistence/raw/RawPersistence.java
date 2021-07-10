@@ -7,6 +7,7 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 
 import java.util.*;
@@ -26,7 +27,7 @@ public abstract class RawPersistence implements Persistence<String> {
     @Getter @Setter private boolean autoFlush;
 
     @Override
-    public void registerCollection(PersistenceCollection collection) {
+    public void registerCollection(@NonNull PersistenceCollection collection) {
         this.knownCollections.put(collection.getValue(), collection);
         this.knownIndexes.put(collection.getValue(), collection.getIndexes());
     }
@@ -81,12 +82,12 @@ public abstract class RawPersistence implements Persistence<String> {
     }
 
     @Override
-    public String readOrEmpty(PersistenceCollection collection, PersistencePath path) {
+    public String readOrEmpty(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return this.read(collection, path).orElse("");
     }
 
     @Override
-    public Map<PersistencePath, String> readOrEmpty(PersistenceCollection collection, Collection<PersistencePath> paths) {
+    public Map<PersistencePath, String> readOrEmpty(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
 
         this.checkCollectionRegistered(collection);
         Map<PersistencePath, String> map = new LinkedHashMap<>();
@@ -100,30 +101,30 @@ public abstract class RawPersistence implements Persistence<String> {
     }
 
     @Override
-    public long write(PersistenceCollection collection, Map<PersistencePath, String> entities) {
+    public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, String> entities) {
         return entities.entrySet().stream()
                 .map(entry -> this.write(collection, entry.getKey(), entry.getValue()))
                 .filter(Predicate.isEqual(true))
                 .count();
     }
 
-    public void checkCollectionRegistered(PersistenceCollection collection) {
+    public void checkCollectionRegistered(@NonNull PersistenceCollection collection) {
         if (this.knownCollections.containsKey(collection.getValue())) {
             return;
         }
         throw new IllegalArgumentException("cannot use unregistered collection: " + collection);
     }
 
-    public PersistencePath toFullPath(PersistenceCollection collection, PersistencePath path) {
+    public PersistencePath toFullPath(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         this.checkCollectionRegistered(collection);
         return this.getBasePath().sub(collection).sub(this.convertPath(path));
     }
 
-    public PersistencePath convertPath(PersistencePath path) {
+    public PersistencePath convertPath(@NonNull PersistencePath path) {
         return path;
     }
 
-    public boolean isIndexed(PersistenceCollection collection, PersistencePath path) {
+    public boolean isIndexed(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
 
         Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
         if (collectionIndexes == null) {

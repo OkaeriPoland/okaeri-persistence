@@ -10,11 +10,11 @@ import java.util.function.Supplier;
 @EqualsAndHashCode
 public abstract class Cached<T> {
 
-    public static <A> Cached<A> of(Supplier<A> supplier) {
+    public static <A> Cached<A> of(@NonNull Supplier<A> supplier) {
         return of(null, supplier);
     }
 
-    public static <A> Cached<A> of(Duration ttl, Supplier<A> supplier) {
+    public static <A> Cached<A> of(Duration ttl, @NonNull Supplier<A> supplier) {
         return new Cached<A>() {
 
             private Instant loaded;

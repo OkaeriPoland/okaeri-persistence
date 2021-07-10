@@ -6,6 +6,7 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
+import lombok.NonNull;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,16 +18,16 @@ import java.util.stream.StreamSupport;
 
 public class H2Persistence extends JdbcPersistence {
 
-    public H2Persistence(PersistencePath basePath, HikariConfig hikariConfig) {
+    public H2Persistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
         super(basePath, hikariConfig);
     }
 
-    public H2Persistence(PersistencePath basePath, HikariDataSource dataSource) {
+    public H2Persistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource) {
         super(basePath, dataSource);
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
+    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, @NonNull String identity) {
 
         this.checkCollectionRegistered(collection);
         String indexTable = this.indexTable(collection);
@@ -46,13 +47,13 @@ public class H2Persistence extends JdbcPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
+    public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, @NonNull Object propertyValue) {
         return this.isIndexed(collection, property)
                 ? this.readByPropertyIndexed(collection, IndexProperty.of(property.getValue()), propertyValue)
                 : this.readByPropertyInstr(collection, property, propertyValue);
     }
 
-    private Stream<PersistenceEntity<String>> readByPropertyInstr(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
+    private Stream<PersistenceEntity<String>> readByPropertyInstr(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, @NonNull Object propertyValue) {
 
         if (!this.canUseToString(propertyValue)) {
             return this.streamAll(collection);
@@ -81,7 +82,7 @@ public class H2Persistence extends JdbcPersistence {
     }
 
     @Override
-    public boolean write(PersistenceCollection collection, PersistencePath path, String raw) {
+    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull String raw) {
 
         this.checkCollectionRegistered(collection);
         String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?) on duplicate key update `value` = ?";
@@ -98,7 +99,7 @@ public class H2Persistence extends JdbcPersistence {
     }
 
     @Override
-    public long write(PersistenceCollection collection, Map<PersistencePath, String> entities) {
+    public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, String> entities) {
 
         this.checkCollectionRegistered(collection);
         String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?) on duplicate key update `value` = ?";

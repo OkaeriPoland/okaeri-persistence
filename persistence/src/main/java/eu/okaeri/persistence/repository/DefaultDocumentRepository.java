@@ -6,9 +6,13 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,19 +37,19 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     }
 
     @Override
-    public long deleteAllByPath(Iterable<?> paths) {
+    public long deleteAllByPath(@NonNull Iterable<?> paths) {
         return this.persistence.delete(this.collection, StreamSupport.stream(paths.spliterator(), false)
                 .map(DefaultDocumentRepository::toPath)
                 .collect(Collectors.toSet()));
     }
 
     @Override
-    public boolean deleteByPath(Object path) {
+    public boolean deleteByPath(@NonNull Object path) {
         return this.persistence.delete(this.collection, toPath(path));
     }
 
     @Override
-    public boolean existsByPath(Object path) {
+    public boolean existsByPath(@NonNull Object path) {
         return this.persistence.exists(this.collection, toPath(path));
     }
 
@@ -64,7 +68,7 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     }
 
     @Override
-    public Collection<T> findAllByPath(Iterable<?> paths) {
+    public Collection<T> findAllByPath(@NonNull Iterable<?> paths) {
 
         Set<PersistencePath> pathSet = StreamSupport.stream(paths.spliterator(), false)
                 .map(DefaultDocumentRepository::toPath)
@@ -76,7 +80,7 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     }
 
     @Override
-    public Collection<T> findOrCreateAllByPath(Iterable<?> paths) {
+    public Collection<T> findOrCreateAllByPath(@NonNull Iterable<?> paths) {
 
         Set<PersistencePath> pathSet = StreamSupport.stream(paths.spliterator(), false)
                 .map(DefaultDocumentRepository::toPath)
@@ -88,25 +92,25 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     }
 
     @Override
-    public Optional<T> findByPath(Object path) {
+    public Optional<T> findByPath(@NonNull Object path) {
         return this.persistence.read(this.collection, toPath(path))
                 .map(document -> document.into(this.documentType));
     }
 
     @Override
-    public T findOrCreateByPath(Object path) {
+    public T findOrCreateByPath(@NonNull Object path) {
         Document document = this.persistence.readOrEmpty(this.collection, toPath(path));
         return document.into(this.documentType);
     }
 
     @Override
-    public T save(T document) {
+    public T save(@NonNull T document) {
         document.save();
         return document;
     }
 
     @Override
-    public Iterable<T> saveAll(Iterable<T> documents) {
+    public Iterable<T> saveAll(@NonNull Iterable<T> documents) {
         Map<PersistencePath, Document> documentMap = StreamSupport.stream(documents.spliterator(), false)
                 .collect(Collectors.toMap(Document::getPath, Function.identity()));
         this.persistence.write(this.collection, documentMap);

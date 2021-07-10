@@ -1,15 +1,17 @@
 package eu.okaeri.persistence.filter.predicate;
 
+import lombok.NonNull;
+
 import java.math.BigDecimal;
 
 public abstract class PredicateNumeric<T> extends Predicate<T> {
 
-    protected PredicateNumeric(T rightOperand) {
+    protected PredicateNumeric(@NonNull T rightOperand) {
         super(rightOperand);
     }
 
     @Override
-    public boolean check(Object leftOperand) {
+    public boolean check(@NonNull Object leftOperand) {
 
         if ((leftOperand instanceof Number) && (this.getRightOperand() instanceof Number)) {
             BigDecimal left = new BigDecimal(String.valueOf(leftOperand));
