@@ -8,9 +8,13 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
@@ -23,18 +27,18 @@ public class JdbcPersistence extends RawPersistence {
     private static final Logger LOGGER = Logger.getLogger(JdbcPersistence.class.getName());
     @Getter private HikariDataSource dataSource;
 
-    public JdbcPersistence(PersistencePath basePath, HikariConfig hikariConfig) {
+    public JdbcPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
         super(basePath, true, true, true, true);
         this.connect(hikariConfig);
     }
 
-    public JdbcPersistence(PersistencePath basePath, HikariDataSource dataSource) {
+    public JdbcPersistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource) {
         super(basePath, true, true, true, true);
         this.dataSource = dataSource;
     }
 
     @SneakyThrows
-    private void connect(HikariConfig hikariConfig) {
+    private void connect(@NonNull HikariConfig hikariConfig) {
         do {
             try {
                 this.dataSource = new HikariDataSource(hikariConfig);
@@ -50,7 +54,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public void registerCollection(PersistenceCollection collection) {
+    public void registerCollection(@NonNull PersistenceCollection collection) {
 
         String collectionTable = this.table(collection);
         int keyLength = collection.getKeyLength();
@@ -75,7 +79,7 @@ public class JdbcPersistence extends RawPersistence {
         super.registerCollection(collection);
     }
 
-    private void registerIndex(PersistenceCollection collection, IndexProperty property, int identityLength, int propertyLength) {
+    private void registerIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property, int identityLength, int propertyLength) {
 
         int keyLength = collection.getKeyLength();
         String indexTable = this.indexTable(collection);
@@ -116,7 +120,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public Set<PersistencePath> findMissingIndexes(PersistenceCollection collection, Set<IndexProperty> indexProperties) {
+    public Set<PersistencePath> findMissingIndexes(@NonNull PersistenceCollection collection, @NonNull Set<IndexProperty> indexProperties) {
 
         if (indexProperties.isEmpty()) {
             return Collections.emptySet();
@@ -152,7 +156,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
+    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, @NonNull String identity) {
 
         this.checkCollectionRegistered(collection);
         String indexTable = this.indexTable(collection);
@@ -196,7 +200,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property) {
+    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property) {
 
         this.checkCollectionRegistered(collection);
         String indexTable = this.indexTable(collection);
@@ -214,7 +218,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, PersistencePath path) {
+    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
 
         this.checkCollectionRegistered(collection);
         String indexTable = this.indexTable(collection);
@@ -231,7 +235,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, IndexProperty property) {
+    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property) {
 
         this.checkCollectionRegistered(collection);
         String indexTable = this.indexTable(collection);
@@ -247,7 +251,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public Optional<String> read(PersistenceCollection collection, PersistencePath path) {
+    public Optional<String> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
 
         this.checkCollectionRegistered(collection);
         String sql = "select `value` from `" + this.table(collection) + "` where `key` = ? limit 1";
@@ -267,7 +271,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public Map<PersistencePath, String> read(PersistenceCollection collection, Collection<PersistencePath> paths) {
+    public Map<PersistencePath, String> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
 
         this.checkCollectionRegistered(collection);
         String keys = paths.stream().map(path -> "`key` = ?").collect(Collectors.joining(" or "));
@@ -294,7 +298,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public Map<PersistencePath, String> readAll(PersistenceCollection collection) {
+    public Map<PersistencePath, String> readAll(@NonNull PersistenceCollection collection) {
 
         this.checkCollectionRegistered(collection);
         String sql = "select `key`, `value` from `" + this.table(collection) + "`";
@@ -318,13 +322,13 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
+    public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, @NonNull Object propertyValue) {
         return this.isIndexed(collection, property)
                 ? this.readByPropertyIndexed(collection, IndexProperty.of(property.getValue()), propertyValue)
                 : this.streamAll(collection);
     }
 
-    protected Stream<PersistenceEntity<String>> readByPropertyIndexed(PersistenceCollection collection, IndexProperty indexProperty, Object propertyValue) {
+    protected Stream<PersistenceEntity<String>> readByPropertyIndexed(@NonNull PersistenceCollection collection, @NonNull IndexProperty indexProperty, @NonNull Object propertyValue) {
 
         if (!this.canUseToString(propertyValue)) {
             return this.streamAll(collection);
@@ -359,7 +363,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> streamAll(PersistenceCollection collection) {
+    public Stream<PersistenceEntity<String>> streamAll(@NonNull PersistenceCollection collection) {
 
         this.checkCollectionRegistered(collection);
         String sql = "select `key`, `value` from `" + this.table(collection) + "`";
@@ -383,7 +387,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public long count(PersistenceCollection collection) {
+    public long count(@NonNull PersistenceCollection collection) {
 
         this.checkCollectionRegistered(collection);
         String sql = "select count(1) from `" + this.table(collection) + "`";
@@ -402,7 +406,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean exists(PersistenceCollection collection, PersistencePath path) {
+    public boolean exists(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
 
         this.checkCollectionRegistered(collection);
         String sql = "select 1 from `" + this.table(collection) + "` where `key` = ? limit 1";
@@ -418,7 +422,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean write(PersistenceCollection collection, PersistencePath path, String raw) {
+    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull String raw) {
 
         if (this.read(collection, path).isPresent()) {
             String sql = "update `" + this.table(collection) + "` set `value` = ? where `key` = ?";
@@ -444,7 +448,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean delete(PersistenceCollection collection, PersistencePath path) {
+    public boolean delete(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
 
         this.checkCollectionRegistered(collection);
         String sql = "delete from `" + this.table(collection) + "` where `key` = ?";
@@ -465,7 +469,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public long delete(PersistenceCollection collection, Collection<PersistencePath> paths) {
+    public long delete(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
 
         this.checkCollectionRegistered(collection);
         if (paths.isEmpty()) {
@@ -501,7 +505,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean deleteAll(PersistenceCollection collection) {
+    public boolean deleteAll(@NonNull PersistenceCollection collection) {
 
         this.checkCollectionRegistered(collection);
         String sql = "truncate table `" + this.table(collection) + "`";

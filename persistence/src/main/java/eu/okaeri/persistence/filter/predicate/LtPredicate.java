@@ -1,12 +1,14 @@
 package eu.okaeri.persistence.filter.predicate;
 
+import lombok.NonNull;
+
 /**
  * VALUE lower than X
  * val < x
  */
 public class LtPredicate<T> extends PredicateNumeric<T> {
 
-    public LtPredicate(T rightOperand) {
+    public LtPredicate(@NonNull T rightOperand) {
         super(rightOperand);
     }
 

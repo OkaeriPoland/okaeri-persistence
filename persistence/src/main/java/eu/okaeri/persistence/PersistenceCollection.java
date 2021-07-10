@@ -4,6 +4,7 @@ import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.repository.annotation.DocumentCollection;
 import eu.okaeri.persistence.repository.annotation.DocumentIndex;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.ToString;
 
 import java.util.HashSet;
@@ -13,7 +14,7 @@ import java.util.Set;
 @ToString(callSuper = true)
 public class PersistenceCollection extends PersistencePath {
 
-    public static PersistenceCollection of(Class<?> clazz) {
+    public static PersistenceCollection of(@NonNull Class<?> clazz) {
 
         DocumentCollection collection = clazz.getAnnotation(DocumentCollection.class);
         if (collection == null) {
@@ -28,15 +29,15 @@ public class PersistenceCollection extends PersistencePath {
         return out.autofixIndexes(collection.autofixIndexes());
     }
 
-    public static PersistenceCollection of(String path) {
+    public static PersistenceCollection of(@NonNull String path) {
         return new PersistenceCollection(path, 255);
     }
 
-    public static PersistenceCollection of(String path, int keyLength) {
+    public static PersistenceCollection of(@NonNull String path, int keyLength) {
         return of(path).keyLength(keyLength);
     }
 
-    private PersistenceCollection(String value, int keyLength) {
+    private PersistenceCollection(@NonNull String value, int keyLength) {
         super(value);
         this.keyLength = keyLength;
     }
@@ -51,7 +52,7 @@ public class PersistenceCollection extends PersistencePath {
         return this;
     }
 
-    public PersistenceCollection index(IndexProperty indexProperty) {
+    public PersistenceCollection index(@NonNull IndexProperty indexProperty) {
         this.indexes.add(indexProperty);
         return this;
     }

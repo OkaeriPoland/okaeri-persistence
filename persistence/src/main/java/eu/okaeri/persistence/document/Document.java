@@ -7,6 +7,7 @@ import eu.okaeri.configs.exception.OkaeriException;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistencePath;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 import lombok.ToString;
 
@@ -58,7 +59,7 @@ public class Document extends OkaeriConfig {
     }
 
     @SuppressWarnings("unchecked")
-    public <T extends Document> T into(Class<T> configClazz) {
+    public <T extends Document> T into(@NonNull Class<T> configClazz) {
 
         if (!configClazz.isInstance(this.cachedInto)) {
             T newEntity = ConfigManager.transformCopy(this.cachedInto, configClazz);

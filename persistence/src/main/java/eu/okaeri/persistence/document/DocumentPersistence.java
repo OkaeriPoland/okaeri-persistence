@@ -15,6 +15,7 @@ import eu.okaeri.persistence.document.ref.EagerRefSerializer;
 import eu.okaeri.persistence.document.ref.LazyRefSerializer;
 import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
+import lombok.NonNull;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -39,7 +40,7 @@ public class DocumentPersistence implements Persistence<Document> {
      * @param configurerProvider Okaeri Config's provider (mostly json)
      * @param serdesPacks Additional serdes packs for the configurerProvider
      */
-    public DocumentPersistence(RawPersistence rawPersistence, ConfigurerProvider configurerProvider, OkaeriSerdesPack... serdesPacks) {
+    public DocumentPersistence(@NonNull RawPersistence rawPersistence, @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
         this.raw = rawPersistence;
         this.configurerProvider = configurerProvider;
         this.serdesPacks = serdesPacks;
@@ -69,7 +70,7 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public void registerCollection(PersistenceCollection collection) {
+    public void registerCollection(@NonNull PersistenceCollection collection) {
         this.getRaw().registerCollection(collection);
         if (!collection.isAutofixIndexes()) {
             return;
@@ -78,7 +79,7 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public long fixIndexes(PersistenceCollection collection) {
+    public long fixIndexes(@NonNull PersistenceCollection collection) {
 
         if (!this.getRaw().isNativeIndexes()) {
             return 0;
@@ -119,12 +120,12 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
+    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, @NonNull String identity) {
         return this.getRaw().isNativeIndexes() && this.getRaw().updateIndex(collection, path, property, identity);
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, Document document) {
+    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
 
         if (!this.getRaw().isNativeIndexes()) {
             return false;
@@ -151,7 +152,7 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, PersistencePath path) {
+    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
 
         if (!this.getRaw().isNativeIndexes()) {
             return false;
@@ -162,32 +163,32 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property) {
+    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property) {
         return this.getRaw().isNativeIndexes() && this.getRaw().dropIndex(collection, path, property);
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, PersistencePath path) {
+    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return this.getRaw().isNativeIndexes() && this.getRaw().dropIndex(collection, path);
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, IndexProperty property) {
+    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property) {
         return this.getRaw().isNativeIndexes() && this.getRaw().dropIndex(collection, property);
     }
 
     @Override
-    public Set<PersistencePath> findMissingIndexes(PersistenceCollection collection, Set<IndexProperty> indexProperties) {
+    public Set<PersistencePath> findMissingIndexes(@NonNull PersistenceCollection collection, @NonNull Set<IndexProperty> indexProperties) {
         return this.getRaw().findMissingIndexes(collection, indexProperties);
     }
 
     @Override
-    public Document readOrEmpty(PersistenceCollection collection, PersistencePath path) {
+    public Document readOrEmpty(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return this.read(collection, path).orElse(this.createDocument(collection, path));
     }
 
     @Override
-    public Optional<Document> read(PersistenceCollection collection, PersistencePath path) {
+    public Optional<Document> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
 
         Optional<String> data = this.getRaw().read(collection, path);
         if (!data.isPresent()) {
@@ -199,7 +200,7 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public Map<PersistencePath, Document> readOrEmpty(PersistenceCollection collection, Collection<PersistencePath> paths) {
+    public Map<PersistencePath, Document> readOrEmpty(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
 
         if (paths.isEmpty()) {
             return Collections.emptyMap();
@@ -216,7 +217,7 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public Map<PersistencePath, Document> read(PersistenceCollection collection, Collection<PersistencePath> paths) {
+    public Map<PersistencePath, Document> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
         return paths.isEmpty() ? Collections.emptyMap() : this.getRaw().read(collection, paths).entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
                     Document document = this.createDocument(collection, entry.getKey());
@@ -226,7 +227,7 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public Map<PersistencePath, Document> readAll(PersistenceCollection collection) {
+    public Map<PersistencePath, Document> readAll(@NonNull PersistenceCollection collection) {
         return this.getRaw().readAll(collection).entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
                     Document document = this.createDocument(collection, entry.getKey());
@@ -235,7 +236,7 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public Stream<PersistenceEntity<Document>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
+    public Stream<PersistenceEntity<Document>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
 
         List<String> pathParts = property.toParts();
         Predicate<PersistenceEntity<Document>> documentFilter = entity -> {
@@ -265,28 +266,28 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public Stream<PersistenceEntity<Document>> streamAll(PersistenceCollection collection) {
+    public Stream<PersistenceEntity<Document>> streamAll(@NonNull PersistenceCollection collection) {
         return this.getRaw().streamAll(collection).map(this.entityToDocumentMapper(collection));
     }
 
     @Override
-    public long count(PersistenceCollection collection) {
+    public long count(@NonNull PersistenceCollection collection) {
         return this.getRaw().count(collection);
     }
 
     @Override
-    public boolean exists(PersistenceCollection collection, PersistencePath path) {
+    public boolean exists(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return this.getRaw().exists(collection, path);
     }
 
     @Override
-    public boolean write(PersistenceCollection collection, PersistencePath path, Document document) {
+    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
         this.updateIndex(collection, path, document);
         return this.getRaw().write(collection, path, document.saveToString());
     }
 
     @Override
-    public long write(PersistenceCollection collection, Map<PersistencePath, Document> entities) {
+    public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, Document> entities) {
 
         if (entities.isEmpty()) {
             return 0;
@@ -303,17 +304,17 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public boolean delete(PersistenceCollection collection, PersistencePath path) {
+    public boolean delete(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return this.getRaw().delete(collection, path);
     }
 
     @Override
-    public long delete(PersistenceCollection collection, Collection<PersistencePath> paths) {
+    public long delete(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
         return this.getRaw().delete(collection, paths);
     }
 
     @Override
-    public boolean deleteAll(PersistenceCollection collection) {
+    public boolean deleteAll(@NonNull PersistenceCollection collection) {
         return this.getRaw().deleteAll(collection);
     }
 
@@ -322,7 +323,7 @@ public class DocumentPersistence implements Persistence<Document> {
         return this.getRaw().deleteAll();
     }
 
-    public Document createDocument(PersistenceCollection collection, PersistencePath path) {
+    public Document createDocument(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         this.getRaw().checkCollectionRegistered(collection);
         Document config = ConfigManager.create(Document.class);
         config.withConfigurer(this.configurerProvider.get());

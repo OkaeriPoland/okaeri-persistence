@@ -2,30 +2,31 @@ package eu.okaeri.persistence.document.index;
 
 import eu.okaeri.persistence.PersistencePath;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.ToString;
 
 @Getter
 @ToString(callSuper = true)
 public class IndexProperty extends PersistencePath {
 
-    public static IndexProperty of(String path) {
+    public static IndexProperty of(@NonNull String path) {
         return new IndexProperty(path, 255);
     }
 
-    public static IndexProperty of(String path, int maxLength) {
+    public static IndexProperty of(@NonNull String path, int maxLength) {
         return of(path).maxLength(maxLength);
     }
 
-    public static IndexProperty parse(String source) {
+    public static IndexProperty parse(@NonNull String source) {
         return of(source.replace(".", SEPARATOR));
     }
 
     @Override
-    public IndexProperty sub(String sub) {
+    public IndexProperty sub(@NonNull String sub) {
         return of(super.sub(sub).getValue(), this.maxLength);
     }
 
-    private IndexProperty(String value, int maxLength) {
+    private IndexProperty(@NonNull String value, int maxLength) {
         super(value);
         this.maxLength = maxLength;
     }

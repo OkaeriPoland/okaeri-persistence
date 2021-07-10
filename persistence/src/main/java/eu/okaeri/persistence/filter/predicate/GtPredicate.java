@@ -1,12 +1,14 @@
 package eu.okaeri.persistence.filter.predicate;
 
+import lombok.NonNull;
+
 /**
  * VALUE greater than X
  * val > x
  */
 public class GtPredicate<T> extends PredicateNumeric<T> {
 
-    public GtPredicate(T rightOperand) {
+    public GtPredicate(@NonNull T rightOperand) {
         super(rightOperand);
     }
 
