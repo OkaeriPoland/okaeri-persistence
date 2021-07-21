@@ -336,13 +336,12 @@ public class FlatPersistence extends RawPersistence {
 
     @SneakyThrows
     private long delete(@NonNull File file) {
-        try (Stream<Path> walk = Files.walk(file.toPath())) {
-            return walk.sorted(Comparator.reverseOrder())
-                    .map(Path::toFile)
-                    .map(File::delete)
-                    .filter(Predicate.isEqual(true))
-                    .count();
-        }
+        @Cleanup Stream<Path> walk = Files.walk(file.toPath());
+        return walk.sorted(Comparator.reverseOrder())
+                .map(Path::toFile)
+                .map(File::delete)
+                .filter(Predicate.isEqual(true))
+                .count();
     }
 
     @Data
@@ -362,8 +361,7 @@ public class FlatPersistence extends RawPersistence {
 
     @SneakyThrows
     private void writeToFile(File file, String text) {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-            writer.write(text);
-        }
+        @Cleanup BufferedWriter writer = new BufferedWriter(new FileWriter(file));
+        writer.write(text);
     }
 }
