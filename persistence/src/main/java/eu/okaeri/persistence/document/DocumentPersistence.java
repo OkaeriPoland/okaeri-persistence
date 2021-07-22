@@ -3,7 +3,7 @@ package eu.okaeri.persistence.document;
 import eu.okaeri.configs.ConfigManager;
 import eu.okaeri.configs.configurer.Configurer;
 import eu.okaeri.configs.serdes.OkaeriSerdesPack;
-import eu.okaeri.configs.serdes.TransformerRegistry;
+import eu.okaeri.configs.serdes.SerdesRegistry;
 import eu.okaeri.configs.serdes.commons.SerdesCommons;
 import eu.okaeri.configs.serdes.standard.StandardSerdes;
 import eu.okaeri.persistence.Persistence;
@@ -32,7 +32,7 @@ public class DocumentPersistence implements Persistence<Document> {
     @Getter private final ConfigurerProvider configurerProvider;
     @Getter private final OkaeriSerdesPack[] serdesPacks;
     @Getter private final RawPersistence raw;
-    private TransformerRegistry transformerRegistry;
+    private SerdesRegistry serdesRegistry;
     private Configurer simplifier;
 
     /**
@@ -45,13 +45,13 @@ public class DocumentPersistence implements Persistence<Document> {
         this.configurerProvider = configurerProvider;
         this.serdesPacks = serdesPacks;
         // shared transform registry for faster transformations
-        this.transformerRegistry = new TransformerRegistry();
-        Stream.concat(Stream.of(new StandardSerdes(), new SerdesCommons()), Stream.of(this.serdesPacks)).forEach(pack -> pack.register(this.transformerRegistry));
-        this.transformerRegistry.register(new LazyRefSerializer(this));
-        this.transformerRegistry.register(new EagerRefSerializer(this));
+        this.serdesRegistry = new SerdesRegistry();
+        Stream.concat(Stream.of(new StandardSerdes(), new SerdesCommons()), Stream.of(this.serdesPacks)).forEach(pack -> pack.register(this.serdesRegistry));
+        this.serdesRegistry.register(new LazyRefSerializer(this));
+        this.serdesRegistry.register(new EagerRefSerializer(this));
         // simplifier for document mappings
         this.simplifier = configurerProvider.get();
-        this.simplifier.setRegistry(this.transformerRegistry);
+        this.simplifier.setRegistry(this.serdesRegistry);
     }
 
     @Override
@@ -120,7 +120,7 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, @NonNull String identity) {
+    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
         return this.getRaw().isNativeIndexes() && this.getRaw().updateIndex(collection, path, property, identity);
     }
 
@@ -327,7 +327,7 @@ public class DocumentPersistence implements Persistence<Document> {
         this.getRaw().checkCollectionRegistered(collection);
         Document config = ConfigManager.create(Document.class);
         config.withConfigurer(this.configurerProvider.get());
-        config.getConfigurer().setRegistry(this.transformerRegistry);
+        config.getConfigurer().setRegistry(this.serdesRegistry);
         config.setSaver(document -> this.write(document.getCollection(), document.getPath(), document));
         config.setCollection(collection);
         config.setPersistence(this);

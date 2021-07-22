@@ -13,6 +13,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
+import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -149,13 +150,14 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
+    @SneakyThrows
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property) {
 
         // remove from list and get index
         InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).remove(property.getValue());
 
         // delete index file
-        return (flatIndex != null) && flatIndex.getBindFile().delete();
+        return (flatIndex != null) && Files.deleteIfExists(flatIndex.getBindFile());
     }
 
     @Override
