@@ -66,7 +66,7 @@ public class FlatPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, @NonNull String identity) {
+    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
 
         // get index
         InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).get(property.getValue());
@@ -126,13 +126,14 @@ public class FlatPersistence extends RawPersistence {
     }
 
     @Override
+    @SneakyThrows
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property) {
 
         // remove from list and get index
         InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).remove(property.getValue());
 
         // delete index file
-        return (flatIndex != null) && flatIndex.getBindFile().delete();
+        return (flatIndex != null) && Files.deleteIfExists(flatIndex.getBindFile());
     }
 
     @Override
@@ -197,12 +198,12 @@ public class FlatPersistence extends RawPersistence {
             InMemoryIndex flatIndex = ConfigManager.create(InMemoryIndex.class);
             flatIndex.setConfigurer(this.indexProvider.get());
 
-            File file = collectionPath.append("_").append(index.toSafeFileName()).append(".index").toFile();
-            flatIndex.setSaver(document -> document.save(file));
-            flatIndex.setBindFile(file);
+            Path path = collectionPath.append("_").append(index.toSafeFileName()).append(".index").toPath();
+            flatIndex.setSaver(document -> document.save(path));
+            flatIndex.withBindFile(path);
 
-            if (this.isSaveIndex() && file.exists()) {
-                flatIndex.load(file);
+            if (this.isSaveIndex() && Files.exists(path)) {
+                flatIndex.load(path);
             }
 
             indexes.put(index.getValue(), flatIndex);

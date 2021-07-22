@@ -27,7 +27,7 @@ public class H2Persistence extends JdbcPersistence {
     }
 
     @Override
-    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, @NonNull String identity) {
+    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
 
         this.checkCollectionRegistered(collection);
         String indexTable = this.indexTable(collection);
