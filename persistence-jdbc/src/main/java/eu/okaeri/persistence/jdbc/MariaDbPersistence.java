@@ -27,7 +27,7 @@ public class MariaDbPersistence extends JdbcPersistence {
     }
 
     @Override
-    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, @NonNull String identity) {
+    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
 
         this.checkCollectionRegistered(collection);
         String indexTable = this.indexTable(collection);
@@ -102,13 +102,13 @@ public class MariaDbPersistence extends JdbcPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, @NonNull Object propertyValue) {
+    public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
         return this.isIndexed(collection, property)
                 ? this.readByPropertyIndexed(collection, IndexProperty.of(property.getValue()), propertyValue)
                 : this.readByPropertyJsonExtract(collection, property, propertyValue);
     }
 
-    private Stream<PersistenceEntity<String>> readByPropertyJsonExtract(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, @NonNull Object propertyValue) {
+    private Stream<PersistenceEntity<String>> readByPropertyJsonExtract(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
 
         this.checkCollectionRegistered(collection);
         String sql = "select `key`, `value` from `" + this.table(collection) + "` where json_extract(`value`, ?) = ?";
