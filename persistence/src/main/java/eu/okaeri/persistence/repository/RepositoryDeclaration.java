@@ -9,14 +9,10 @@ import eu.okaeri.persistence.repository.annotation.DocumentPath;
 import lombok.AccessLevel;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import sun.reflect.generics.reflectiveObjects.ParameterizedTypeImpl;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -28,7 +24,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
     public static <A extends DocumentRepository> RepositoryDeclaration<A> of(@NonNull Class<A> clazz) {
 
         Map<Method, RepositoryMethodCaller> methods = new HashMap<>();
-        Type[] types = ((ParameterizedTypeImpl) clazz.getGenericInterfaces()[0]).getActualTypeArguments();
+        Type[] types = ((ParameterizedType) clazz.getGenericInterfaces()[0]).getActualTypeArguments();
         Class<?> pathType = (Class<?>) types[0];
         Class<? extends Document> entityType = (Class<? extends Document>) types[1];
 
@@ -155,11 +151,17 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
 
     private static Class<?> getInsideType(Method method) {
 
-        ParameterizedTypeImpl genericReturnType = (ParameterizedTypeImpl) method.getGenericReturnType();
+        ParameterizedType genericReturnType = (ParameterizedType) method.getGenericReturnType();
         Type actualTypeArgument = genericReturnType.getActualTypeArguments()[0];
 
-        return (actualTypeArgument instanceof Class<?>)
-                ? (Class<?>) actualTypeArgument
-                : ((ParameterizedTypeImpl) actualTypeArgument).getRawType();
+        if (actualTypeArgument instanceof Class<?>) {
+            return (Class<?>) actualTypeArgument;
+        }
+
+        if (actualTypeArgument instanceof ParameterizedType) {
+            return ((Class<?>) ((ParameterizedType) actualTypeArgument).getRawType());
+        }
+
+        throw new IllegalArgumentException("cannot resolve inside type of " + method);
     }
 }

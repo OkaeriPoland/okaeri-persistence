@@ -20,7 +20,6 @@ import java.util.function.Predicate;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 public class JdbcPersistence extends RawPersistence {
 
@@ -356,7 +355,7 @@ public class JdbcPersistence extends RawPersistence {
                 results.add(new PersistenceEntity<>(PersistencePath.of(key), value));
             }
 
-            return StreamSupport.stream(Spliterators.spliterator(results.iterator(), resultSet.getFetchSize(), Spliterator.NONNULL), false);
+            return results.stream();
         } catch (SQLException exception) {
             throw new RuntimeException("cannot ready by property from " + collection, exception);
         }
@@ -380,7 +379,7 @@ public class JdbcPersistence extends RawPersistence {
                 results.add(new PersistenceEntity<>(PersistencePath.of(key), value));
             }
 
-            return StreamSupport.stream(Spliterators.spliterator(results.iterator(), resultSet.getFetchSize(), Spliterator.NONNULL), false);
+            return results.stream();
         } catch (SQLException exception) {
             throw new RuntimeException("cannot stream all from " + collection, exception);
         }

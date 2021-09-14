@@ -80,6 +80,13 @@
         </pluginManagement>
     </build>
 
+    <repositories>
+        <repository>
+            <id>storehouse-releases</id>
+            <url>https://storehouse.okaeri.eu/repository/maven-releases/</url>
+        </repository>
+    </repositories>
+
     <distributionManagement>
         <repository>
             <id>storehouse-releases</id>
