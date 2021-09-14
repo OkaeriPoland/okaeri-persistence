@@ -12,9 +12,11 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 public class MariaDbPersistence extends JdbcPersistence {
 
@@ -127,7 +129,7 @@ public class MariaDbPersistence extends JdbcPersistence {
                 results.add(new PersistenceEntity<>(PersistencePath.of(key), value));
             }
 
-            return StreamSupport.stream(Spliterators.spliterator(results.iterator(), resultSet.getFetchSize(), Spliterator.NONNULL), false);
+            return results.stream();
         } catch (SQLException exception) {
             throw new RuntimeException("cannot ready by property from " + collection, exception);
         }
