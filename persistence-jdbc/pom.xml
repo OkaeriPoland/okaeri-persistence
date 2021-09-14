@@ -11,11 +11,6 @@
 
     <artifactId>okaeri-persistence-jdbc</artifactId>
 
-    <properties>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>eu.okaeri</groupId>
@@ -38,7 +33,7 @@
         <dependency>
             <groupId>eu.okaeri</groupId>
             <artifactId>okaeri-configs-json-simple</artifactId>
-            <version>3.1.0</version>
+            <version>3.3.4</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
