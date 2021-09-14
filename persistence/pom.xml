@@ -11,21 +11,16 @@
 
     <artifactId>okaeri-persistence-core</artifactId>
 
-    <properties>
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>eu.okaeri</groupId>
             <artifactId>okaeri-configs-core</artifactId>
-            <version>3.1.0</version>
+            <version>3.3.4</version>
         </dependency>
         <dependency>
             <groupId>eu.okaeri</groupId>
             <artifactId>okaeri-configs-serdes-commons</artifactId>
-            <version>3.1.0</version>
+            <version>3.3.4</version>
         </dependency>
     </dependencies>
 
