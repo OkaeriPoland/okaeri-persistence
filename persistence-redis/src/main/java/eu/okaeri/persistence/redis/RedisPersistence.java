@@ -1,13 +1,16 @@
 package eu.okaeri.persistence.redis;
 
-import eu.okaeri.persistence.document.index.IndexProperty;
-import eu.okaeri.persistence.raw.RawPersistence;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.persistence.document.index.IndexProperty;
+import eu.okaeri.persistence.raw.RawPersistence;
 import io.lettuce.core.*;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
+import io.lettuce.core.codec.RedisCodec;
+import io.lettuce.core.codec.StringCodec;
+import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
 import lombok.Getter;
 import lombok.SneakyThrows;
 
@@ -30,9 +33,15 @@ public class RedisPersistence extends RawPersistence {
 
     @SneakyThrows
     private void connect(RedisClient client) {
+        this.connection = this.createConnection(client, StringCodec.UTF8);
+    }
+
+    @SneakyThrows
+    public <K, V> StatefulRedisConnection<K, V> createConnection(RedisClient client, RedisCodec<K, V> codec) {
+        StatefulRedisConnection<K, V> localConnection = null;
         do {
             try {
-                this.connection = client.connect();
+                localConnection = client.connect(codec);
             } catch (Exception exception) {
                 if (exception.getCause() != null) {
                     LOGGER.severe("[" + this.getBasePath().getValue() + "] Cannot connect with redis (waiting 30s): " + exception.getMessage() + " caused by " + exception.getCause().getMessage());
@@ -41,7 +50,26 @@ public class RedisPersistence extends RawPersistence {
                 }
                 Thread.sleep(30_000);
             }
-        } while (this.connection == null);
+        } while (localConnection == null);
+        return localConnection;
+    }
+
+    @SneakyThrows
+    public <K, V> StatefulRedisPubSubConnection<K, V> createPubSubConnection(RedisClient client, RedisCodec<K, V> codec) {
+        StatefulRedisPubSubConnection<K, V> localConnection = null;
+        do {
+            try {
+                localConnection = client.connectPubSub(codec);
+            } catch (Exception exception) {
+                if (exception.getCause() != null) {
+                    LOGGER.severe("[" + this.getBasePath().getValue() + "] Cannot connect with redis pubsub (waiting 30s): " + exception.getMessage() + " caused by " + exception.getCause().getMessage());
+                } else {
+                    LOGGER.severe("[" + this.getBasePath().getValue() + "] Cannot connect with redis pubsub (waiting 30s): " + exception.getMessage());
+                }
+                Thread.sleep(30_000);
+            }
+        } while (localConnection == null);
+        return localConnection;
     }
 
     @Override
