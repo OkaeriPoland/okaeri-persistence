@@ -2,13 +2,14 @@ package eu.okaeri.persistence;
 
 import eu.okaeri.persistence.document.index.IndexProperty;
 
+import java.io.Closeable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 
-public interface Persistence<T> {
+public interface Persistence<T> extends Closeable {
 
     /**
      * Register a collection to be tracked by persistence.
