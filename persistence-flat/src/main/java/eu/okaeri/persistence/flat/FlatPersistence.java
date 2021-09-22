@@ -365,4 +365,8 @@ public class FlatPersistence extends RawPersistence {
         @Cleanup BufferedWriter writer = new BufferedWriter(new FileWriter(file));
         writer.write(text);
     }
+
+    @Override
+    public void close() throws IOException {
+    }
 }

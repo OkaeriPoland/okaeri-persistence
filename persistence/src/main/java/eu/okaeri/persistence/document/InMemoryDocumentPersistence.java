@@ -13,6 +13,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -82,6 +83,10 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
             @Override
             public long deleteAll() {
                 return 0;
+            }
+
+            @Override
+            public void close() throws IOException {
             }
         }, InMemoryConfigurer::new, serdesPacks);
     }

@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -532,6 +533,11 @@ public class JdbcPersistence extends RawPersistence {
                 .map(this::deleteAll)
                 .filter(Predicate.isEqual(true))
                 .count();
+    }
+
+    @Override
+    public void close() throws IOException {
+        this.getDataSource().close();
     }
 
     protected String table(PersistenceCollection collection) {

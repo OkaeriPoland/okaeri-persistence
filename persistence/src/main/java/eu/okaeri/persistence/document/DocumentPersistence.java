@@ -17,6 +17,7 @@ import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
 import lombok.NonNull;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.function.Function;
@@ -382,5 +383,10 @@ public class DocumentPersistence implements Persistence<Document> {
         }
 
         throw new IllegalArgumentException("cannot compare " + object1 + " [" + object1.getClass() + "] to " + object2 + " [" + object2.getClass() + "]");
+    }
+
+    @Override
+    public void close() throws IOException {
+        this.getRaw().close();
     }
 }
