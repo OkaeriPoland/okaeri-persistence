@@ -109,7 +109,7 @@ public abstract class RawPersistence implements Persistence<String> {
     }
 
     public void checkCollectionRegistered(@NonNull PersistenceCollection collection) {
-        if (this.knownCollections.containsKey(collection.getValue())) {
+        if (this.getKnownCollections().containsKey(collection.getValue())) {
             return;
         }
         throw new IllegalArgumentException("cannot use unregistered collection: " + collection);
