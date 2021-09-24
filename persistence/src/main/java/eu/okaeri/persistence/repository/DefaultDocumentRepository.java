@@ -105,7 +105,7 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
 
     @Override
     public T save(@NonNull T document) {
-        document.save();
+        this.persistence.write(this.collection, document.getPath(), document);
         return document;
     }
 
