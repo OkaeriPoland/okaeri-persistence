@@ -317,7 +317,7 @@ public class DocumentPersistence implements Persistence<Document> {
     @Override
     public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
         this.updateIndex(collection, path, document);
-        return this.getWrite().write(collection, path, document.saveToString());
+        return this.getWrite().write(collection, path, this.update(document, collection).saveToString());
     }
 
     @Override
@@ -331,7 +331,7 @@ public class DocumentPersistence implements Persistence<Document> {
 
         for (Map.Entry<PersistencePath, Document> entry : entities.entrySet()) {
             this.updateIndex(collection, entry.getKey(), entry.getValue());
-            rawMap.put(entry.getKey(), entry.getValue().saveToString());
+            rawMap.put(entry.getKey(), this.update(entry.getValue(), collection).saveToString());
         }
 
         return this.getWrite().write(collection, rawMap);
@@ -359,12 +359,7 @@ public class DocumentPersistence implements Persistence<Document> {
 
     public Document createDocument(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         this.getWrite().checkCollectionRegistered(collection);
-        Document config = ConfigManager.create(Document.class);
-        config.withConfigurer(this.configurerProvider.get());
-        config.getConfigurer().setRegistry(this.serdesRegistry);
-        config.setSaver(document -> this.write(document.getCollection(), document.getPath(), document));
-        config.setCollection(collection);
-        config.setPersistence(this);
+        Document config = this.update(ConfigManager.create(Document.class), collection);
         config.setPath(path);
         return config;
     }
@@ -416,6 +411,34 @@ public class DocumentPersistence implements Persistence<Document> {
         }
 
         throw new IllegalArgumentException("cannot compare " + object1 + " [" + object1.getClass() + "] to " + object2 + " [" + object2.getClass() + "]");
+    }
+
+    public Document update(Document document, PersistenceCollection collection) {
+
+        // OkaeriConfig
+        if (document.getDeclaration() == null) {
+            document.updateDeclaration();
+        }
+
+        if (document.getConfigurer() == null) {
+            document.setConfigurer(this.configurerProvider.get());
+            document.getConfigurer().setRegistry(this.serdesRegistry);
+        }
+
+        // Document
+        if (document.getSaver() == null) {
+            document.setSaver(doc -> this.write(doc.getCollection(), doc.getPath(), doc));
+        }
+
+        if (document.getPersistence() == null) {
+            document.setPersistence(this);
+        }
+
+        if (document.getCollection() == null) {
+            document.setCollection(collection);
+        }
+
+        return document;
     }
 
     @Override

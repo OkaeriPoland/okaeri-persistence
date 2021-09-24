@@ -6,6 +6,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -95,7 +96,17 @@ public class PersistencePath {
     private String value;
 
     public String toSafeFilePath() {
-        return this.toParts().stream()
+        // edge case and windows (restore drive letter)
+        if ((this.value.length() >= 3) && (SEPARATOR + SEPARATOR).equals(this.value.substring(1, 3)) && System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows")) {
+            String suffix = this.toSafeFilePath(this.value.substring(3).split(SEPARATOR));
+            return this.value.charAt(0) + ":" + File.separator + suffix;
+        }
+        // use standard procedure
+        return this.toSafeFilePath(this.value.split(SEPARATOR));
+    }
+
+    private String toSafeFilePath(String[] parts) {
+        return Arrays.stream(parts)
                 .map(part -> part.replace("^\\.+", "").replaceAll("[\\\\/:*?\"<>|]", ""))
                 .collect(Collectors.joining(File.separator));
     }
