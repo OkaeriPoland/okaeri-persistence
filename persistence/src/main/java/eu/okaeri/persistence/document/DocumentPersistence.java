@@ -410,6 +410,10 @@ public class DocumentPersistence implements Persistence<Document> {
             }
         }
 
+        if (((object1 instanceof String) && (object2 instanceof UUID)) || ((object1 instanceof UUID) && (object2 instanceof String))) {
+            return Objects.equals(String.valueOf(object1), String.valueOf(object2));
+        }
+
         throw new IllegalArgumentException("cannot compare " + object1 + " [" + object1.getClass() + "] to " + object2 + " [" + object2.getClass() + "]");
     }
 
