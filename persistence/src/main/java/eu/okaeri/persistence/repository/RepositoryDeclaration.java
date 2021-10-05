@@ -134,7 +134,11 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
                     defaultRepositoryMethods.put(method, defaultMethod);
                 }
                 if (defaultMethod != null) {
-                    return defaultMethod.invoke(defaultRepository, args);
+                    try {
+                        return defaultMethod.invoke(defaultRepository, args);
+                    } catch (InvocationTargetException exception) {
+                        throw exception.getCause();
+                    }
                 }
             } catch (NoSuchMethodException | SecurityException ignored) {
                 defaultRepositoryMethods.put(method, null);
