@@ -26,6 +26,7 @@ public class RedisPersistence extends RawPersistence {
 
     private static final Logger LOGGER = Logger.getLogger(RedisPersistence.class.getName());
     @Getter private StatefulRedisConnection<String, String> connection;
+    @Getter private RedisClient client;
 
     public RedisPersistence(PersistencePath basePath, RedisClient client) {
         super(basePath, true, true, true, true);
@@ -34,15 +35,19 @@ public class RedisPersistence extends RawPersistence {
 
     @SneakyThrows
     private void connect(RedisClient client) {
-        this.connection = this.createConnection(client, StringCodec.UTF8);
+        this.client = client;
+        this.connection = this.createConnection(StringCodec.UTF8);
     }
 
     @SneakyThrows
-    public <K, V> StatefulRedisConnection<K, V> createConnection(RedisClient client, RedisCodec<K, V> codec) {
+    public <K, V> StatefulRedisConnection<K, V> createConnection(RedisCodec<K, V> codec) {
+        if (this.client == null) {
+            throw new RuntimeException("Cannot create connection! Make sure connect(RedisClient) is called before creating additional connections.");
+        }
         StatefulRedisConnection<K, V> localConnection = null;
         do {
             try {
-                localConnection = client.connect(codec);
+                localConnection = this.client.connect(codec);
             } catch (Exception exception) {
                 if (exception.getCause() != null) {
                     LOGGER.severe("[" + this.getBasePath().getValue() + "] Cannot connect with redis (waiting 30s): " + exception.getMessage() + " caused by " + exception.getCause().getMessage());
@@ -56,11 +61,14 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @SneakyThrows
-    public <K, V> StatefulRedisPubSubConnection<K, V> createPubSubConnection(RedisClient client, RedisCodec<K, V> codec) {
+    public <K, V> StatefulRedisPubSubConnection<K, V> createPubSubConnection(RedisCodec<K, V> codec) {
+        if (this.client == null) {
+            throw new RuntimeException("Cannot create connection! Make sure connect(RedisClient) is called before creating additional connections.");
+        }
         StatefulRedisPubSubConnection<K, V> localConnection = null;
         do {
             try {
-                localConnection = client.connectPubSub(codec);
+                localConnection = this.client.connectPubSub(codec);
             } catch (Exception exception) {
                 if (exception.getCause() != null) {
                     LOGGER.severe("[" + this.getBasePath().getValue() + "] Cannot connect with redis pubsub (waiting 30s): " + exception.getMessage() + " caused by " + exception.getCause().getMessage());
@@ -381,6 +389,7 @@ public class RedisPersistence extends RawPersistence {
     @Override
     public void close() throws IOException {
         this.getConnection().close();
+        this.getClient().shutdown();
     }
 
     private PersistencePath toIndexValueToKeys(PersistenceCollection collection, PersistencePath property, String propertyValue) {
