@@ -197,7 +197,7 @@ Add dependency to the `dependencies` section:
 <dependency>
   <groupId>eu.okaeri</groupId>
   <artifactId>okaeri-persistence-[type]</artifactId>
-  <version>1.5.8</version>
+  <version>1.5.9</version>
 </dependency>
 ```
 ### Gradle
@@ -207,5 +207,5 @@ maven { url "https://storehouse.okaeri.eu/repository/maven-public/" }
 ```
 Add dependency to the `maven` section:
 ```groovy
-implementation 'eu.okaeri:okaeri-persistence-[type]:1.5.8'
+implementation 'eu.okaeri:okaeri-persistence-[type]:1.5.9'
 ```
