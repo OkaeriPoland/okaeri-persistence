@@ -26,7 +26,7 @@ public class Document extends OkaeriConfig {
     @Exclude private Document cachedInto = this;
 
     @Override
-    public OkaeriConfig save() throws OkaeriException {
+    public Document save() throws OkaeriException {
 
         if (this.saver == null) {
             throw new IllegalArgumentException("cannot #save() without saver");
