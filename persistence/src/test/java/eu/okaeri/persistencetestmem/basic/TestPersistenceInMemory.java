@@ -6,14 +6,14 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.document.InMemoryDocumentPersistence;
 import eu.okaeri.persistence.repository.RepositoryDeclaration;
+import eu.okaeri.persistencetestmem.basic.entity.UnknownEntity;
 import eu.okaeri.persistencetestmem.basic.entity.User;
+import eu.okaeri.persistencetestmem.basic.entity.UserMeta;
 import eu.okaeri.persistencetestmem.basic.repository.UserRepository;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import eu.okaeri.persistencetestmem.basic.entity.UnknownEntity;
-import eu.okaeri.persistencetestmem.basic.entity.UserMeta;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;

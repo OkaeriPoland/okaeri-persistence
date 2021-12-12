@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 public class PersistencePath {
 
     public static final String SEPARATOR = ":";
+    private String value;
 
     public static PersistencePath of(@NonNull File file) {
         return new PersistencePath(file.getPath().replace(File.separator, SEPARATOR));
@@ -93,8 +94,6 @@ public class PersistencePath {
         return Arrays.asList(this.value.split(SEPARATOR));
     }
 
-    private String value;
-
     public String toSafeFilePath() {
         // edge case and windows (restore drive letter)
         if ((this.value.length() >= 3) && (SEPARATOR + SEPARATOR).equals(this.value.substring(1, 3)) && System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows")) {
@@ -107,8 +106,8 @@ public class PersistencePath {
 
     private String toSafeFilePath(String[] parts) {
         return Arrays.stream(parts)
-                .map(part -> part.replace("^\\.+", "").replaceAll("[\\\\/:*?\"<>|]", ""))
-                .collect(Collectors.joining(File.separator));
+            .map(part -> part.replace("^\\.+", "").replaceAll("[\\\\/:*?\"<>|]", ""))
+            .collect(Collectors.joining(File.separator));
     }
 
     public String toSafeFileName() {

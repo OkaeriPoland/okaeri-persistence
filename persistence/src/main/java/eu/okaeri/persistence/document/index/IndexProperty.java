@@ -9,6 +9,13 @@ import lombok.ToString;
 @ToString(callSuper = true)
 public class IndexProperty extends PersistencePath {
 
+    private int maxLength;
+
+    private IndexProperty(@NonNull String value, int maxLength) {
+        super(value);
+        this.maxLength = maxLength;
+    }
+
     public static IndexProperty of(@NonNull String path) {
         return new IndexProperty(path, 255);
     }
@@ -25,13 +32,6 @@ public class IndexProperty extends PersistencePath {
     public IndexProperty sub(@NonNull String sub) {
         return of(super.sub(sub).getValue(), this.maxLength);
     }
-
-    private IndexProperty(@NonNull String value, int maxLength) {
-        super(value);
-        this.maxLength = maxLength;
-    }
-
-    private int maxLength;
 
     public IndexProperty maxLength(int maxLength) {
         if ((maxLength < 1) || (maxLength > 255)) throw new IllegalArgumentException("max length should be between 1 and 255");

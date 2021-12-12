@@ -121,8 +121,8 @@ public class FlatPersistence extends RawPersistence {
     @Override
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return this.getKnownIndexes().getOrDefault(collection.getValue(), Collections.emptySet()).stream()
-                .map(index -> this.dropIndex(collection, path, index))
-                .anyMatch(Predicate.isEqual(true));
+            .map(index -> this.dropIndex(collection, path, index))
+            .anyMatch(Predicate.isEqual(true));
     }
 
     @Override
@@ -147,12 +147,12 @@ public class FlatPersistence extends RawPersistence {
 
         Path collectionFile = this.getBasePath().sub(collection).toPath();
         return Files.list(collectionFile)
-                .map(this.fileToKeyMapper)
-                .map(key -> collectionIndexes.values().stream()
-                        .allMatch(flatIndex -> flatIndex.getKeyToValue().containsKey(key))
-                        ? null : PersistencePath.of(key))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+            .map(this.fileToKeyMapper)
+            .map(key -> collectionIndexes.values().stream()
+                .allMatch(flatIndex -> flatIndex.getKeyToValue().containsKey(key))
+                ? null : PersistencePath.of(key))
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
     }
 
     @Override
@@ -171,16 +171,16 @@ public class FlatPersistence extends RawPersistence {
         }
 
         return new ArrayList<>(keys).stream()
-                .map(key -> {
-                    PersistencePath path = PersistencePath.of(key);
-                    return this.read(collection, path)
-                            .map(data -> new PersistenceEntity<>(path, data))
-                            .orElseGet(() -> {
-                                this.dropIndex(collection, path);
-                                return null;
-                            });
-                })
-                .filter(Objects::nonNull);
+            .map(key -> {
+                PersistencePath path = PersistencePath.of(key);
+                return this.read(collection, path)
+                    .map(data -> new PersistenceEntity<>(path, data))
+                    .orElseGet(() -> {
+                        this.dropIndex(collection, path);
+                        return null;
+                    });
+            })
+            .filter(Objects::nonNull);
     }
 
     @Override
@@ -222,17 +222,17 @@ public class FlatPersistence extends RawPersistence {
     @Override
     public Map<PersistencePath, String> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
         return paths.stream()
-                .distinct()
-                .map(path -> new PersistenceEntity<>(path, this.read(collection, path).orElse(null)))
-                .filter(entity -> entity.getValue() != null)
-                .collect(Collectors.toMap(PersistenceEntity::getPath, PersistenceEntity::getValue));
+            .distinct()
+            .map(path -> new PersistenceEntity<>(path, this.read(collection, path).orElse(null)))
+            .filter(entity -> entity.getValue() != null)
+            .collect(Collectors.toMap(PersistenceEntity::getPath, PersistenceEntity::getValue));
     }
 
     @Override
     public Map<PersistencePath, String> readOrEmpty(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
         return paths.stream()
-                .distinct()
-                .collect(Collectors.toMap(path -> path, path -> this.readOrEmpty(collection, path)));
+            .distinct()
+            .collect(Collectors.toMap(path -> path, path -> this.readOrEmpty(collection, path)));
     }
 
     @Override
@@ -299,9 +299,9 @@ public class FlatPersistence extends RawPersistence {
     @Override
     public long delete(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
         return paths.stream()
-                .map(path -> this.delete(collection, path))
-                .filter(Predicate.isEqual(true))
-                .count();
+            .map(path -> this.delete(collection, path))
+            .filter(Predicate.isEqual(true))
+            .count();
     }
 
     @Override
@@ -329,27 +329,20 @@ public class FlatPersistence extends RawPersistence {
         }
 
         return Arrays.stream(files)
-                .filter(file -> this.getKnownCollections().keySet().contains(file.getName()))
-                .map(this::delete)
-                .filter(deleted -> deleted > 0)
-                .count();
+            .filter(file -> this.getKnownCollections().keySet().contains(file.getName()))
+            .map(this::delete)
+            .filter(deleted -> deleted > 0)
+            .count();
     }
 
     @SneakyThrows
     private long delete(@NonNull File file) {
         @Cleanup Stream<Path> walk = Files.walk(file.toPath());
         return walk.sorted(Comparator.reverseOrder())
-                .map(Path::toFile)
-                .map(File::delete)
-                .filter(Predicate.isEqual(true))
-                .count();
-    }
-
-    @Data
-    @AllArgsConstructor
-    private class Pair<L, R> {
-        private L left;
-        private R right;
+            .map(Path::toFile)
+            .map(File::delete)
+            .filter(Predicate.isEqual(true))
+            .count();
     }
 
     private String fileToString(File file) {
@@ -368,5 +361,12 @@ public class FlatPersistence extends RawPersistence {
 
     @Override
     public void close() throws IOException {
+    }
+
+    @Data
+    @AllArgsConstructor
+    private class Pair<L, R> {
+        private L left;
+        private R right;
     }
 }

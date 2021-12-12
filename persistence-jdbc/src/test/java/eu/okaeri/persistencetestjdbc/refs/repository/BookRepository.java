@@ -8,7 +8,7 @@ import eu.okaeri.persistencetestjdbc.refs.entity.Book;
 import java.util.UUID;
 
 @DocumentCollection(path = "book", keyLength = 36, indexes = {
-        @DocumentIndex(path = "title", maxLength = 255)
+    @DocumentIndex(path = "title", maxLength = 255)
 })
 public interface BookRepository extends DocumentRepository<UUID, Book> {
 }

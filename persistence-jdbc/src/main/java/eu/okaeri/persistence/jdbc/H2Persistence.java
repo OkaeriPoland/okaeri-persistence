@@ -50,8 +50,8 @@ public class H2Persistence extends JdbcPersistence {
     @Override
     public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, @NonNull Object propertyValue) {
         return this.isIndexed(collection, property)
-                ? this.readByPropertyIndexed(collection, IndexProperty.of(property.getValue()), propertyValue)
-                : this.readByPropertyInstr(collection, property, propertyValue);
+            ? this.readByPropertyIndexed(collection, IndexProperty.of(property.getValue()), propertyValue)
+            : this.readByPropertyInstr(collection, property, propertyValue);
     }
 
     private Stream<PersistenceEntity<String>> readByPropertyInstr(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, @NonNull Object propertyValue) {

@@ -33,6 +33,26 @@ public class RedisPersistence extends RawPersistence {
         this.connect(client);
     }
 
+    private static <T> List<List<T>> partition(Collection<T> members, int maxSize) {
+
+        List<List<T>> res = new ArrayList<>();
+        List<T> internal = new ArrayList<>();
+
+        for (T member : members) {
+            internal.add(member);
+            if (internal.size() == maxSize) {
+                res.add(internal);
+                internal = new ArrayList<>();
+            }
+        }
+
+        if (!internal.isEmpty()) {
+            res.add(internal);
+        }
+
+        return res;
+    }
+
     @SneakyThrows
     private void connect(RedisClient client) {
         this.client = client;
@@ -125,8 +145,8 @@ public class RedisPersistence extends RawPersistence {
     @Override
     public boolean dropIndex(PersistenceCollection collection, PersistencePath path) {
         return this.getKnownIndexes().getOrDefault(collection.getValue(), Collections.emptySet()).stream()
-                .map(index -> this.dropIndex(collection, path, index))
-                .anyMatch(Predicate.isEqual(true));
+            .map(index -> this.dropIndex(collection, path, index))
+            .anyMatch(Predicate.isEqual(true));
     }
 
     @Override
@@ -147,9 +167,9 @@ public class RedisPersistence extends RawPersistence {
         // delete all value to keys mappings
         if (!propertyValues.isEmpty()) {
             changes += sync.del(propertyValues.stream()
-                    .map(value -> this.toIndexValueToKeys(collection, property, value))
-                    .map(PersistencePath::getValue)
-                    .toArray(String[]::new));
+                .map(value -> this.toIndexValueToKeys(collection, property, value))
+                .map(PersistencePath::getValue)
+                .toArray(String[]::new));
         }
 
         return changes > 0;
@@ -159,39 +179,39 @@ public class RedisPersistence extends RawPersistence {
     public Set<PersistencePath> findMissingIndexes(PersistenceCollection collection, Set<IndexProperty> indexProperties) {
 
         String[] args = indexProperties.stream()
-                .map(index -> this.toIndexKeyToValue(collection, index))
-                .map(PersistencePath::getValue)
-                .toArray(String[]::new);
+            .map(index -> this.toIndexKeyToValue(collection, index))
+            .map(PersistencePath::getValue)
+            .toArray(String[]::new);
 
         String script = "local collection = ARGV[1]\n" +
-                "local allKeys = redis.call('hkeys', collection)\n" +
-                "local indexes = KEYS\n" +
-                "local result = {}\n" +
-                "\n" +
-                "for _, key in ipairs(allKeys) do\n" +
-                "\n" +
-                "    local present = true\n" +
-                "\n" +
-                "    for _, index in ipairs(indexes) do\n" +
-                "        if (redis.call('hexists', index, key) == 0) then\n" +
-                "            present = false\n" +
-                "            break\n" +
-                "        end\n" +
-                "    end\n" +
-                "\n" +
-                "    if not present then\n" +
-                "        result[#result+1] = key\n" +
-                "    end\n" +
-                "end\n" +
-                "\n" +
-                "return result\n";
+            "local allKeys = redis.call('hkeys', collection)\n" +
+            "local indexes = KEYS\n" +
+            "local result = {}\n" +
+            "\n" +
+            "for _, key in ipairs(allKeys) do\n" +
+            "\n" +
+            "    local present = true\n" +
+            "\n" +
+            "    for _, index in ipairs(indexes) do\n" +
+            "        if (redis.call('hexists', index, key) == 0) then\n" +
+            "            present = false\n" +
+            "            break\n" +
+            "        end\n" +
+            "    end\n" +
+            "\n" +
+            "    if not present then\n" +
+            "        result[#result+1] = key\n" +
+            "    end\n" +
+            "end\n" +
+            "\n" +
+            "return result\n";
 
         String hashKey = this.getBasePath().sub(collection).getValue();
         List<String> out = this.getConnection().sync().eval(script, ScriptOutputType.MULTI, args, hashKey);
 
         return out.stream()
-                .map(PersistencePath::of)
-                .collect(Collectors.toSet());
+            .map(PersistencePath::of)
+            .collect(Collectors.toSet());
     }
 
     @Override
@@ -216,30 +236,30 @@ public class RedisPersistence extends RawPersistence {
         if (step < 50) step = 50;
 
         String script = sync.scriptLoad("local collection = ARGV[1]\n" +
-                "local result = {}\n" +
-                "\n" +
-                "for _, key in ipairs(KEYS) do\n" +
-                "    result[#result+1] = key\n" +
-                "    result[#result+1] = redis.call('hget', collection, key)\n" +
-                "end\n" +
-                "\n" +
-                "return result\n");
+            "local result = {}\n" +
+            "\n" +
+            "for _, key in ipairs(KEYS) do\n" +
+            "    result[#result+1] = key\n" +
+            "    result[#result+1] = redis.call('hget', collection, key)\n" +
+            "end\n" +
+            "\n" +
+            "return result\n");
 
         return partition(members, Math.toIntExact(step)).stream()
-                .flatMap(part -> {
+            .flatMap(part -> {
 
-                    String[] keys = part.toArray(new String[part.size()]);
-                    List<String> result = sync.evalsha(script, ScriptOutputType.MULTI, keys, hashKeyString);
-                    List<PersistenceEntity<String>> out = new ArrayList<>();
+                String[] keys = part.toArray(new String[part.size()]);
+                List<String> result = sync.evalsha(script, ScriptOutputType.MULTI, keys, hashKeyString);
+                List<PersistenceEntity<String>> out = new ArrayList<>();
 
-                    for (int i = 0; i < result.size(); i += 2) {
-                        String key = result.get(i);
-                        String value = result.get(i + 1);
-                        out.add(new PersistenceEntity<>(PersistencePath.of(key), value));
-                    }
+                for (int i = 0; i < result.size(); i += 2) {
+                    String key = result.get(i);
+                    String value = result.get(i + 1);
+                    out.add(new PersistenceEntity<>(PersistencePath.of(key), value));
+                }
 
-                    return out.stream();
-                });
+                return out.stream();
+            });
     }
 
     @Override
@@ -258,14 +278,14 @@ public class RedisPersistence extends RawPersistence {
         Map<PersistencePath, String> map = new LinkedHashMap<>();
 
         String script = "local collection = ARGV[1]\n" +
-                "local result = {}\n" +
-                "\n" +
-                "for _, key in ipairs(KEYS) do\n" +
-                "    result[#result+1] = key\n" +
-                "    result[#result+1] = redis.call('hget', collection, key)\n" +
-                "end\n" +
-                "\n" +
-                "return result\n";
+            "local result = {}\n" +
+            "\n" +
+            "for _, key in ipairs(KEYS) do\n" +
+            "    result[#result+1] = key\n" +
+            "    result[#result+1] = redis.call('hget', collection, key)\n" +
+            "end\n" +
+            "\n" +
+            "return result\n";
 
         String[] keys = paths.stream().map(PersistencePath::getValue).toArray(String[]::new);
         List<String> result = sync.eval(script, ScriptOutputType.MULTI, keys, hKey);
@@ -284,7 +304,7 @@ public class RedisPersistence extends RawPersistence {
         this.checkCollectionRegistered(collection);
         String hKey = this.getBasePath().sub(collection).getValue();
         return this.getConnection().sync().hgetall(hKey).entrySet().stream()
-                .collect(Collectors.toMap(entry -> PersistencePath.of(entry.getKey()), Map.Entry::getValue));
+            .collect(Collectors.toMap(entry -> PersistencePath.of(entry.getKey()), Map.Entry::getValue));
     }
 
     @Override
@@ -402,25 +422,5 @@ public class RedisPersistence extends RawPersistence {
 
     private PersistencePath toValuesSet(PersistenceCollection collection, PersistencePath property) {
         return this.getBasePath().sub(collection).sub("index").sub(property).sub("values");
-    }
-
-    private static <T> List<List<T>> partition(Collection<T> members, int maxSize) {
-
-        List<List<T>> res = new ArrayList<>();
-        List<T> internal = new ArrayList<>();
-
-        for (T member : members) {
-            internal.add(member);
-            if (internal.size() == maxSize) {
-                res.add(internal);
-                internal = new ArrayList<>();
-            }
-        }
-
-        if (!internal.isEmpty()) {
-            res.add(internal);
-        }
-
-        return res;
     }
 }

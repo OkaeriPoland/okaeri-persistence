@@ -23,11 +23,11 @@ public class DefaultConditionRenderer implements ConditionRenderer {
         PredicateRendererLiteral variableLiteral = new PredicateRendererLiteral(variable);
 
         String expression = Arrays.stream(condition.getPredicates())
-                .map(predicate -> this.predicateRenderer.render(variableLiteral, predicate))
-                .collect(Collectors.joining(" && ")); // FIXME: or/and/nesting
+            .map(predicate -> this.predicateRenderer.render(variableLiteral, predicate))
+            .collect(Collectors.joining(" && ")); // FIXME: or/and/nesting
 
         return (condition.getPredicates().length == 1)
-                ? expression
-                : ("(" + expression + ")");
+            ? expression
+            : ("(" + expression + ")");
     }
 }

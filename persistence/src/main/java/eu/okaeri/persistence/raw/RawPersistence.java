@@ -103,9 +103,9 @@ public abstract class RawPersistence implements Persistence<String> {
     @Override
     public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, String> entities) {
         return entities.entrySet().stream()
-                .map(entry -> this.write(collection, entry.getKey(), entry.getValue()))
-                .filter(Predicate.isEqual(true))
-                .count();
+            .map(entry -> this.write(collection, entry.getKey(), entry.getValue()))
+            .filter(Predicate.isEqual(true))
+            .count();
     }
 
     public void checkCollectionRegistered(@NonNull PersistenceCollection collection) {

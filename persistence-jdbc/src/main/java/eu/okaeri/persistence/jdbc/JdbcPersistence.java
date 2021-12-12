@@ -60,8 +60,8 @@ public class JdbcPersistence extends RawPersistence {
         int keyLength = collection.getKeyLength();
 
         String sql = "create table if not exists `" + collectionTable + "` (" +
-                "`key` varchar(" + keyLength + ") primary key not null," +
-                "`value` text not null)";
+            "`key` varchar(" + keyLength + ") primary key not null," +
+            "`value` text not null)";
         String alterKeySql = "alter table `" + collectionTable + "` MODIFY COLUMN `key` varchar(" + keyLength + ") not null";
 
         try (Connection connection = this.getDataSource().getConnection()) {
@@ -85,10 +85,10 @@ public class JdbcPersistence extends RawPersistence {
         String indexTable = this.indexTable(collection);
 
         String tableSql = "create table if not exists `" + indexTable + "` (" +
-                "`key` varchar(" + keyLength + ") not null," +
-                "`property` varchar(" + propertyLength + ") not null," +
-                "`identity` varchar(" + identityLength + ") not null," +
-                "primary key(`key`, `property`))";
+            "`key` varchar(" + keyLength + ") not null," +
+            "`property` varchar(" + propertyLength + ") not null," +
+            "`identity` varchar(" + identityLength + ") not null," +
+            "primary key(`key`, `property`))";
 
         String alterKeySql = "alter table `" + indexTable + "` MODIFY COLUMN `key` varchar(" + keyLength + ") not null";
         String alterPropertySql = "alter table `" + indexTable + "` MODIFY COLUMN `property` varchar(" + propertyLength + ") not null";
@@ -131,11 +131,11 @@ public class JdbcPersistence extends RawPersistence {
         Set<PersistencePath> paths = new HashSet<>();
 
         String params = indexProperties.stream()
-                .map(e -> "?")
-                .collect(Collectors.joining(", "));
+            .map(e -> "?")
+            .collect(Collectors.joining(", "));
 
         String sql = "select `key` from `" + table + "` " +
-                "where (select count(1) from " + indexTable + " where `key` = `" + table + "`.`key` and `property` in (" + params + ")) != ?";
+            "where (select count(1) from " + indexTable + " where `key` = `" + table + "`.`key` and `property` in (" + params + ")) != ?";
 
         try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(sql);
@@ -324,8 +324,8 @@ public class JdbcPersistence extends RawPersistence {
     @Override
     public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, @NonNull Object propertyValue) {
         return this.isIndexed(collection, property)
-                ? this.readByPropertyIndexed(collection, IndexProperty.of(property.getValue()), propertyValue)
-                : this.streamAll(collection);
+            ? this.readByPropertyIndexed(collection, IndexProperty.of(property.getValue()), propertyValue)
+            : this.streamAll(collection);
     }
 
     protected Stream<PersistenceEntity<String>> readByPropertyIndexed(@NonNull PersistenceCollection collection, @NonNull IndexProperty indexProperty, @NonNull Object propertyValue) {
@@ -339,8 +339,8 @@ public class JdbcPersistence extends RawPersistence {
         String indexTable = this.indexTable(collection);
 
         String sql = "select indexer.`key`, `value` from `" + table + "`" +
-                " join `" + indexTable + "` indexer on `" + table + "`.`key` = indexer.`key`" +
-                " where indexer.`property` = ? and indexer.`identity` = ?";
+            " join `" + indexTable + "` indexer on `" + table + "`.`key` = indexer.`key`" +
+            " where indexer.`property` = ? and indexer.`identity` = ?";
 
         try (Connection connection = this.getDataSource().getConnection()) {
 
@@ -530,9 +530,9 @@ public class JdbcPersistence extends RawPersistence {
     @Override
     public long deleteAll() {
         return this.getKnownCollections().values().stream()
-                .map(this::deleteAll)
-                .filter(Predicate.isEqual(true))
-                .count();
+            .map(this::deleteAll)
+            .filter(Predicate.isEqual(true))
+            .count();
     }
 
     @Override

@@ -36,6 +36,13 @@ public class TestRefsJdbc {
     private PersistenceCollection authorCollection;
     private BookRepository bookRepository;
     private AuthorRepository authorRepository;
+    private Author author1;
+    private Author author2;
+    private Author author3;
+    private Author author4;
+    private Book book1;
+    private Book book2;
+    private Book book3;
 
     @BeforeAll
     public void setup() {
@@ -56,15 +63,6 @@ public class TestRefsJdbc {
         this.bookRepository = RepositoryDeclaration.of(BookRepository.class).newProxy(this.persistence, this.bookCollection, TestRefsJdbc.class.getClassLoader());
         this.authorRepository = RepositoryDeclaration.of(AuthorRepository.class).newProxy(this.persistence, this.authorCollection, TestRefsJdbc.class.getClassLoader());
     }
-
-    private Author author1;
-    private Author author2;
-    private Author author3;
-    private Author author4;
-
-    private Book book1;
-    private Book book2;
-    private Book book3;
 
     @BeforeEach
     public void prepareDb() {

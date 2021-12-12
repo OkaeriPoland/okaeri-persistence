@@ -19,6 +19,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TestPersistenceExceptions {
 
+    @Test
+    public void test_proxy_error_rethrow() {
+        PersistenceCollection collection = PersistenceCollection.of(UserRepository.class);
+        DocumentPersistence persistence = new BrokenPersistence();
+        persistence.registerCollection(collection);
+        UserRepository userRepository = RepositoryDeclaration.of(UserRepository.class).newProxy(persistence, collection, TestPersistenceExceptions.class.getClassLoader());
+        assertThrows(CustomException.class, () -> userRepository.findByPath(UUID.randomUUID()));
+    }
+
     class CustomException extends RuntimeException {
     }
 
@@ -27,14 +36,5 @@ public class TestPersistenceExceptions {
         public Optional<Document> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
             throw new CustomException();
         }
-    }
-
-    @Test
-    public void test_proxy_error_rethrow() {
-        PersistenceCollection collection = PersistenceCollection.of(UserRepository.class);
-        DocumentPersistence persistence = new BrokenPersistence();
-        persistence.registerCollection(collection);
-        UserRepository userRepository = RepositoryDeclaration.of(UserRepository.class).newProxy(persistence, collection, TestPersistenceExceptions.class.getClassLoader());
-        assertThrows(CustomException.class, () -> userRepository.findByPath(UUID.randomUUID()));
     }
 }
