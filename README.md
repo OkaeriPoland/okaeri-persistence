@@ -105,6 +105,7 @@ done automatically and can decrease fetch times dramatically. Smart tricks like 
 parsing documents determined not to include searched property.
 
 Example pipeline of the stream:
+
 - Redis cursor, Files.list or other generator
 - Optional string prefilter for readByProperty calls
 - Format to Document mapper (basically parsing JSON/YAML)
@@ -119,6 +120,7 @@ Spring Boot's CrudRepository and allows for simple filters to be automatically i
 the [TestPersistenceJdbc](https://github.com/OkaeriPoland/okaeri-persistence/blob/master/persistence-jdbc/src/test/java/eu/okaeri/persistencetestjdbc/basic/TestPersistenceJdbc.java).
 
 ### Default methods
+
 ```java
 public interface DocumentRepository<PATH, T extends Document> {
     DocumentPersistence getPersistence();
@@ -141,6 +143,7 @@ public interface DocumentRepository<PATH, T extends Document> {
 ```
 
 ### Example repository
+
 ```java
 @DocumentCollection(path = "user", keyLength = 36, indexes = {
         @DocumentIndex(path = "shortId", maxLength = 8),
@@ -179,20 +182,27 @@ public interface UserRepository extends DocumentRepository<UUID, User> {
 ```
 
 ## Examples
-See [PlayerRepository](https://github.com/OkaeriPoland/okaeri-platform/blob/master/bukkit-example/src/main/java/org/example/okaeriplatformtest/persistence/PlayerRepository.java) in the okaeri-platform example.
-For the methods available in Persistence classes refer to the [source code comments](https://github.com/OkaeriPoland/okaeri-persistence/blob/master/persistence/src/main/java/eu/okaeri/persistence/Persistence.java).
-Thank you for the interest in the project. We wish you an enjoyable stay or a pleasant onward journey.
+
+See [PlayerRepository](https://github.com/OkaeriPoland/okaeri-platform/blob/master/bukkit-example/src/main/java/org/example/okaeriplatformtest/persistence/PlayerRepository.java) in the okaeri-platform
+example. For the methods available in Persistence classes refer to
+the [source code comments](https://github.com/OkaeriPoland/okaeri-persistence/blob/master/persistence/src/main/java/eu/okaeri/persistence/Persistence.java). Thank you for the interest in the project.
+We wish you an enjoyable stay or a pleasant onward journey.
 
 ## Installation
+
 ### Maven
+
 Add repository to the `repositories` section:
+
 ```xml
 <repository>
     <id>okaeri-repo</id>
     <url>https://storehouse.okaeri.eu/repository/maven-public/</url>
 </repository>
 ```
+
 Add dependency to the `dependencies` section:
+
 ```xml
 <dependency>
   <groupId>eu.okaeri</groupId>
@@ -200,12 +210,17 @@ Add dependency to the `dependencies` section:
   <version>1.5.10</version>
 </dependency>
 ```
+
 ### Gradle
+
 Add repository to the `repositories` section:
+
 ```groovy
 maven { url "https://storehouse.okaeri.eu/repository/maven-public/" }
 ```
+
 Add dependency to the `maven` section:
+
 ```groovy
 implementation 'eu.okaeri:okaeri-persistence-[type]:1.5.10'
 ```

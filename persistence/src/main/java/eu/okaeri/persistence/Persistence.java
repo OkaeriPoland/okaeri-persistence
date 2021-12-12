@@ -28,7 +28,7 @@ public interface Persistence<T> extends Closeable {
 
     /**
      * Enable/disable flushing to the database.
-     *
+     * <p>
      * Mainly for the filesystem or in-memory persistence
      * backends. Not expected to be a guarantee, just
      * something to use when performing mass changes
@@ -47,9 +47,9 @@ public interface Persistence<T> extends Closeable {
      * Update entry of entity's index.
      *
      * @param collection Target collection (eg. player)
-     * @param path Target index path (eg. uuid)
-     * @param property Target property (eg. name)
-     * @param identity New value for property
+     * @param path       Target index path (eg. uuid)
+     * @param property   Target property (eg. name)
+     * @param identity   New value for property
      * @return True when index was changed false otherwise
      */
     boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity);
@@ -58,8 +58,8 @@ public interface Persistence<T> extends Closeable {
      * Update whole entity's index using entity.
      *
      * @param collection Target collection (eg. player)
-     * @param path Target index path (eg. uuid)
-     * @param entity New value for path
+     * @param path       Target index path (eg. uuid)
+     * @param entity     New value for path
      * @return True when index was changed false otherwise
      */
     boolean updateIndex(PersistenceCollection collection, PersistencePath path, T entity);
@@ -68,7 +68,7 @@ public interface Persistence<T> extends Closeable {
      * Update whole entity's index by entity's key.
      *
      * @param collection Target collection (eg. player)
-     * @param path Target index path (eg. uuid)
+     * @param path       Target index path (eg. uuid)
      * @return True when index was changed false otherwise
      */
     boolean updateIndex(PersistenceCollection collection, PersistencePath path);
@@ -77,8 +77,8 @@ public interface Persistence<T> extends Closeable {
      * Delete entity's index.
      *
      * @param collection Target collection (eg. player)
-     * @param path Target index path (eg. uuid)
-     * @param property Target property (eg. name)
+     * @param path       Target index path (eg. uuid)
+     * @param property   Target property (eg. name)
      * @return True when index was changed false otherwise
      */
     boolean dropIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property);
@@ -87,7 +87,7 @@ public interface Persistence<T> extends Closeable {
      * Delete all entity's indexes.
      *
      * @param collection Target collection (eg. player)
-     * @param path Target index path (eg. uuid)
+     * @param path       Target index path (eg. uuid)
      * @return True when index was changed false otherwise
      */
     boolean dropIndex(PersistenceCollection collection, PersistencePath path);
@@ -96,7 +96,7 @@ public interface Persistence<T> extends Closeable {
      * Delete whole index.
      *
      * @param collection Target collection (eg. player)
-     * @param property Target property (eg. name)
+     * @param property   Target property (eg. name)
      * @return True when index was changed false otherwise
      */
     boolean dropIndex(PersistenceCollection collection, IndexProperty property);
@@ -104,7 +104,7 @@ public interface Persistence<T> extends Closeable {
     /**
      * Search for missing indexes.
      *
-     * @param collection Target collection (eg. player)
+     * @param collection      Target collection (eg. player)
      * @param indexProperties Index properties to be accounted
      * @return Persistence paths with missing indexes
      */
@@ -112,7 +112,7 @@ public interface Persistence<T> extends Closeable {
 
     /**
      * Prefix for the storage operations.
-     *
+     * <p>
      * For example:
      * - Redis: as key prefix "{basePath}:{collection}:{id}"
      * - MariaDB: in table name "{basePath}_{collection}"
@@ -133,7 +133,7 @@ public interface Persistence<T> extends Closeable {
      * empty objects instead of throwing an exception.
      *
      * @param collection Target collection (eg. player)
-     * @param path Target index path (eg. uuid)
+     * @param path       Target index path (eg. uuid)
      * @return True if element exists false otherwise
      */
     boolean exists(PersistenceCollection collection, PersistencePath path);
@@ -142,7 +142,7 @@ public interface Persistence<T> extends Closeable {
      * Fetches entity by path from specific collection.
      *
      * @param collection Target collection (eg. player)
-     * @param path Target entity path (eg. uuid)
+     * @param path       Target entity path (eg. uuid)
      * @return Saved entity
      */
     Optional<T> read(PersistenceCollection collection, PersistencePath path);
@@ -152,7 +152,7 @@ public interface Persistence<T> extends Closeable {
      * Creates empty entity if no saved entity was found.
      *
      * @param collection Target collection (eg. player)
-     * @param path Target entity path (eg. uuid)
+     * @param path       Target entity path (eg. uuid)
      * @return Saved entity
      */
     T readOrEmpty(PersistenceCollection collection, PersistencePath path);
@@ -161,7 +161,7 @@ public interface Persistence<T> extends Closeable {
      * Optimized {@link #read(PersistenceCollection, PersistencePath)} for multiple entities.
      *
      * @param collection Target collection (eg. player)
-     * @param paths Target entity paths (eg. uuids)
+     * @param paths      Target entity paths (eg. uuids)
      * @return Saved entities
      */
     Map<PersistencePath, T> read(PersistenceCollection collection, Collection<PersistencePath> paths);
@@ -170,7 +170,7 @@ public interface Persistence<T> extends Closeable {
      * Optimized {@link #readOrEmpty(PersistenceCollection, PersistencePath)} for multiple entities.
      *
      * @param collection Target collection (eg. player)
-     * @param paths Target entity paths (eg. uuids)
+     * @param paths      Target entity paths (eg. uuids)
      * @return Saved entities
      */
     Map<PersistencePath, T> readOrEmpty(PersistenceCollection collection, Collection<PersistencePath> paths);
@@ -186,8 +186,8 @@ public interface Persistence<T> extends Closeable {
     /**
      * Filter document based persistence entities.
      *
-     * @param collection Target collection (eg. player)
-     * @param property Property to filter on (eg. name)
+     * @param collection    Target collection (eg. player)
+     * @param property      Property to filter on (eg. name)
      * @param propertyValue Searched property value (eg. SomePlayer)
      * @return Stream of entities matching the query
      */
@@ -206,8 +206,8 @@ public interface Persistence<T> extends Closeable {
      * Write entity to specific collection and path.
      *
      * @param collection Target collection (eg. player)
-     * @param path Target entity path (eg. uuid)
-     * @param entity Entity to be saved
+     * @param path       Target entity path (eg. uuid)
+     * @param entity     Entity to be saved
      * @return True when changed else otherwise
      */
     boolean write(PersistenceCollection collection, PersistencePath path, T entity);
@@ -216,7 +216,7 @@ public interface Persistence<T> extends Closeable {
      * Optimized {@link #write(PersistenceCollection, PersistencePath, Object)} for multiple entities.
      *
      * @param collection Target collection (eg. player)
-     * @param entities Entities to be saved
+     * @param entities   Entities to be saved
      * @return Count of changes
      */
     long write(PersistenceCollection collection, Map<PersistencePath, T> entities);
@@ -225,7 +225,7 @@ public interface Persistence<T> extends Closeable {
      * Delete single entity from the collection.
      *
      * @param collection Target collection (eg. player)
-     * @param path Target entity path (eg. uuid)
+     * @param path       Target entity path (eg. uuid)
      * @return True when changed else otherwise
      */
     boolean delete(PersistenceCollection collection, PersistencePath path);
@@ -234,7 +234,7 @@ public interface Persistence<T> extends Closeable {
      * Delete multiple entities from the collection.
      *
      * @param collection Target collection (eg. player)
-     * @param paths Target entities paths (eg. uuids)
+     * @param paths      Target entities paths (eg. uuids)
      * @return Count of changes
      */
     long delete(PersistenceCollection collection, Collection<PersistencePath> paths);

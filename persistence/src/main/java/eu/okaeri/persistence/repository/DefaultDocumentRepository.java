@@ -26,6 +26,13 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     private final PersistenceCollection collection;
     private final Class<T> documentType;
 
+    private static PersistencePath toPath(Object object) {
+        if (object instanceof PersistencePath) {
+            return (PersistencePath) object;
+        }
+        return PersistencePath.of(String.valueOf(object));
+    }
+
     @Override
     public long count() {
         return this.persistence.count(this.collection);
@@ -39,8 +46,8 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     @Override
     public long deleteAllByPath(@NonNull Iterable<?> paths) {
         return this.persistence.delete(this.collection, StreamSupport.stream(paths.spliterator(), false)
-                .map(DefaultDocumentRepository::toPath)
-                .collect(Collectors.toSet()));
+            .map(DefaultDocumentRepository::toPath)
+            .collect(Collectors.toSet()));
     }
 
     @Override
@@ -56,45 +63,45 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     @Override
     public Stream<T> streamAll() {
         return this.persistence.streamAll(this.collection)
-                .map(document -> document.into(this.documentType))
-                .map(PersistenceEntity::getValue);
+            .map(document -> document.into(this.documentType))
+            .map(PersistenceEntity::getValue);
     }
 
     @Override
     public Collection<T> findAll() {
         return this.persistence.readAll(this.collection).values().stream()
-                .map(entity -> entity.into(this.documentType))
-                .collect(Collectors.toList());
+            .map(entity -> entity.into(this.documentType))
+            .collect(Collectors.toList());
     }
 
     @Override
     public Collection<T> findAllByPath(@NonNull Iterable<?> paths) {
 
         Set<PersistencePath> pathSet = StreamSupport.stream(paths.spliterator(), false)
-                .map(DefaultDocumentRepository::toPath)
-                .collect(Collectors.toSet());
+            .map(DefaultDocumentRepository::toPath)
+            .collect(Collectors.toSet());
 
         return this.persistence.read(this.collection, pathSet).values().stream()
-                .map(document -> document.into(this.documentType))
-                .collect(Collectors.toList());
+            .map(document -> document.into(this.documentType))
+            .collect(Collectors.toList());
     }
 
     @Override
     public Collection<T> findOrCreateAllByPath(@NonNull Iterable<?> paths) {
 
         Set<PersistencePath> pathSet = StreamSupport.stream(paths.spliterator(), false)
-                .map(DefaultDocumentRepository::toPath)
-                .collect(Collectors.toSet());
+            .map(DefaultDocumentRepository::toPath)
+            .collect(Collectors.toSet());
 
         return this.persistence.readOrEmpty(this.collection, pathSet).values().stream()
-                .map(document -> document.into(this.documentType))
-                .collect(Collectors.toList());
+            .map(document -> document.into(this.documentType))
+            .collect(Collectors.toList());
     }
 
     @Override
     public Optional<T> findByPath(@NonNull Object path) {
         return this.persistence.read(this.collection, toPath(path))
-                .map(document -> document.into(this.documentType));
+            .map(document -> document.into(this.documentType));
     }
 
     @Override
@@ -112,15 +119,8 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     @Override
     public Iterable<T> saveAll(@NonNull Iterable<T> documents) {
         Map<PersistencePath, Document> documentMap = StreamSupport.stream(documents.spliterator(), false)
-                .collect(Collectors.toMap(Document::getPath, Function.identity()));
+            .collect(Collectors.toMap(Document::getPath, Function.identity()));
         this.persistence.write(this.collection, documentMap);
         return documents;
-    }
-
-    private static PersistencePath toPath(Object object) {
-        if (object instanceof PersistencePath) {
-            return (PersistencePath) object;
-        }
-        return PersistencePath.of(String.valueOf(object));
     }
 }

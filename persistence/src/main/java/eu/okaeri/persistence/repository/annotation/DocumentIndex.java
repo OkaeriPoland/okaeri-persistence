@@ -5,6 +5,8 @@ import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
 public @interface DocumentIndex {
+
     String path();
+
     int maxLength();
 }

@@ -8,7 +8,7 @@ import eu.okaeri.persistencetestjdbc.refs.entity.Author;
 import java.util.UUID;
 
 @DocumentCollection(path = "author", keyLength = 36, indexes = {
-        @DocumentIndex(path = "name", maxLength = 128)
+    @DocumentIndex(path = "name", maxLength = 128)
 })
 public interface AuthorRepository extends DocumentRepository<UUID, Author> {
 }

@@ -55,9 +55,9 @@ public class MariaDbPersistence extends JdbcPersistence {
         int keyLength = collection.getKeyLength();
 
         String sql = "create table if not exists `" + collectionTable + "` (" +
-                "`key` varchar(" + keyLength + ") primary key not null," +
-                "`value` json not null)" +
-                "engine = InnoDB character set = utf8mb4;";
+            "`key` varchar(" + keyLength + ") primary key not null," +
+            "`value` json not null)" +
+            "engine = InnoDB character set = utf8mb4;";
         String alterKeySql = "alter table `" + collectionTable + "` MODIFY COLUMN `key` varchar(" + keyLength + ") not null";
 
         try (Connection connection = this.getDataSource().getConnection()) {
@@ -81,13 +81,13 @@ public class MariaDbPersistence extends JdbcPersistence {
         String indexTable = this.indexTable(collection);
 
         String tableSql = "create table if not exists `" + indexTable + "` (" +
-                "`key` varchar(" + keyLength + ") not null," +
-                "`property` varchar(" + propertyLength + ") not null," +
-                "`identity` varchar(" + identityLength + ") not null," +
-                "primary key(`key`, `property`)," +
-                "index (`identity`)," +
-                "index (`property`, `identity`))" +
-                "engine = InnoDB character set = utf8mb4;";
+            "`key` varchar(" + keyLength + ") not null," +
+            "`property` varchar(" + propertyLength + ") not null," +
+            "`identity` varchar(" + identityLength + ") not null," +
+            "primary key(`key`, `property`)," +
+            "index (`identity`)," +
+            "index (`property`, `identity`))" +
+            "engine = InnoDB character set = utf8mb4;";
 
         String alterKeySql = "alter table `" + indexTable + "` MODIFY COLUMN `key` varchar(" + keyLength + ") not null";
         String alterPropertySql = "alter table `" + indexTable + "` MODIFY COLUMN `property` varchar(" + propertyLength + ") not null";
@@ -106,8 +106,8 @@ public class MariaDbPersistence extends JdbcPersistence {
     @Override
     public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
         return this.isIndexed(collection, property)
-                ? this.readByPropertyIndexed(collection, IndexProperty.of(property.getValue()), propertyValue)
-                : this.readByPropertyJsonExtract(collection, property, propertyValue);
+            ? this.readByPropertyIndexed(collection, IndexProperty.of(property.getValue()), propertyValue)
+            : this.readByPropertyJsonExtract(collection, property, propertyValue);
     }
 
     private Stream<PersistenceEntity<String>> readByPropertyJsonExtract(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {

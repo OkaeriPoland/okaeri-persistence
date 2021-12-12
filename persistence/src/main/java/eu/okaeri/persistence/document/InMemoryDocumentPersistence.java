@@ -154,8 +154,8 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     @Override
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return this.getWrite().getKnownIndexes().getOrDefault(collection.getValue(), Collections.emptySet()).stream()
-                .map(index -> this.dropIndex(collection, path, index))
-                .anyMatch(Predicate.isEqual(true));
+            .map(index -> this.dropIndex(collection, path, index))
+            .anyMatch(Predicate.isEqual(true));
     }
 
     @Override
@@ -181,12 +181,12 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
         }
 
         return this.streamAll(collection)
-                .map(PersistenceEntity::getValue)
-                .map(entity -> collectionIndexes.values().stream()
-                        .allMatch(flatIndex -> flatIndex.getKeyToValue().containsKey(entity.getPath().getValue()))
-                        ? null : entity.getPath())
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+            .map(PersistenceEntity::getValue)
+            .map(entity -> collectionIndexes.values().stream()
+                .allMatch(flatIndex -> flatIndex.getKeyToValue().containsKey(entity.getPath().getValue()))
+                ? null : entity.getPath())
+            .filter(Objects::nonNull)
+            .collect(Collectors.toSet());
     }
 
     @Override
@@ -218,9 +218,9 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     public Map<PersistencePath, Document> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
         this.getRead().checkCollectionRegistered(collection);
         return paths.stream()
-                .map(path -> this.documents.get(collection.getValue()).get(path))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toMap(Document::getPath, Function.identity()));
+            .map(path -> this.documents.get(collection.getValue()).get(path))
+            .filter(Objects::nonNull)
+            .collect(Collectors.toMap(Document::getPath, Function.identity()));
     }
 
     @Override
@@ -241,16 +241,16 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
         }
 
         return new ArrayList<>(keys).stream()
-                .map(key -> {
-                    PersistencePath path = PersistencePath.of(key);
-                    return this.read(collection, path)
-                            .map(data -> new PersistenceEntity<>(path, data))
-                            .orElseGet(() -> {
-                                this.dropIndex(collection, path);
-                                return null;
-                            });
-                })
-                .filter(Objects::nonNull);
+            .map(key -> {
+                PersistencePath path = PersistencePath.of(key);
+                return this.read(collection, path)
+                    .map(data -> new PersistenceEntity<>(path, data))
+                    .orElseGet(() -> {
+                        this.dropIndex(collection, path);
+                        return null;
+                    });
+            })
+            .filter(Objects::nonNull);
     }
 
     @Override
@@ -282,9 +282,9 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     @Override
     public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, Document> entities) {
         return entities.entrySet().stream()
-                .map(entity -> this.write(collection, entity.getKey(), entity.getValue()))
-                .filter(Predicate.isEqual(true))
-                .count();
+            .map(entity -> this.write(collection, entity.getKey(), entity.getValue()))
+            .filter(Predicate.isEqual(true))
+            .count();
     }
 
     @Override
@@ -310,7 +310,7 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     @Override
     public long deleteAll() {
         return this.documents.values().stream()
-                .peek(Map::clear)
-                .count();
+            .peek(Map::clear)
+            .count();
     }
 }

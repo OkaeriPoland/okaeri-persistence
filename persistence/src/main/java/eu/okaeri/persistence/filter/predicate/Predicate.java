@@ -9,6 +9,8 @@ import lombok.NonNull;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class Predicate<T> {
 
+    private final T rightOperand;
+
     public static Predicate<Double> eq(double rightOperand) {
         return new EqPredicate<>(rightOperand);
     }
@@ -56,8 +58,6 @@ public abstract class Predicate<T> {
     public static Predicate<CharSequence> ne(@NonNull CharSequence rightOperand) {
         return new NePredicate<>(rightOperand);
     }
-
-    private final T rightOperand;
 
     public abstract boolean check(Object leftOperand);
 }

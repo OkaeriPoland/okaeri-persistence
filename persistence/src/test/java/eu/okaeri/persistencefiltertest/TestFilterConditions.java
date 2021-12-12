@@ -8,7 +8,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
-import static eu.okaeri.persistence.filter.condition.Condition.*;
+import static eu.okaeri.persistence.filter.condition.Condition.on;
 import static eu.okaeri.persistence.filter.predicate.Predicate.*;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

@@ -13,8 +13,8 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 @DocumentCollection(path = "user", keyLength = 36, indexes = {
-        @DocumentIndex(path = "shortId", maxLength = 8),
-        @DocumentIndex(path = "meta.name", maxLength = 64)
+    @DocumentIndex(path = "shortId", maxLength = 8),
+    @DocumentIndex(path = "meta.name", maxLength = 64)
 })
 public interface UserRepository extends DocumentRepository<UUID, User> {
 
@@ -42,7 +42,7 @@ public interface UserRepository extends DocumentRepository<UUID, User> {
     // custom method
     default String getMetaDescriptionById(UUID id) {
         return this.findByPath(id)
-                .map(user -> user.getMeta().getDescription())
-                .orElse(null);
+            .map(user -> user.getMeta().getDescription())
+            .orElse(null);
     }
 }

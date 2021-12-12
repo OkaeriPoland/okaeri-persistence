@@ -39,28 +39,20 @@ public class DocumentPersistence implements Persistence<Document> {
     private SerdesRegistry serdesRegistry;
     private Configurer simplifier;
 
-    @Deprecated
-    public RawPersistence getRaw() {
-        if (!this.getRead().equals(this.getWrite())) {
-            throw new IllegalArgumentException("Cannot use #getRaw() with DocumentPersistence using separate instances for read and write");
-        }
-        return this.getRead();
-    }
-
     /**
-     * @param rawPersistence Base persistence provider
+     * @param rawPersistence     Base persistence provider
      * @param configurerProvider Okaeri Config's provider (mostly json)
-     * @param serdesPacks Additional serdes packs for the configurerProvider
+     * @param serdesPacks        Additional serdes packs for the configurerProvider
      */
     public DocumentPersistence(@NonNull RawPersistence rawPersistence, @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
         this(rawPersistence, rawPersistence, configurerProvider, serdesPacks);
     }
 
     /**
-     * @param readPersistence Base persistence provider for read operations
-     * @param writePersistence Base persistence provider for write operations
+     * @param readPersistence    Base persistence provider for read operations
+     * @param writePersistence   Base persistence provider for write operations
      * @param configurerProvider Okaeri Config's provider (mostly json)
-     * @param serdesPacks Additional serdes packs for the configurerProvider
+     * @param serdesPacks        Additional serdes packs for the configurerProvider
      */
     public DocumentPersistence(@NonNull RawPersistence readPersistence, @NonNull RawPersistence writePersistence, @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
         this.read = readPersistence;
@@ -75,6 +67,14 @@ public class DocumentPersistence implements Persistence<Document> {
         // simplifier for document mappings
         this.simplifier = configurerProvider.get();
         this.simplifier.setRegistry(this.serdesRegistry);
+    }
+
+    @Deprecated
+    public RawPersistence getRaw() {
+        if (!this.getRead().equals(this.getWrite())) {
+            throw new IllegalArgumentException("Cannot use #getRaw() with DocumentPersistence using separate instances for read and write");
+        }
+        return this.getRead();
     }
 
     @Override
@@ -252,10 +252,10 @@ public class DocumentPersistence implements Persistence<Document> {
     @Override
     public Map<PersistencePath, Document> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
         return paths.isEmpty() ? Collections.emptyMap() : this.getRead().read(collection, paths).entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
-                    Document document = this.createDocument(collection, entry.getKey());
-                    return (Document) document.load(entry.getValue());
-                }));
+            .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
+                Document document = this.createDocument(collection, entry.getKey());
+                return (Document) document.load(entry.getValue());
+            }));
 
     }
 
@@ -263,10 +263,10 @@ public class DocumentPersistence implements Persistence<Document> {
     public Map<PersistencePath, Document> readAll(@NonNull PersistenceCollection collection) {
         this.getRead().checkCollectionRegistered(collection);
         return this.getRead().readAll(collection).entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
-                    Document document = this.createDocument(collection, entry.getKey());
-                    return (Document) document.load(entry.getValue());
-                }));
+            .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
+                Document document = this.createDocument(collection, entry.getKey());
+                return (Document) document.load(entry.getValue());
+            }));
     }
 
     @Override
@@ -286,17 +286,17 @@ public class DocumentPersistence implements Persistence<Document> {
         // the goal is to allow extensibility - i trust but i verify
         if (this.getRead().isNativeReadByProperty()) {
             return this.getRead().readByProperty(collection, property, propertyValue)
-                    .map(this.entityToDocumentMapper(collection))
-                    .filter(documentFilter);
+                .map(this.entityToDocumentMapper(collection))
+                .filter(documentFilter);
         }
 
         // streaming search optimzied with string search can
         // greatly reduce search time removing parsing overhead
         boolean stringSearch = this.getRead().isUseStringSearch() && this.getWrite().canUseToString(propertyValue);
         return this.getRead().streamAll(collection)
-                .filter(entity -> !stringSearch || entity.getValue().contains(String.valueOf(propertyValue)))
-                .map(this.entityToDocumentMapper(collection))
-                .filter(documentFilter);
+            .filter(entity -> !stringSearch || entity.getValue().contains(String.valueOf(propertyValue)))
+            .map(this.entityToDocumentMapper(collection))
+            .filter(documentFilter);
     }
 
     @Override

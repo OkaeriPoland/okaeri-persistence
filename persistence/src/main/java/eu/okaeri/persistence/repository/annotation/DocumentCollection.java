@@ -8,8 +8,12 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface DocumentCollection {
+
     String path();
+
     int keyLength();
+
     boolean autofixIndexes() default true;
+
     DocumentIndex[] indexes() default {};
 }

@@ -20,6 +20,11 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class RepositoryDeclaration<T extends DocumentRepository> {
 
+    private final Class<T> type;
+    private final Map<Method, RepositoryMethodCaller> methods;
+    private final Class<?> pathType;
+    private final Class<? extends Document> entityType;
+
     @SuppressWarnings("unchecked")
     public static <A extends DocumentRepository> RepositoryDeclaration<A> of(@NonNull Class<A> clazz) {
 
@@ -45,13 +50,13 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
             if (method.getReturnType() == Optional.class) {
                 if (insideType == PersistenceEntity.class) {
                     methods.put(method, (persistence, collection, args) -> persistence.readByProperty(collection, path, args[0])
-                            .findFirst()
-                            .map(entity -> entity.into(entityType)));
+                        .findFirst()
+                        .map(entity -> entity.into(entityType)));
                 } else {
                     methods.put(method, (persistence, collection, args) -> persistence.readByProperty(collection, path, args[0])
-                            .findFirst()
-                            .map(entity -> entity.into(entityType))
-                            .map(PersistenceEntity::getValue));
+                        .findFirst()
+                        .map(entity -> entity.into(entityType))
+                        .map(PersistenceEntity::getValue));
                 }
                 continue;
             }
@@ -59,11 +64,11 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
             if (method.getReturnType() == Stream.class) {
                 if (insideType == PersistenceEntity.class) {
                     methods.put(method, (persistence, collection, args) -> persistence.readByProperty(collection, path, args[0])
-                            .map(entity -> entity.into(entityType)));
+                        .map(entity -> entity.into(entityType)));
                 } else {
                     methods.put(method, (persistence, collection, args) -> persistence.readByProperty(collection, path, args[0])
-                            .map(entity -> entity.into(entityType))
-                            .map(PersistenceEntity::getValue));
+                        .map(entity -> entity.into(entityType))
+                        .map(PersistenceEntity::getValue));
                 }
                 continue;
             }
@@ -71,13 +76,13 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
             if ((method.getReturnType() == List.class) || (method.getReturnType() == Collection.class)) {
                 if (insideType == PersistenceEntity.class) {
                     methods.put(method, (persistence, collection, args) -> persistence.readByProperty(collection, path, args[0])
-                            .map(entity -> entity.into(entityType))
-                            .collect(Collectors.toList()));
+                        .map(entity -> entity.into(entityType))
+                        .collect(Collectors.toList()));
                 } else {
                     methods.put(method, (persistence, collection, args) -> persistence.readByProperty(collection, path, args[0])
-                            .map(entity -> entity.into(entityType))
-                            .map(PersistenceEntity::getValue)
-                            .collect(Collectors.toList()));
+                        .map(entity -> entity.into(entityType))
+                        .map(PersistenceEntity::getValue)
+                        .collect(Collectors.toList()));
                 }
                 continue;
             }
@@ -85,13 +90,13 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
             if (method.getReturnType() == Set.class) {
                 if (insideType == PersistenceEntity.class) {
                     methods.put(method, (persistence, collection, args) -> persistence.readByProperty(collection, path, args[0])
-                            .map(entity -> entity.into(entityType))
-                            .collect(Collectors.toSet()));
+                        .map(entity -> entity.into(entityType))
+                        .collect(Collectors.toSet()));
                 } else {
                     methods.put(method, (persistence, collection, args) -> persistence.readByProperty(collection, path, args[0])
-                            .map(entity -> entity.into(entityType))
-                            .map(PersistenceEntity::getValue)
-                            .collect(Collectors.toSet()));
+                        .map(entity -> entity.into(entityType))
+                        .map(PersistenceEntity::getValue)
+                        .collect(Collectors.toSet()));
                 }
             }
         }
@@ -99,10 +104,21 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
         return new RepositoryDeclaration<A>(clazz, methods, pathType, entityType);
     }
 
-    private final Class<T> type;
-    private final Map<Method, RepositoryMethodCaller> methods;
-    private final Class<?> pathType;
-    private final Class<? extends Document> entityType;
+    private static Class<?> getInsideType(Method method) {
+
+        ParameterizedType genericReturnType = (ParameterizedType) method.getGenericReturnType();
+        Type actualTypeArgument = genericReturnType.getActualTypeArguments()[0];
+
+        if (actualTypeArgument instanceof Class<?>) {
+            return (Class<?>) actualTypeArgument;
+        }
+
+        if (actualTypeArgument instanceof ParameterizedType) {
+            return ((Class<?>) ((ParameterizedType) actualTypeArgument).getRawType());
+        }
+
+        throw new IllegalArgumentException("cannot resolve inside type of " + method);
+    }
 
     @SuppressWarnings("unchecked")
     public T newProxy(@NonNull DocumentPersistence persistence, @NonNull PersistenceCollection collection, @NonNull ClassLoader classLoader) {
@@ -151,21 +167,5 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
 
             return caller.call(persistence, collection, args);
         });
-    }
-
-    private static Class<?> getInsideType(Method method) {
-
-        ParameterizedType genericReturnType = (ParameterizedType) method.getGenericReturnType();
-        Type actualTypeArgument = genericReturnType.getActualTypeArguments()[0];
-
-        if (actualTypeArgument instanceof Class<?>) {
-            return (Class<?>) actualTypeArgument;
-        }
-
-        if (actualTypeArgument instanceof ParameterizedType) {
-            return ((Class<?>) ((ParameterizedType) actualTypeArgument).getRawType());
-        }
-
-        throw new IllegalArgumentException("cannot resolve inside type of " + method);
     }
 }

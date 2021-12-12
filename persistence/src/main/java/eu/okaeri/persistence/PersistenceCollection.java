@@ -14,6 +14,15 @@ import java.util.Set;
 @ToString(callSuper = true)
 public class PersistenceCollection extends PersistencePath {
 
+    private int keyLength;
+    private boolean autofixIndexes = true;
+    private Set<IndexProperty> indexes = new HashSet<>();
+
+    private PersistenceCollection(@NonNull String value, int keyLength) {
+        super(value);
+        this.keyLength = keyLength;
+    }
+
     public static PersistenceCollection of(@NonNull Class<?> clazz) {
 
         DocumentCollection collection = clazz.getAnnotation(DocumentCollection.class);
@@ -37,15 +46,6 @@ public class PersistenceCollection extends PersistencePath {
         return of(path).keyLength(keyLength);
     }
 
-    private PersistenceCollection(@NonNull String value, int keyLength) {
-        super(value);
-        this.keyLength = keyLength;
-    }
-
-    private int keyLength;
-    private boolean autofixIndexes = true;
-    private Set<IndexProperty> indexes = new HashSet<>();
-
     public PersistenceCollection keyLength(int keyLength) {
         if ((keyLength < 1) || (keyLength > 255)) throw new IllegalArgumentException("key length should be between 1 and 255");
         this.keyLength = keyLength;
@@ -64,15 +64,15 @@ public class PersistenceCollection extends PersistencePath {
 
     public int getMaxIndexIdentityLength() {
         return this.indexes.stream()
-                .mapToInt(IndexProperty::getMaxLength)
-                .max()
-                .orElse(255);
+            .mapToInt(IndexProperty::getMaxLength)
+            .max()
+            .orElse(255);
     }
 
     public int getMaxIndexPropertyLength() {
         return this.indexes.stream()
-                .mapToInt(index -> index.getValue().length())
-                .max()
-                .orElse(255);
+            .mapToInt(index -> index.getValue().length())
+            .max()
+            .orElse(255);
     }
 }
