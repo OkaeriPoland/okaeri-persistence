@@ -21,7 +21,7 @@ public class LazyRefSerializer implements ObjectSerializer<Ref<? extends Documen
     }
 
     @Override
-    public void serialize(@NonNull Ref lazyRef, @NonNull SerializationData serializationData) {
+    public void serialize(@NonNull Ref lazyRef, @NonNull SerializationData serializationData, @NonNull GenericsDeclaration genericsDeclaration) {
         serializationData.add("_id", lazyRef.getId().getValue());
         serializationData.add("_collection", lazyRef.getCollection().getValue());
     }
