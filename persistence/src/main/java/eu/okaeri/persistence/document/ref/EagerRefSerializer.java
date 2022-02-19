@@ -21,7 +21,7 @@ public class EagerRefSerializer implements ObjectSerializer<EagerRef<? extends D
     }
 
     @Override
-    public void serialize(@NonNull EagerRef eagerRef, @NonNull SerializationData serializationData) {
+    public void serialize(@NonNull EagerRef eagerRef, @NonNull SerializationData serializationData, @NonNull GenericsDeclaration genericsDeclaration) {
         serializationData.add("_id", eagerRef.getId().getValue());
         serializationData.add("_collection", eagerRef.getCollection().getValue());
     }
