@@ -16,7 +16,7 @@ import java.util.logging.Logger;
 public abstract class Ref<T extends Document> {
 
     private static final boolean DEBUG = Boolean.parseBoolean(System.getProperty("okaeri.platform.debug", "false"));
-    private static final Logger LOGGER = Logger.getLogger(Ref.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(Ref.class.getSimpleName());
 
     private final PersistencePath id;
     private final PersistencePath collection;

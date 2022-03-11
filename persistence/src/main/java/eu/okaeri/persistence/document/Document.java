@@ -17,7 +17,7 @@ import java.util.logging.Logger;
 public class Document extends OkaeriConfig {
 
     @Exclude private static final boolean DEBUG = Boolean.parseBoolean(System.getProperty("okaeri.platform.debug", "false"));
-    @Exclude private static final Logger LOGGER = Logger.getLogger(Document.class.getName());
+    @Exclude private static final Logger LOGGER = Logger.getLogger(Document.class.getSimpleName());
 
     @Exclude @Getter @Setter private DocumentSaver saver;
     @Exclude @Getter @Setter private DocumentPersistence persistence;

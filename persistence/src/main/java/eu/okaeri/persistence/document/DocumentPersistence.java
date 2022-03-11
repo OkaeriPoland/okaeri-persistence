@@ -28,7 +28,7 @@ import java.util.stream.Stream;
 
 public class DocumentPersistence implements Persistence<Document> {
 
-    private static final Logger LOGGER = Logger.getLogger(DocumentPersistence.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(DocumentPersistence.class.getSimpleName());
 
     @Getter private final ConfigurerProvider configurerProvider;
     @Getter private final OkaeriSerdesPack[] serdesPacks;
