@@ -24,7 +24,7 @@ import java.util.stream.StreamSupport;
 
 public class RedisPersistence extends RawPersistence {
 
-    private static final Logger LOGGER = Logger.getLogger(RedisPersistence.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(RedisPersistence.class.getSimpleName());
     @Getter private StatefulRedisConnection<String, String> connection;
     @Getter private RedisClient client;
 

@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 
 public class JdbcPersistence extends RawPersistence {
 
-    private static final Logger LOGGER = Logger.getLogger(JdbcPersistence.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(JdbcPersistence.class.getSimpleName());
     @Getter private HikariDataSource dataSource;
 
     public JdbcPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
