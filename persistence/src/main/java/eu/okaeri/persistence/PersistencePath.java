@@ -41,11 +41,17 @@ public class PersistencePath {
     }
 
     public PersistencePath sub(@NonNull PersistencePath sub) {
+        if (this.value.isEmpty()) {
+            return of(sub.getValue());
+        }
         return this.sub(sub.getValue());
     }
 
     public PersistencePath sub(@NonNull String sub) {
         String separator = (sub.startsWith(SEPARATOR)) ? "" : SEPARATOR;
+        if (this.value.isEmpty()) {
+            return of(separator.isEmpty() ? sub : sub.substring(1));
+        }
         return this.append(separator + sub);
     }
 
