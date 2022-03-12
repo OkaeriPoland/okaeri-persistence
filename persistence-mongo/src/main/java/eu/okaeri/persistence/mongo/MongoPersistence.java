@@ -2,10 +2,10 @@ package eu.okaeri.persistence.mongo;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
+import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Indexes;
+import com.mongodb.client.model.*;
 import eu.okaeri.configs.serdes.OkaeriSerdesPack;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
@@ -17,6 +17,7 @@ import eu.okaeri.persistence.document.index.IndexProperty;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
+import org.bson.conversions.Bson;
 
 import java.io.IOException;
 import java.util.*;
@@ -29,6 +30,7 @@ import java.util.stream.StreamSupport;
 public class MongoPersistence extends DocumentPersistence {
 
     private static final Logger LOGGER = Logger.getLogger(MongoPersistence.class.getSimpleName());
+    private static final ReplaceOptions REPLACE_OPTIONS = new ReplaceOptions().upsert(true);
 
     @Getter private MongoClient client;
     @Getter private MongoDatabase database;
@@ -186,7 +188,8 @@ public class MongoPersistence extends DocumentPersistence {
     public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
         BasicDBObject data = BasicDBObject.parse(document.saveToString());
         data.put("_id", path.getValue());
-        this.mongo(collection).insertOne(data);
+        Bson filters = Filters.in("_id", path.getValue());
+        this.mongo(collection).replaceOne(filters, data, REPLACE_OPTIONS);
         return true;
     }
 
@@ -204,8 +207,16 @@ public class MongoPersistence extends DocumentPersistence {
             documents.add(data);
         });
 
-        this.mongo(collection).insertMany(documents);
-        return entities.size();
+        MongoCollection<BasicDBObject> mongo = this.mongo(collection);
+        BulkWriteResult result = mongo.bulkWrite(documents.stream()
+            .<WriteModel<BasicDBObject>>map(document -> new ReplaceOneModel<>(
+                Filters.in("_id", document.get("_id")),
+                document,
+                REPLACE_OPTIONS
+            ))
+            .collect(Collectors.toList()));
+
+        return result.getModifiedCount();
     }
 
     @Override
