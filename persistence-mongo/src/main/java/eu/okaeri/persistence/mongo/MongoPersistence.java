@@ -49,7 +49,9 @@ public class MongoPersistence extends DocumentPersistence {
         do {
             try {
                 this.client = client;
-                this.database = client.getDatabase(databaseName);
+                MongoDatabase database = client.getDatabase(databaseName);
+                database.runCommand(new org.bson.Document("ping", 1));
+                this.database = database;
             } catch (Exception exception) {
                 if (exception.getCause() != null) {
                     LOGGER.severe("[" + this.getBasePath().getValue() + "] Cannot connect with database (waiting 30s): " + exception.getMessage() + " caused by " + exception.getCause().getMessage());
