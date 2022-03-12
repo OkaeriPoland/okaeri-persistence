@@ -90,6 +90,10 @@ public class PersistencePath {
         return identifier;
     }
 
+    public String toMongoPath() {
+        return this.value.replace(SEPARATOR, ".");
+    }
+
     public List<String> toParts() {
         return Arrays.asList(this.value.split(SEPARATOR));
     }

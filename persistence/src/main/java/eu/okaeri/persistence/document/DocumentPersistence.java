@@ -30,33 +30,20 @@ public class DocumentPersistence implements Persistence<Document> {
 
     private static final Logger LOGGER = Logger.getLogger(DocumentPersistence.class.getSimpleName());
 
-    @Getter private final ConfigurerProvider configurerProvider;
-    @Getter private final OkaeriSerdesPack[] serdesPacks;
+    @Getter protected final ConfigurerProvider configurerProvider;
+    @Getter protected final OkaeriSerdesPack[] serdesPacks;
 
-    @Getter private final RawPersistence read;
-    @Getter private final RawPersistence write;
+    protected RawPersistence read;
+    protected RawPersistence write;
 
-    private SerdesRegistry serdesRegistry;
-    private Configurer simplifier;
+    protected SerdesRegistry serdesRegistry;
+    protected Configurer simplifier;
 
     /**
-     * @param rawPersistence     Base persistence provider
      * @param configurerProvider Okaeri Config's provider (mostly json)
      * @param serdesPacks        Additional serdes packs for the configurerProvider
      */
-    public DocumentPersistence(@NonNull RawPersistence rawPersistence, @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
-        this(rawPersistence, rawPersistence, configurerProvider, serdesPacks);
-    }
-
-    /**
-     * @param readPersistence    Base persistence provider for read operations
-     * @param writePersistence   Base persistence provider for write operations
-     * @param configurerProvider Okaeri Config's provider (mostly json)
-     * @param serdesPacks        Additional serdes packs for the configurerProvider
-     */
-    public DocumentPersistence(@NonNull RawPersistence readPersistence, @NonNull RawPersistence writePersistence, @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
-        this.read = readPersistence;
-        this.write = writePersistence;
+    public DocumentPersistence(@NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
         this.configurerProvider = configurerProvider;
         this.serdesPacks = serdesPacks;
         // shared transform registry for faster transformations
@@ -67,6 +54,41 @@ public class DocumentPersistence implements Persistence<Document> {
         // simplifier for document mappings
         this.simplifier = configurerProvider.get();
         this.simplifier.setRegistry(this.serdesRegistry);
+    }
+
+    /**
+     * @param readPersistence    Base persistence provider for read operations
+     * @param writePersistence   Base persistence provider for write operations
+     * @param configurerProvider Okaeri Config's provider (mostly json)
+     * @param serdesPacks        Additional serdes packs for the configurerProvider
+     */
+    public DocumentPersistence(@NonNull RawPersistence readPersistence, @NonNull RawPersistence writePersistence, @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+        this(configurerProvider, serdesPacks);
+        this.read = readPersistence;
+        this.write = writePersistence;
+    }
+
+    /**
+     * @param rawPersistence     Base persistence provider
+     * @param configurerProvider Okaeri Config's provider (mostly json)
+     * @param serdesPacks        Additional serdes packs for the configurerProvider
+     */
+    public DocumentPersistence(@NonNull RawPersistence rawPersistence, @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+        this(rawPersistence, rawPersistence, configurerProvider, serdesPacks);
+    }
+
+    public RawPersistence getRead() {
+        if (this.read == null) {
+            throw new IllegalArgumentException("This persistence instance does not provide raw access.");
+        }
+        return this.read;
+    }
+
+    public RawPersistence getWrite() {
+        if (this.write == null) {
+            throw new IllegalArgumentException("This persistence instance does not provide raw access.");
+        }
+        return this.write;
     }
 
     @Deprecated
@@ -261,7 +283,6 @@ public class DocumentPersistence implements Persistence<Document> {
 
     @Override
     public Map<PersistencePath, Document> readAll(@NonNull PersistenceCollection collection) {
-        this.getRead().checkCollectionRegistered(collection);
         return this.getRead().readAll(collection).entrySet().stream()
             .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
                 Document document = this.createDocument(collection, entry.getKey());
@@ -358,13 +379,12 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     public Document createDocument(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-        this.getWrite().checkCollectionRegistered(collection);
         Document config = this.update(ConfigManager.create(Document.class), collection);
         config.setPath(path);
         return config;
     }
 
-    private Function<PersistenceEntity<String>, PersistenceEntity<Document>> entityToDocumentMapper(PersistenceCollection collection) {
+    protected Function<PersistenceEntity<String>, PersistenceEntity<Document>> entityToDocumentMapper(PersistenceCollection collection) {
         return entity -> {
             Document document = this.createDocument(collection, entity.getPath());
             document.load(entity.getValue());
@@ -384,7 +404,7 @@ public class DocumentPersistence implements Persistence<Document> {
         return null;
     }
 
-    private boolean compare(Object object1, Object object2) {
+    protected boolean compare(Object object1, Object object2) {
 
         if ((object1 == null) && (object2 == null)) {
             return true;

@@ -9,7 +9,7 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>okaeri-persistence-flat</artifactId>
+    <artifactId>okaeri-persistence-mongo</artifactId>
 
     <dependencies>
         <dependency>
@@ -17,13 +17,13 @@
             <artifactId>okaeri-persistence-core</artifactId>
             <version>1.5.11-beta3</version>
         </dependency>
-    </dependencies>
 
-    <repositories>
-        <repository>
-            <id>okaeri-repo</id>
-            <url>https://storehouse.okaeri.eu/repository/maven-public/</url>
-        </repository>
-    </repositories>
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongo-java-driver</artifactId>
+            <version>3.12.10</version>
+        </dependency>
+
+    </dependencies>
 
 </project>

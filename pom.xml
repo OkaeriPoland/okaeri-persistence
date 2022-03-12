@@ -7,11 +7,12 @@
     <groupId>eu.okaeri</groupId>
     <artifactId>okaeri-persistence</artifactId>
     <packaging>pom</packaging>
-    <version>1.5.11-beta2</version>
+    <version>1.5.11-beta3</version>
     <modules>
         <module>persistence</module>
         <module>persistence-flat</module>
         <module>persistence-jdbc</module>
+        <module>persistence-mongo</module>
         <module>persistence-redis</module>
     </modules>
 
