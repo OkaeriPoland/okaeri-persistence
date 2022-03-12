@@ -19,7 +19,8 @@ Originally developed for and part of the [okaeri-platform](https://github.com/Ok
 | MariaDbPersistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created with MySQL/MariaDB in mind using native JSON datatype, makes use of the json_extract for filtering by properties even when property is not marked as indexed. |
 | H2Persistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for H2 databases in `mode=mysql`. Stores JSON in the text field, makes use of the instr for prefiltering when possible. |
 | JdbcPersistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for generic JDBC support. Stores JSON in the text field, makes no use of any prefiltering whatsoever. Data writes take two queries. |
-| RedisPersistence | `redis` | Yes (additional hashes and sets) | Uses [Lettuce](https://lettuce.io/). Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties. Currently the fastest implementation avaibile. |
+| MongoPersistence | `mongo` | Yes (native) | Uses [official MongoDB driver](https://github.com/mongodb/mongo-java-driver). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed. |
+| RedisPersistence | `redis` | Yes (additional hashes and sets) | Uses [Lettuce](https://lettuce.io/). Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties. |
 
 ### Special usage
 
@@ -207,7 +208,7 @@ Add dependency to the `dependencies` section:
 <dependency>
   <groupId>eu.okaeri</groupId>
   <artifactId>okaeri-persistence-[type]</artifactId>
-  <version>1.5.11-beta2</version>
+  <version>1.5.11-beta3</version>
 </dependency>
 ```
 
@@ -222,5 +223,5 @@ maven { url "https://storehouse.okaeri.eu/repository/maven-public/" }
 Add dependency to the `maven` section:
 
 ```groovy
-implementation 'eu.okaeri:okaeri-persistence-[type]:1.5.11-beta2'
+implementation 'eu.okaeri:okaeri-persistence-[type]:1.5.11-beta3'
 ```
