@@ -19,8 +19,12 @@ Originally developed for and part of the [okaeri-platform](https://github.com/Ok
 | MariaDbPersistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created with MySQL/MariaDB in mind using native JSON datatype, makes use of the json_extract for filtering by properties even when property is not marked as indexed. |
 | H2Persistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for H2 databases in `mode=mysql`. Stores JSON in the text field, makes use of the instr for prefiltering when possible. |
 | JdbcPersistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for generic JDBC support. Stores JSON in the text field, makes no use of any prefiltering whatsoever. Data writes take two queries. |
-| MongoPersistence | `mongo` | Yes (native) | Uses [official MongoDB driver](https://github.com/mongodb/mongo-java-driver). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed. |
 | RedisPersistence | `redis` | Yes (additional hashes and sets) | Uses [Lettuce](https://lettuce.io/). Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties. |
+
+### Document native
+| Name | Type | Indexes | Comment |
+|-|-|-|-|
+| MongoPersistence | `mongo` | Yes (native) | Uses [official MongoDB driver](https://github.com/mongodb/mongo-java-driver). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed. |
 
 ### Special usage
 
@@ -36,7 +40,10 @@ Core library provides relatively small footprint with size below 100kB (even wit
 sophisticated database drivers when needed.
 
 ```java
+// for standard persistence
 new DocumentPersistence(new JdbcPersistence(basePath, hikari), JsonSimpleConfigurer::new)
+// for mongo document-native persistence
+new MongoPersistence(basePath, mongoClient, databaseName, JsonSimpleConfigurer::new)
 ```
 
 ## Documents
