@@ -189,8 +189,7 @@ public class MongoPersistence extends DocumentPersistence {
         BasicDBObject data = BasicDBObject.parse(document.saveToString());
         data.put("_id", path.getValue());
         Bson filters = Filters.in("_id", path.getValue());
-        this.mongo(collection).replaceOne(filters, data, REPLACE_OPTIONS);
-        return true;
+        return this.mongo(collection).replaceOne(filters, data, REPLACE_OPTIONS).getModifiedCount() > 0;
     }
 
     @Override
