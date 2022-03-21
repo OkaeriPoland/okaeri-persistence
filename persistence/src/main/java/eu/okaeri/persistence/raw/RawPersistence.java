@@ -21,7 +21,8 @@ public abstract class RawPersistence implements Persistence<String> {
     @Getter private final PersistencePath basePath;
     @Getter private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
     @Getter private final Map<String, Set<IndexProperty>> knownIndexes = new ConcurrentHashMap<>();
-    @Getter private final boolean nativeReadByProperty;
+    @Getter private final boolean canReadByProperty;
+    @Getter private final boolean emulatedIndexes;
     @Getter private final boolean nativeIndexes;
     @Getter @Setter private boolean useStringSearch;
     @Getter @Setter private boolean autoFlush;

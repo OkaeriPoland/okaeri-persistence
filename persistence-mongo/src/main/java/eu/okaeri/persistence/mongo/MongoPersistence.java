@@ -5,15 +5,15 @@ import com.mongodb.MongoClient;
 import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.*;
-import eu.okaeri.configs.serdes.OkaeriSerdesPack;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.ReplaceOneModel;
+import com.mongodb.client.model.ReplaceOptions;
+import com.mongodb.client.model.WriteModel;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
-import eu.okaeri.persistence.document.ConfigurerProvider;
-import eu.okaeri.persistence.document.Document;
-import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.document.index.IndexProperty;
+import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
@@ -21,13 +21,12 @@ import org.bson.conversions.Bson;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class MongoPersistence extends DocumentPersistence {
+public class MongoPersistence extends RawPersistence {
 
     private static final Logger LOGGER = Logger.getLogger(MongoPersistence.class.getSimpleName());
     private static final ReplaceOptions REPLACE_OPTIONS = new ReplaceOptions().upsert(true);
@@ -35,12 +34,8 @@ public class MongoPersistence extends DocumentPersistence {
     @Getter private MongoClient client;
     @Getter private MongoDatabase database;
 
-    private PersistencePath basePath;
-
-    public MongoPersistence(@NonNull PersistencePath basePath, @NonNull MongoClient client, @NonNull String databaseName, @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
-        super(configurerProvider, serdesPacks);
-        this.basePath = basePath;
-        // init
+    public MongoPersistence(@NonNull PersistencePath basePath, @NonNull MongoClient client, @NonNull String databaseName) {
+        super(basePath, true, false, true, false, true);
         this.connect(client, databaseName);
     }
 
@@ -64,43 +59,7 @@ public class MongoPersistence extends DocumentPersistence {
     }
 
     @Override
-    public void setAutoFlush(boolean state) {
-    }
-
-    @Override
-    public void flush() {
-    }
-
-    @Override
-    public PersistencePath getBasePath() {
-        return this.basePath;
-    }
-
-    @Override
-    public void registerCollection(@NonNull PersistenceCollection collection) {
-        MongoCollection<BasicDBObject> mongo = this.mongo(collection);
-        for (IndexProperty index : collection.getIndexes()) {
-            mongo.createIndex(Indexes.hashed(index.toMongoPath()));
-        }
-    }
-
-    @Override
-    public long fixIndexes(@NonNull PersistenceCollection collection) {
-        return 0;
-    }
-
-    @Override
     public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
-        return false;
-    }
-
-    @Override
-    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
-        return false;
-    }
-
-    @Override
-    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return false;
     }
 
@@ -125,15 +84,23 @@ public class MongoPersistence extends DocumentPersistence {
     }
 
     @Override
-    public Optional<Document> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
+    public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
+        return StreamSupport.stream(this.mongo(collection).find()
+            .filter(Filters.in(property.toMongoPath(), propertyValue))
+            .map(object -> this.transformMongoObject(collection, object))
+            .spliterator(), false);
+    }
+
+    @Override
+    public Optional<String> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return Optional.ofNullable(this.mongo(collection).find()
             .filter(Filters.eq("_id", path.getValue()))
-            .map(object -> this.transformDocument(collection, object))
+            .map(object -> this.transformMongoObject(collection, object).getValue())
             .first());
     }
 
     @Override
-    public Map<PersistencePath, Document> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
+    public Map<PersistencePath, String> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
 
         if (paths.isEmpty()) {
             return Collections.emptyMap();
@@ -145,14 +112,14 @@ public class MongoPersistence extends DocumentPersistence {
 
         return this.mongo(collection).find()
             .filter(Filters.in("_id", keys))
-            .map(object -> this.transformDocument(collection, object))
+            .map(object -> this.transformMongoObject(collection, object))
             .into(new ArrayList<>())
             .stream()
-            .collect(Collectors.toMap(Document::getPath, Function.identity()));
+            .collect(Collectors.toMap(PersistenceEntity::getPath, PersistenceEntity::getValue));
     }
 
     @Override
-    public Map<PersistencePath, Document> readAll(@NonNull PersistenceCollection collection) {
+    public Map<PersistencePath, String> readAll(@NonNull PersistenceCollection collection) {
         return this.streamAll(collection).collect(Collectors.toMap(
             PersistenceEntity::getPath,
             PersistenceEntity::getValue
@@ -160,19 +127,9 @@ public class MongoPersistence extends DocumentPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<Document>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
+    public Stream<PersistenceEntity<String>> streamAll(@NonNull PersistenceCollection collection) {
         return StreamSupport.stream(this.mongo(collection).find()
-            .filter(Filters.in(property.toMongoPath(), propertyValue))
-            .map(object -> this.transformDocument(collection, object))
-            .map(document -> new PersistenceEntity<>(document.getPath(), document))
-            .spliterator(), false);
-    }
-
-    @Override
-    public Stream<PersistenceEntity<Document>> streamAll(@NonNull PersistenceCollection collection) {
-        return StreamSupport.stream(this.mongo(collection).find()
-            .map(object -> this.transformDocument(collection, object))
-            .map(document -> new PersistenceEntity<>(document.getPath(), document))
+            .map(object -> this.transformMongoObject(collection, object))
             .spliterator(), false);
     }
 
@@ -187,15 +144,15 @@ public class MongoPersistence extends DocumentPersistence {
     }
 
     @Override
-    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
-        BasicDBObject data = BasicDBObject.parse(document.saveToString());
+    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull String document) {
+        BasicDBObject data = BasicDBObject.parse(document);
         data.put("_id", path.getValue());
         Bson filters = Filters.in("_id", path.getValue());
         return this.mongo(collection).replaceOne(filters, data, REPLACE_OPTIONS).getModifiedCount() > 0;
     }
 
     @Override
-    public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, Document> entities) {
+    public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, String> entities) {
 
         if (entities.isEmpty()) {
             return 0;
@@ -203,7 +160,7 @@ public class MongoPersistence extends DocumentPersistence {
 
         List<BasicDBObject> documents = new ArrayList<>();
         entities.forEach((path, document) -> {
-            BasicDBObject data = BasicDBObject.parse(document.saveToString());
+            BasicDBObject data = BasicDBObject.parse(document);
             data.put("_id", path.getValue());
             documents.add(data);
         });
@@ -260,9 +217,9 @@ public class MongoPersistence extends DocumentPersistence {
         return this.getDatabase().getCollection(identifier, BasicDBObject.class);
     }
 
-    protected Document transformDocument(PersistenceCollection collection, BasicDBObject object) {
+    protected PersistenceEntity<String> transformMongoObject(PersistenceCollection collection, BasicDBObject object) {
         PersistencePath path = PersistencePath.of(object.getString("_id"));
         object.remove("_id"); // don't need this anymore
-        return (Document) this.createDocument(collection, path).load(object.toJson());
+        return new PersistenceEntity<>(path, object.toJson());
     }
 }

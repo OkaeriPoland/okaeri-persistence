@@ -29,7 +29,7 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     private final Map<String, Map<PersistencePath, Document>> documents = new ConcurrentHashMap<>();
 
     public InMemoryDocumentPersistence(@NonNull OkaeriSerdesPack... serdesPacks) {
-        super(new RawPersistence(PersistencePath.of("memory"), true, true, false, true) {
+        super(new RawPersistence(PersistencePath.of("memory"), true, true, true, false, true) {
             @Override
             public long count(PersistenceCollection collection) {
                 return 0;

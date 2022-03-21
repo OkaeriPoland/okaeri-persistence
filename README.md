@@ -40,10 +40,7 @@ Core library provides relatively small footprint with size below 100kB (even wit
 sophisticated database drivers when needed.
 
 ```java
-// for standard persistence
 new DocumentPersistence(new JdbcPersistence(basePath, hikari), JsonSimpleConfigurer::new)
-// for mongo document-native persistence
-new MongoPersistence(basePath, mongoClient, databaseName, JsonSimpleConfigurer::new)
 ```
 
 ## Documents
@@ -215,7 +212,7 @@ Add dependency to the `dependencies` section:
 <dependency>
   <groupId>eu.okaeri</groupId>
   <artifactId>okaeri-persistence-[type]</artifactId>
-  <version>1.5.11-beta7</version>
+  <version>1.5.11-beta8</version>
 </dependency>
 ```
 
@@ -230,5 +227,5 @@ maven { url "https://storehouse.okaeri.eu/repository/maven-public/" }
 Add dependency to the `maven` section:
 
 ```groovy
-implementation 'eu.okaeri:okaeri-persistence-[type]:1.5.11-beta7'
+implementation 'eu.okaeri:okaeri-persistence-[type]:1.5.11-beta8'
 ```

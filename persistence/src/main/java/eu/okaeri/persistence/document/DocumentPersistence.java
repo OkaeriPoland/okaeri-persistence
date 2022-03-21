@@ -136,7 +136,7 @@ public class DocumentPersistence implements Persistence<Document> {
     @Override
     public long fixIndexes(@NonNull PersistenceCollection collection) {
 
-        if (!this.getWrite().isNativeIndexes()) {
+        if (!this.getWrite().isEmulatedIndexes()) {
             return 0;
         }
 
@@ -176,13 +176,13 @@ public class DocumentPersistence implements Persistence<Document> {
 
     @Override
     public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
-        return this.getWrite().isNativeIndexes() && this.getWrite().updateIndex(collection, path, property, identity);
+        return this.getWrite().isEmulatedIndexes() && this.getWrite().updateIndex(collection, path, property, identity);
     }
 
     @Override
     public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
 
-        if (!this.getWrite().isNativeIndexes()) {
+        if (!this.getWrite().isEmulatedIndexes()) {
             return false;
         }
 
@@ -209,7 +209,7 @@ public class DocumentPersistence implements Persistence<Document> {
     @Override
     public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
 
-        if (!this.getWrite().isNativeIndexes()) {
+        if (!this.getWrite().isEmulatedIndexes()) {
             return false;
         }
 
@@ -219,17 +219,17 @@ public class DocumentPersistence implements Persistence<Document> {
 
     @Override
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property) {
-        return this.getWrite().isNativeIndexes() && this.getWrite().dropIndex(collection, path, property);
+        return this.getWrite().isEmulatedIndexes() && this.getWrite().dropIndex(collection, path, property);
     }
 
     @Override
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-        return this.getWrite().isNativeIndexes() && this.getWrite().dropIndex(collection, path);
+        return this.getWrite().isEmulatedIndexes() && this.getWrite().dropIndex(collection, path);
     }
 
     @Override
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property) {
-        return this.getWrite().isNativeIndexes() && this.getWrite().dropIndex(collection, property);
+        return this.getWrite().isEmulatedIndexes() && this.getWrite().dropIndex(collection, property);
     }
 
     @Override
@@ -305,10 +305,11 @@ public class DocumentPersistence implements Persistence<Document> {
         // native read implementation may or may not filter entries
         // for every query, depending on the backend supported features
         // the goal is to allow extensibility - i trust but i verify
-        if (this.getRead().isNativeReadByProperty()) {
+        // with the exception for non-emulated indexes (native)
+        if (this.getRead().isCanReadByProperty()) {
             return this.getRead().readByProperty(collection, property, propertyValue)
                 .map(this.entityToDocumentMapper(collection))
-                .filter(documentFilter);
+                .filter(entity -> this.getRead().isNativeIndexes() || documentFilter.test(entity));
         }
 
         // streaming search optimzied with string search can
