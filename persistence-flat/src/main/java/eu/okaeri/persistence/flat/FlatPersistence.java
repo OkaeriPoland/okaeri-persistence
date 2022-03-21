@@ -38,10 +38,10 @@ public class FlatPersistence extends RawPersistence {
     };
 
     private final Map<String, Map<String, InMemoryIndex>> indexMap = new ConcurrentHashMap<>();
-    @Getter private final PersistencePath basePath;
-    @Getter private final String fileSuffix;
-    @Getter private final ConfigurerProvider indexProvider;
-    @Getter @Setter private boolean saveIndex;
+    private @Getter final PersistencePath basePath;
+    private @Getter final String fileSuffix;
+    private @Getter final ConfigurerProvider indexProvider;
+    private @Getter @Setter boolean saveIndex;
 
     public FlatPersistence(@NonNull File basePath, @NonNull String fileSuffix) {
         this(basePath, fileSuffix, InMemoryConfigurer::new, false);
@@ -52,7 +52,7 @@ public class FlatPersistence extends RawPersistence {
     }
 
     public FlatPersistence(@NonNull File basePath, @NonNull String fileSuffix, @NonNull ConfigurerProvider indexProvider, boolean saveIndex) {
-        super(PersistencePath.of(basePath), true, true, true, true);
+        super(PersistencePath.of(basePath), true, true, false, true, true);
         this.basePath = PersistencePath.of(basePath);
         this.fileSuffix = fileSuffix;
         this.indexProvider = indexProvider;

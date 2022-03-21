@@ -12,6 +12,7 @@ import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.SneakyThrows;
 
 import java.io.IOException;
@@ -28,8 +29,8 @@ public class RedisPersistence extends RawPersistence {
     @Getter private StatefulRedisConnection<String, String> connection;
     @Getter private RedisClient client;
 
-    public RedisPersistence(PersistencePath basePath, RedisClient client) {
-        super(basePath, true, true, true, true);
+    public RedisPersistence(@NonNull PersistencePath basePath, @NonNull RedisClient client) {
+        super(basePath, true, true, false, true, true);
         this.connect(client);
     }
 
@@ -102,7 +103,7 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
+    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
 
         // remove from old set value_to_keys
         RedisCommands<String, String> sync = this.getConnection().sync();
@@ -122,7 +123,7 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property) {
+    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property) {
 
         // get current value by key
         String keyToValue = this.toIndexKeyToValue(collection, property).getValue();
@@ -143,14 +144,14 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, PersistencePath path) {
+    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return this.getKnownIndexes().getOrDefault(collection.getValue(), Collections.emptySet()).stream()
             .map(index -> this.dropIndex(collection, path, index))
             .anyMatch(Predicate.isEqual(true));
     }
 
     @Override
-    public boolean dropIndex(PersistenceCollection collection, IndexProperty property) {
+    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property) {
 
         RedisCommands<String, String> sync = this.getConnection().sync();
         long changes = 0;
@@ -176,7 +177,7 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public Set<PersistencePath> findMissingIndexes(PersistenceCollection collection, Set<IndexProperty> indexProperties) {
+    public Set<PersistencePath> findMissingIndexes(@NonNull PersistenceCollection collection, @NonNull Set<IndexProperty> indexProperties) {
 
         String[] args = indexProperties.stream()
             .map(index -> this.toIndexKeyToValue(collection, index))
@@ -215,7 +216,7 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
+    public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
 
         if (!this.canUseToString(propertyValue) || !this.isIndexed(collection, property)) {
             return this.streamAll(collection);
@@ -263,14 +264,14 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public Optional<String> read(PersistenceCollection collection, PersistencePath path) {
+    public Optional<String> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         this.checkCollectionRegistered(collection);
         String hKey = this.getBasePath().sub(collection).getValue();
         return Optional.ofNullable(this.getConnection().sync().hget(hKey, path.getValue()));
     }
 
     @Override
-    public Map<PersistencePath, String> read(PersistenceCollection collection, Collection<PersistencePath> paths) {
+    public Map<PersistencePath, String> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
 
         this.checkCollectionRegistered(collection);
         String hKey = this.getBasePath().sub(collection).getValue();
@@ -300,7 +301,7 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public Map<PersistencePath, String> readAll(PersistenceCollection collection) {
+    public Map<PersistencePath, String> readAll(@NonNull PersistenceCollection collection) {
         this.checkCollectionRegistered(collection);
         String hKey = this.getBasePath().sub(collection).getValue();
         return this.getConnection().sync().hgetall(hKey).entrySet().stream()
@@ -308,7 +309,7 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> streamAll(PersistenceCollection collection) {
+    public Stream<PersistenceEntity<String>> streamAll(@NonNull PersistenceCollection collection) {
 
         this.checkCollectionRegistered(collection);
         RedisCommands<String, String> sync = this.getConnection().sync();
@@ -334,21 +335,21 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public long count(PersistenceCollection collection) {
+    public long count(@NonNull PersistenceCollection collection) {
         this.checkCollectionRegistered(collection);
         String hKey = this.getBasePath().sub(collection).getValue();
         return this.getConnection().sync().hlen(hKey);
     }
 
     @Override
-    public boolean exists(PersistenceCollection collection, PersistencePath path) {
+    public boolean exists(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         this.checkCollectionRegistered(collection);
         String hKey = this.getBasePath().sub(collection).getValue();
         return this.getConnection().sync().hexists(hKey, path.getValue());
     }
 
     @Override
-    public boolean write(PersistenceCollection collection, PersistencePath path, String raw) {
+    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull String raw) {
         this.checkCollectionRegistered(collection);
         String hKey = this.getBasePath().sub(collection).getValue();
         this.getConnection().sync().hset(hKey, path.getValue(), raw);
@@ -356,7 +357,7 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean delete(PersistenceCollection collection, PersistencePath path) {
+    public boolean delete(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
 
         this.checkCollectionRegistered(collection);
         Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
@@ -370,7 +371,7 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public long delete(PersistenceCollection collection, Collection<PersistencePath> paths) {
+    public long delete(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
 
         this.checkCollectionRegistered(collection);
         Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
@@ -388,7 +389,7 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public boolean deleteAll(PersistenceCollection collection) {
+    public boolean deleteAll(@NonNull PersistenceCollection collection) {
 
         this.checkCollectionRegistered(collection);
         Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
