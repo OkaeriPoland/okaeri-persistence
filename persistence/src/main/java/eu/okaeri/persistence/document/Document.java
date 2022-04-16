@@ -37,7 +37,10 @@ public class Document extends OkaeriConfig {
 
         if (DEBUG) {
             long took = System.currentTimeMillis() - start;
-            LOGGER.info("[" + this.getBindFile() + "] Document save took " + took + " ms");
+            String logPath = ((this.collection != null) && (this.path != null))
+                ? this.collection.sub(this.path).getValue()
+                : ("unknown/" + this.persistence);
+            LOGGER.info("[" + logPath + "] Document save took " + took + " ms");
         }
 
         return this;
