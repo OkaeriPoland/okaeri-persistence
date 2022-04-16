@@ -22,19 +22,19 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class FlatPersistence extends RawPersistence {
 
+    private static final boolean DEBUG = Boolean.parseBoolean(System.getProperty("okaeri.platform.debug", "false"));
+    private static final Logger LOGGER = Logger.getLogger(FlatPersistence.class.getSimpleName());
+
     private final Function<Path, String> fileToKeyMapper = path -> {
         String name = path.getFileName().toString();
         return name.substring(0, name.length() - FlatPersistence.this.getFileSuffix().length());
-    };
-
-    private final Function<Path, PersistenceEntity<String>> pathToEntityMapper = path -> {
-        PersistencePath persistencePath = PersistencePath.of(this.fileToKeyMapper.apply(path));
-        return new PersistenceEntity<>(persistencePath, this.fileToString(path.toFile()));
     };
 
     private final Map<String, Map<String, InMemoryIndex>> indexMap = new ConcurrentHashMap<>();
@@ -146,7 +146,7 @@ public class FlatPersistence extends RawPersistence {
         }
 
         Path collectionFile = this.getBasePath().sub(collection).toPath();
-        return Files.list(collectionFile)
+        return this.scanCollection(collectionFile)
             .map(this.fileToKeyMapper)
             .map(key -> collectionIndexes.values().stream()
                 .allMatch(flatIndex -> flatIndex.getKeyToValue().containsKey(key))
@@ -247,7 +247,11 @@ public class FlatPersistence extends RawPersistence {
         this.checkCollectionRegistered(collection);
         Path collectionFile = this.getBasePath().sub(collection).toPath();
 
-        return Files.list(collectionFile).map(this.pathToEntityMapper);
+        return this.scanCollection(collectionFile)
+            .map(path -> {
+                PersistencePath persistencePath = PersistencePath.of(this.fileToKeyMapper.apply(path));
+                return new PersistenceEntity<>(persistencePath, this.fileToString(path.toFile()));
+            });
     }
 
     @Override
@@ -257,7 +261,7 @@ public class FlatPersistence extends RawPersistence {
         this.checkCollectionRegistered(collection);
         Path collectionFile = this.getBasePath().sub(collection).toPath();
 
-        return Files.list(collectionFile).count();
+        return this.scanCollection(collectionFile).count();
     }
 
     @Override
@@ -335,6 +339,10 @@ public class FlatPersistence extends RawPersistence {
             .count();
     }
 
+    @Override
+    public void close() throws IOException {
+    }
+
     @SneakyThrows
     private long delete(@NonNull File file) {
         @Cleanup Stream<Path> walk = Files.walk(file.toPath());
@@ -345,10 +353,25 @@ public class FlatPersistence extends RawPersistence {
             .count();
     }
 
+    @SneakyThrows
+    private Stream<Path> scanCollection(@NonNull Path collectionFile) {
+        return Files.list(collectionFile)
+            .filter(path -> {
+                boolean endsWithSuffix = path.toString().endsWith(this.getFileSuffix());
+                if (DEBUG && !endsWithSuffix) {
+                    LOGGER.log(Level.WARNING, "Possibly bogus file found in " + collectionFile + ": " + path + " (not ending with '" + this.getFileSuffix() + "')");
+                }
+                return endsWithSuffix;
+            });
+    }
+
     private String fileToString(File file) {
         try {
             return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-        } catch (IOException ignored) {
+        } catch (IOException exception) {
+            if (DEBUG) {
+                LOGGER.log(Level.WARNING, "Returning empty data for " + file, exception);
+            }
             return null;
         }
     }
@@ -357,10 +380,6 @@ public class FlatPersistence extends RawPersistence {
     private void writeToFile(File file, String text) {
         @Cleanup BufferedWriter writer = new BufferedWriter(new FileWriter(file));
         writer.write(text);
-    }
-
-    @Override
-    public void close() throws IOException {
     }
 
     @Data
