@@ -11,6 +11,7 @@ import lombok.NonNull;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.util.Optional;
 import java.util.logging.Logger;
 
 @ToString(exclude = "cachedInto")
@@ -19,7 +20,6 @@ public class Document extends OkaeriConfig {
     @Exclude private static final boolean DEBUG = Boolean.parseBoolean(System.getProperty("okaeri.platform.debug", "false"));
     @Exclude private static final Logger LOGGER = Logger.getLogger(Document.class.getSimpleName());
 
-    @Exclude @Getter @Setter private DocumentSaver saver;
     @Exclude @Getter @Setter private DocumentPersistence persistence;
     @Exclude @Getter @Setter private PersistencePath path;
     @Exclude @Getter @Setter private PersistenceCollection collection;
@@ -28,18 +28,19 @@ public class Document extends OkaeriConfig {
     @Override
     public Document save() throws OkaeriException {
 
-        if (this.saver == null) {
-            throw new IllegalArgumentException("cannot #save() without saver");
-        }
-
         long start = System.currentTimeMillis();
-        this.saver.save(this);
+        String logPath = DEBUG ? (((this.collection != null) && (this.path != null))
+            ? this.collection.sub(this.path).getValue()
+            : ("unknown/" + this.persistence)) : null;
+
+        if (this.getBindFile() == null) {
+            this.getPersistence().write(this.getCollection(), this.getPath(), this);
+        } else {
+            this.save(this.getBindFile());
+        }
 
         if (DEBUG) {
             long took = System.currentTimeMillis() - start;
-            String logPath = ((this.collection != null) && (this.path != null))
-                ? this.collection.sub(this.path).getValue()
-                : ("unknown/" + this.persistence);
             LOGGER.info("[" + logPath + "] Document save took " + took + " ms");
         }
 
@@ -48,12 +49,23 @@ public class Document extends OkaeriConfig {
 
     @Override
     public OkaeriConfig load() throws OkaeriException {
-        throw new RuntimeException("load() not available for ConfigDocument, use one of the specific methods instead");
-    }
 
-    @Override
-    public OkaeriConfig load(boolean update) throws OkaeriException {
-        throw new RuntimeException("load(update) not available for ConfigDocument, use one of the specific methods instead");
+        long start = System.currentTimeMillis();
+        String logPath = DEBUG ? (((this.collection != null) && (this.path != null))
+            ? this.collection.sub(this.path).getValue()
+            : ("unknown/" + this.persistence)) : null;
+
+        if (this.getBindFile() == null) {
+            Optional<Document> document = this.getPersistence().read(this.getCollection(), this.getPath());
+            if (!document.isPresent()) {
+                throw new RuntimeException("Cannot #load, no result returned from persistence for path " + this.getPath());
+            }
+            this.load(document.get());
+        } else {
+            this.load(this.getBindFile());
+        }
+
+        return this;
     }
 
     @Override
@@ -66,7 +78,6 @@ public class Document extends OkaeriConfig {
 
         if (!configClazz.isInstance(this.cachedInto)) {
             T newEntity = ConfigManager.transformCopy(this.cachedInto, configClazz);
-            newEntity.setSaver(this.cachedInto.getSaver());
             newEntity.setPath(this.cachedInto.getPath());
             newEntity.setCollection(this.cachedInto.getCollection());
             newEntity.setPersistence(this.cachedInto.getPersistence());

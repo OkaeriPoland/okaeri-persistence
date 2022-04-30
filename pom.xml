@@ -7,7 +7,7 @@
     <groupId>eu.okaeri</groupId>
     <artifactId>okaeri-persistence</artifactId>
     <packaging>pom</packaging>
-    <version>1.5.11-beta10</version>
+    <version>1.5.11-beta11</version>
     <modules>
         <module>persistence</module>
         <module>persistence-flat</module>

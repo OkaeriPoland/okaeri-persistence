@@ -199,7 +199,6 @@ public class FlatPersistence extends RawPersistence {
             flatIndex.setConfigurer(this.indexProvider.get());
 
             Path path = collectionPath.append("_").append(index.toSafeFileName()).append(".index").toPath();
-            flatIndex.setSaver(document -> document.save(path));
             flatIndex.withBindFile(path);
 
             if (this.isSaveIndex() && Files.exists(path)) {

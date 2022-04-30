@@ -451,10 +451,6 @@ public class DocumentPersistence implements Persistence<Document> {
         }
 
         // Document
-        if (document.getSaver() == null) {
-            document.setSaver(doc -> this.write(doc.getCollection(), doc.getPath(), doc));
-        }
-
         if (document.getPersistence() == null) {
             document.setPersistence(this);
         }
