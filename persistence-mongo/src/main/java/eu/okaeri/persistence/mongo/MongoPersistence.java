@@ -2,13 +2,11 @@ package eu.okaeri.persistence.mongo;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoClient;
-import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.ReplaceOneModel;
 import com.mongodb.client.model.ReplaceOptions;
-import com.mongodb.client.model.WriteModel;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
@@ -158,23 +156,20 @@ public class MongoPersistence extends RawPersistence {
             return 0;
         }
 
-        List<BasicDBObject> documents = new ArrayList<>();
-        entities.forEach((path, document) -> {
-            BasicDBObject data = BasicDBObject.parse(document);
-            data.put("_id", path.getValue());
-            documents.add(data);
-        });
-
-        MongoCollection<BasicDBObject> mongo = this.mongo(collection);
-        BulkWriteResult result = mongo.bulkWrite(documents.stream()
-            .<WriteModel<BasicDBObject>>map(document -> new ReplaceOneModel<>(
-                Filters.in("_id", document.get("_id")),
-                document,
-                REPLACE_OPTIONS
-            ))
-            .collect(Collectors.toList()));
-
-        return result.getModifiedCount();
+        return this.mongo(collection)
+            .bulkWrite(entities.entrySet().stream()
+                .map(entry -> {
+                    BasicDBObject data = BasicDBObject.parse(entry.getValue());
+                    data.put("_id", entry.getKey().getValue());
+                    return data;
+                })
+                .map(document -> new ReplaceOneModel<>(
+                    Filters.in("_id", document.get("_id")),
+                    document,
+                    REPLACE_OPTIONS
+                ))
+                .collect(Collectors.toList()))
+            .getModifiedCount();
     }
 
     @Override
