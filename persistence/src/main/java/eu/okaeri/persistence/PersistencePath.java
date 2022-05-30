@@ -48,10 +48,13 @@ public class PersistencePath {
     }
 
     public PersistencePath sub(@NonNull String sub) {
-        String separator = (sub.startsWith(SEPARATOR)) ? "" : SEPARATOR;
+
+        boolean startsWithSeparator = sub.startsWith(SEPARATOR);
         if (this.value.isEmpty()) {
-            return of(separator.isEmpty() ? sub : sub.substring(1));
+            return of(startsWithSeparator ? sub.substring(1) : sub);
         }
+
+        String separator = startsWithSeparator ? "" : SEPARATOR;
         return this.append(separator + sub);
     }
 
