@@ -5,7 +5,7 @@
     <parent>
         <groupId>eu.okaeri</groupId>
         <artifactId>okaeri-persistence</artifactId>
-        <version>1.5.11-beta13</version>
+        <version>1.5.12</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -15,12 +15,12 @@
         <dependency>
             <groupId>eu.okaeri</groupId>
             <artifactId>okaeri-configs-core</artifactId>
-            <version>4.0.0-beta23</version>
+            <version>4.0.1</version>
         </dependency>
         <dependency>
             <groupId>eu.okaeri</groupId>
             <artifactId>okaeri-configs-serdes-commons</artifactId>
-            <version>4.0.0-beta23</version>
+            <version>4.0.1</version>
         </dependency>
     </dependencies>
 
