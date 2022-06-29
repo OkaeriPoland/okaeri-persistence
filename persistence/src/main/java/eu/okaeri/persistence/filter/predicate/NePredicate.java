@@ -4,7 +4,7 @@ import lombok.NonNull;
 
 /**
  * VALUE not equals X
- * val != x
+ * {@code val != x}
  */
 public class NePredicate<T> extends PredicateNumeric<T> {
 

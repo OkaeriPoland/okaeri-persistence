@@ -4,7 +4,7 @@ import lombok.NonNull;
 
 /**
  * VALUE equals X
- * val == x
+ * {@code val == x}
  */
 public class EqPredicate<T> extends PredicateNumeric<T> {
 

@@ -4,7 +4,7 @@ import lombok.NonNull;
 
 /**
  * VALUE greater than X
- * val > x
+ * {@code val > x}
  */
 public class GtPredicate<T> extends PredicateNumeric<T> {
 
