@@ -4,7 +4,7 @@ import lombok.NonNull;
 
 /**
  * VALUE lower than X
- * val < x
+ * {@code val < x}
  */
 public class LtPredicate<T> extends PredicateNumeric<T> {
 

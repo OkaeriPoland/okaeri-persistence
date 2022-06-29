@@ -4,7 +4,7 @@ import lombok.NonNull;
 
 /**
  * VALUE greater than or equal to X
- * val >= x
+ * {@code val >= x}
  */
 public class GePredicate<T> extends PredicateNumeric<T> {
 
