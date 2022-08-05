@@ -40,12 +40,12 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
                 continue;
             }
 
+            if (method.getParameterCount() != 1) {
+                throw new RuntimeException("Methods using @DocumentPath must have a single argument: " + method);
+            }
+
             PersistencePath path = PersistencePath.parse(property.value(), ".");
             Class<?> insideType = getInsideType(method);
-
-            if (method.getParameterCount() != 1) {
-                continue;
-            }
 
             if (method.getReturnType() == Optional.class) {
                 if (insideType == PersistenceEntity.class) {
@@ -128,6 +128,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
 
         return (T) Proxy.newProxyInstance(classLoader, new Class[]{this.type}, (proxy, method, args) -> {
 
+            // third party interface methods
             Class<?> dClass = method.getDeclaringClass();
             if (method.isDefault()) {
                 try {
@@ -141,6 +142,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
                 return constructor.newInstance(dClass).in(dClass).unreflectSpecial(method, dClass).bindTo(proxy).invokeWithArguments(args);
             }
 
+            // okaeri-persistence provided impl
             try {
                 Method defaultMethod;
                 if (defaultRepositoryMethods.containsKey(method)) {
@@ -160,6 +162,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
                 defaultRepositoryMethods.put(method, null);
             }
 
+            // okaeri-persistence generated (e.g. @PersistencePath)
             RepositoryMethodCaller caller = this.methods.get(method);
             if (caller == null) {
                 throw new IllegalArgumentException("cannot proxy " + method);
