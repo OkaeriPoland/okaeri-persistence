@@ -221,11 +221,11 @@ Add dependency to the `dependencies` section:
 Add repository to the `repositories` section:
 
 ```kotlin
-maven { url = uri("https://storehouse.okaeri.eu/repository/maven-public/") }
+maven("https://storehouse.okaeri.eu/repository/maven-public/")
 ```
 
 Add dependency to the `maven` section:
 
 ```kotlin
-implementation 'eu.okaeri:okaeri-persistence-[type]:2.0.1'
+implementation("eu.okaeri:okaeri-persistence-[type]:2.0.1")
 ```
