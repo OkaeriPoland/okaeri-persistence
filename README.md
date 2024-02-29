@@ -224,7 +224,7 @@ Add repository to the `repositories` section:
 maven("https://storehouse.okaeri.eu/repository/maven-public/")
 ```
 
-Add dependency to the `maven` section:
+Add dependency to the `dependencies` section:
 
 ```kotlin
 implementation("eu.okaeri:okaeri-persistence-[type]:2.0.1")
