@@ -4,9 +4,7 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.ReplaceOneModel;
-import com.mongodb.client.model.ReplaceOptions;
+import com.mongodb.client.model.*;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
@@ -54,6 +52,16 @@ public class MongoPersistence extends RawPersistence {
                 Thread.sleep(30_000);
             }
         } while (this.database == null);
+    }
+
+    @Override
+    public void registerCollection(@NonNull PersistenceCollection collection) {
+
+        this.mongo(collection).createIndexes(collection.getIndexes().stream()
+            .map(index -> new IndexModel(Indexes.ascending(index.getValue())))
+            .collect(Collectors.toList()));
+
+        super.registerCollection(collection);
     }
 
     @Override
