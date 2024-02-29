@@ -220,12 +220,12 @@ Add dependency to the `dependencies` section:
 
 Add repository to the `repositories` section:
 
-```groovy
-maven { url "https://storehouse.okaeri.eu/repository/maven-public/" }
+```kotlin
+maven { url = uri("https://storehouse.okaeri.eu/repository/maven-public/") }
 ```
 
 Add dependency to the `maven` section:
 
-```groovy
+```kotlin
 implementation 'eu.okaeri:okaeri-persistence-[type]:2.0.0-beta.1'
 ```
