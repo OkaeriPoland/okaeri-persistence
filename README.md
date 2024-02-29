@@ -11,6 +11,11 @@ Originally developed for and part of the [okaeri-platform](https://github.com/Ok
 
 ## Backends
 
+### Document native
+| Name | Type | Indexes | Comment |
+|-|-|-|-|
+| MongoPersistence | `mongo` | Yes (native) | Uses [official MongoDB driver](https://github.com/mongodb/mongo-java-driver). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed. |
+
 ### Flat & Databases
 
 | Name | Type | Indexes | Comment |
@@ -20,11 +25,6 @@ Originally developed for and part of the [okaeri-platform](https://github.com/Ok
 | H2Persistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for H2 databases in `mode=mysql`. Stores JSON in the text field, makes use of the instr for prefiltering when possible. |
 | JdbcPersistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for generic JDBC support. Stores JSON in the text field, makes no use of any prefiltering whatsoever. Data writes take two queries. |
 | RedisPersistence | `redis` | Yes (additional hashes and sets) | Uses [Lettuce](https://lettuce.io/). Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties. |
-
-### Document native
-| Name | Type | Indexes | Comment |
-|-|-|-|-|
-| MongoPersistence | `mongo` | Yes (native) | Uses [official MongoDB driver](https://github.com/mongodb/mongo-java-driver). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed. |
 
 ### Special usage
 
