@@ -33,7 +33,7 @@
         <dependency>
             <groupId>eu.okaeri</groupId>
             <artifactId>okaeri-configs-json-simple</artifactId>
-            <version>5.0.0-beta.5</version>
+            <version>5.0.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
