@@ -57,9 +57,11 @@ public class MongoPersistence extends RawPersistence {
     @Override
     public void registerCollection(@NonNull PersistenceCollection collection) {
 
-        this.mongo(collection).createIndexes(collection.getIndexes().stream()
-            .map(index -> new IndexModel(Indexes.ascending(index.getValue())))
-            .collect(Collectors.toList()));
+        if (!collection.getIndexes().isEmpty()) {
+            this.mongo(collection).createIndexes(collection.getIndexes().stream()
+                .map(index -> new IndexModel(Indexes.ascending(index.getValue())))
+                .collect(Collectors.toList()));
+        }
 
         super.registerCollection(collection);
     }
