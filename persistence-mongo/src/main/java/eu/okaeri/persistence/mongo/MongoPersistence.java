@@ -8,8 +8,7 @@ import com.mongodb.client.model.*;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
-import eu.okaeri.persistence.document.index.IndexProperty;
-import eu.okaeri.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.raw.NativeRawPersistence;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
@@ -22,7 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class MongoPersistence extends RawPersistence {
+public class MongoPersistence extends NativeRawPersistence {
 
     private static final Logger LOGGER = Logger.getLogger(MongoPersistence.class.getSimpleName());
     private static final ReplaceOptions REPLACE_OPTIONS = new ReplaceOptions().upsert(true);
@@ -64,31 +63,6 @@ public class MongoPersistence extends RawPersistence {
         }
 
         super.registerCollection(collection);
-    }
-
-    @Override
-    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
-        return false;
-    }
-
-    @Override
-    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property) {
-        return false;
-    }
-
-    @Override
-    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-        return false;
-    }
-
-    @Override
-    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property) {
-        return false;
-    }
-
-    @Override
-    public Set<PersistencePath> findMissingIndexes(@NonNull PersistenceCollection collection, @NonNull Set<IndexProperty> indexProperties) {
-        return Collections.emptySet();
     }
 
     @Override
