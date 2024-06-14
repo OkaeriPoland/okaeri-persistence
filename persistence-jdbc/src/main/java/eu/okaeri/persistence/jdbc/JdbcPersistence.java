@@ -25,7 +25,7 @@ import java.util.stream.Stream;
 public class JdbcPersistence extends RawPersistence {
 
     private static final Logger LOGGER = Logger.getLogger(JdbcPersistence.class.getSimpleName());
-    @Getter private HikariDataSource dataSource;
+    @Getter protected HikariDataSource dataSource;
 
     public JdbcPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
         super(basePath, true, true, false, true, true);
@@ -38,7 +38,7 @@ public class JdbcPersistence extends RawPersistence {
     }
 
     @SneakyThrows
-    private void connect(@NonNull HikariConfig hikariConfig) {
+    protected void connect(@NonNull HikariConfig hikariConfig) {
         do {
             try {
                 this.dataSource = new HikariDataSource(hikariConfig);
