@@ -60,6 +60,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
       final Class<?> insideType = getInsideType(method);
 
       final boolean ignoreCase = property.ignoreCase() && method.getParameterTypes()[0] == String.class;
+      System.out.println("IGNORECASE: " + ignoreCase + "\n");
 
       if (method.getReturnType() == Optional.class) {
         if (insideType == PersistenceEntity.class) {

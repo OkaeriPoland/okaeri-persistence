@@ -9,15 +9,24 @@
       <groupId>eu.okaeri</groupId>
       <version>2.0.4</version>
     </dependency>
-
     <dependency>
       <artifactId>mongodb-driver-sync</artifactId>
       <groupId>org.mongodb</groupId>
       <version>5.1.1</version>
     </dependency>
-
+    <dependency>
+      <artifactId>okaeri-configs-json-gson</artifactId>
+      <groupId>eu.okaeri</groupId>
+      <version>5.0.2</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <artifactId>okaeri-configs-serdes-commons</artifactId>
+      <groupId>eu.okaeri</groupId>
+      <version>5.0.2</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
-
   <modelVersion>4.0.0</modelVersion>
 
   <parent>

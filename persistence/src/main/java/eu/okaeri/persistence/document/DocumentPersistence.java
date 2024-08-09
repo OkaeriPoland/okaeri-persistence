@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -410,24 +411,25 @@ public class DocumentPersistence implements Persistence<Document> {
     final List<String> pathParts = property.toParts();
     final Predicate<PersistenceEntity<Document>> documentFilter =
         entity -> {
-          if (pathParts.size() == 1) {
-            final Object value = entity.getValue().get(pathParts.get(0));
+          try {
+            if (pathParts.size() == 1) {
+              final String value = entity.getValue().get(pathParts.get(0), String.class);
+              return value != null && this.containsIgnoreCase(value, propertyValue);
+            }
+            final Map<String, Object> documentMap = entity.getValue().asMap(this.simplifier, true);
+            final Object value = this.extractValue(documentMap, pathParts);
             if (value instanceof String) {
               return this.containsIgnoreCase((String) value, propertyValue);
             }
+          } catch (final Exception e) {
             return false;
-          }
-          final Map<String, Object> document = entity.getValue().asMap(this.simplifier, true);
-          final Object value = this.extractValue(document, pathParts);
-          if (value instanceof String) {
-            return this.containsIgnoreCase((String) value, propertyValue);
           }
           return false;
         };
 
     if (this.getRead().isCanReadByProperty()) {
       return this.getRead()
-          .readByProperty(collection, property, propertyValue)
+          .readByPropertyIgnoreCase(collection, property, propertyValue)
           .map(this.entityToDocumentMapper(collection))
           .filter(entity -> this.getRead().isNativeIndexes() || documentFilter.test(entity));
     }
@@ -438,25 +440,15 @@ public class DocumentPersistence implements Persistence<Document> {
         .streamAll(collection)
         .filter(
             entity ->
-                !stringSearch || this.containsIgnoreCase(entity.getValue(), propertyValue))
+                !stringSearch
+                    || this.containsIgnoreCase(entity.getValue(), propertyValue))
         .map(this.entityToDocumentMapper(collection))
         .filter(documentFilter);
   }
 
-  private boolean containsIgnoreCase(final String str, final String searchStr) {
-    if (str == null || searchStr == null) {
-      return false;
-    }
-    final int length = searchStr.length();
-    if (length == 0) {
-      return true; // Empty string is contained in any other string
-    }
-    for (int i = str.length() - length; i >= 0; i--) {
-      if (str.regionMatches(true, i, searchStr, 0, length)) {
-        return true;
-      }
-    }
-    return false;
+  // Utility method to check if a string contains another string, ignoring case.
+  private boolean containsIgnoreCase(final String value, final String searchTerm) {
+    return value.toLowerCase(Locale.ROOT).contains(searchTerm.toLowerCase(Locale.ROOT));
   }
 
   @Override
