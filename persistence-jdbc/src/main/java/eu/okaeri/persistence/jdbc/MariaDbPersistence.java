@@ -189,6 +189,80 @@ public class MariaDbPersistence extends JdbcPersistence {
   }
 
   @Override
+  public Stream<PersistenceEntity<String>> readByPropertyIgnoreCase(
+      @NonNull final PersistenceCollection collection,
+      @NonNull final PersistencePath property,
+      @NonNull final String propertyValue) {
+    return this.isIndexed(collection, property)
+        ? this.readByPropertyIndexedIgnoreCase(
+            collection, IndexProperty.of(property.getValue()), propertyValue)
+        : this.readByPropertyJsonExtractIgnoreCase(collection, property, propertyValue);
+  }
+
+  @Override
+  protected Stream<PersistenceEntity<String>> readByPropertyIndexedIgnoreCase(
+      @NonNull final PersistenceCollection collection,
+      @NonNull final IndexProperty indexProperty,
+      @NonNull final Object propertyValue) {
+
+    this.checkCollectionRegistered(collection);
+    final String sql =
+        String.format(
+            "select indexer.`key`, `value` from `%s` join `%s` indexer on `%s`.`key` = indexer.`key` "
+                + "where lower(indexer.`property`) = lower(?) and lower(indexer.`identity`) = lower(?)",
+            this.table(collection), this.indexTable(collection), this.table(collection));
+
+    try (final Connection connection = this.getDataSource().getConnection()) {
+      final PreparedStatement prepared = connection.prepareStatement(sql);
+      prepared.setString(1, indexProperty.getValue());
+      prepared.setString(2, String.valueOf(propertyValue));
+      final ResultSet resultSet = prepared.executeQuery();
+      final List<PersistenceEntity<String>> results = new ArrayList<>();
+      while (resultSet.next()) {
+        results.add(
+            new PersistenceEntity<>(
+                PersistencePath.of(resultSet.getString("key")), resultSet.getString("value")));
+      }
+      return results.stream();
+    } catch (final SQLException exception) {
+      throw new RuntimeException(
+          "cannot read by property (ignore case) from " + collection, exception);
+    }
+  }
+
+  private Stream<PersistenceEntity<String>> readByPropertyJsonExtractIgnoreCase(
+      @NonNull final PersistenceCollection collection,
+      @NonNull final PersistencePath property,
+      final Object propertyValue) {
+
+    this.checkCollectionRegistered(collection);
+    final String sql =
+        "select `key`, `value` from `"
+            + this.table(collection)
+            + "` where lower(json_extract(`value`, ?)) = lower(?)";
+
+    try (final Connection connection = this.getDataSource().getConnection()) {
+
+      final PreparedStatement prepared = connection.prepareStatement(sql);
+      prepared.setString(1, property.toSqlJsonPath());
+      prepared.setObject(2, propertyValue);
+      final ResultSet resultSet = prepared.executeQuery();
+      final List<PersistenceEntity<String>> results = new ArrayList<>();
+
+      while (resultSet.next()) {
+        final String key = resultSet.getString("key");
+        final String value = resultSet.getString("value");
+        results.add(new PersistenceEntity<>(PersistencePath.of(key), value));
+      }
+
+      return results.stream();
+    } catch (final SQLException exception) {
+      throw new RuntimeException(
+          "cannot read by property (ignore case) from " + collection, exception);
+    }
+  }
+
+  @Override
   public boolean write(
       @NonNull final PersistenceCollection collection,
       @NonNull final PersistencePath path,

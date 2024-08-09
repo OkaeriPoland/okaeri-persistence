@@ -21,10 +21,11 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
+@Getter
 public class JdbcPersistence extends RawPersistence {
 
   private static final Logger LOGGER = Logger.getLogger(JdbcPersistence.class.getSimpleName());
-  @Getter protected HikariDataSource dataSource;
+  protected HikariDataSource dataSource;
 
   public JdbcPersistence(
       @NonNull final PersistencePath basePath, @NonNull final HikariConfig hikariConfig) {
@@ -474,6 +475,58 @@ public class JdbcPersistence extends RawPersistence {
       return results.stream();
     } catch (final SQLException exception) {
       throw new RuntimeException("cannot ready by property from " + collection, exception);
+    }
+  }
+
+  @Override
+  public Stream<PersistenceEntity<String>> readByPropertyIgnoreCase(
+      final PersistenceCollection collection,
+      final PersistencePath property,
+      final String propertyValue) {
+
+    return this.isIndexed(collection, property)
+        ? this.readByPropertyIndexedIgnoreCase(
+            collection, IndexProperty.of(property.getValue()), propertyValue)
+        : this.streamAll(collection);
+  }
+
+  protected Stream<PersistenceEntity<String>> readByPropertyIndexedIgnoreCase(
+      @NonNull final PersistenceCollection collection,
+      @NonNull final IndexProperty indexProperty,
+      @NonNull final Object propertyValue) {
+
+    return this.canUseToString(propertyValue)
+        ? this.executeQueryAndExtractStreamIgnoreCase(collection, indexProperty, propertyValue)
+        : this.streamAll(collection);
+  }
+
+  private Stream<PersistenceEntity<String>> executeQueryAndExtractStreamIgnoreCase(
+      @NonNull final PersistenceCollection collection,
+      @NonNull final IndexProperty indexProperty,
+      @NonNull final Object propertyValue) {
+
+    this.checkCollectionRegistered(collection);
+    final String sql =
+        String.format(
+            "select indexer.`key`, `value` from `%s` join `%s` indexer on `%s`.`key` = indexer.`key` "
+                + "where lower(indexer.`property`) = lower(?) and lower(indexer.`identity`) = lower(?)",
+            this.table(collection), this.indexTable(collection), this.table(collection));
+
+    try (final Connection connection = this.dataSource.getConnection()) {
+      final PreparedStatement prepared = connection.prepareStatement(sql);
+      prepared.setString(1, indexProperty.getValue());
+      prepared.setString(2, String.valueOf(propertyValue));
+      final ResultSet resultSet = prepared.executeQuery();
+      final List<PersistenceEntity<String>> results = new ArrayList<>();
+      while (resultSet.next()) {
+        results.add(
+            new PersistenceEntity<>(
+                PersistencePath.of(resultSet.getString("key")), resultSet.getString("value")));
+      }
+      return results.stream();
+    } catch (final SQLException exception) {
+      throw new RuntimeException(
+          "cannot read by property (ignore case) from " + collection, exception);
     }
   }
 

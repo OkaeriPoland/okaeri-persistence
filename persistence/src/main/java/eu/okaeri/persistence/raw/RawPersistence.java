@@ -99,7 +99,14 @@ public abstract class RawPersistence implements Persistence<String> {
     throw new RuntimeException("not implemented yet");
   }
 
-  @Override
+    @Override
+    public Stream<PersistenceEntity<String>> readByPropertyIgnoreCase(
+        final PersistenceCollection collection, final PersistencePath property,
+        final String propertyValue) {
+        throw new RuntimeException("not implemented yet");
+    }
+
+    @Override
   public String readOrEmpty(
       @NonNull final PersistenceCollection collection, @NonNull final PersistencePath path) {
     return this.read(collection, path).orElse("");

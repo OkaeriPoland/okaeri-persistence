@@ -186,13 +186,24 @@ public interface Persistence<T> extends Closeable {
   /**
    * Filter document based persistence entities.
    *
+   * @param collection Target collection (f.e. player)
+   * @param property Property to filter on (f.e. name)
+   * @param propertyValue Searched property value (f.e. SomePlayer)
+   * @return Stream of entities matching the query
+   */
+  Stream<PersistenceEntity<T>> readByProperty(
+      PersistenceCollection collection, PersistencePath property, Object propertyValue);
+
+  /**
+   * Filter document-based persistence entities in a case-insensitive manner.
+   *
    * @param collection Target collection (eg. player)
    * @param property Property to filter on (eg. name)
    * @param propertyValue Searched property value (eg. SomePlayer)
    * @return Stream of entities matching the query
    */
-  Stream<PersistenceEntity<T>> readByProperty(
-      PersistenceCollection collection, PersistencePath property, Object propertyValue);
+  Stream<PersistenceEntity<T>> readByPropertyIgnoreCase(
+      PersistenceCollection collection, PersistencePath property, String propertyValue);
 
   /**
    * Visit all entities from the specific collection. Makes use of the partial fetching when

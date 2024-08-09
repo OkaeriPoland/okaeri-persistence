@@ -34,11 +34,7 @@ public class FlatPersistence extends RawPersistence {
   private final Map<String, Map<String, InMemoryIndex>> indexMap = new ConcurrentHashMap<>();
   private @Getter final PersistencePath basePath;
   private @Getter final String fileSuffix;
-  private final Function<Path, String> fileToKeyMapper =
-      path -> {
-        String name = path.getFileName().toString();
-        return name.substring(0, name.length() - this.fileSuffix.length());
-      };
+  private final Function<Path, String> fileToKeyMapper;
   private @Getter final ConfigurerProvider indexProvider;
   private @Getter @Setter boolean saveIndex;
 
@@ -63,6 +59,11 @@ public class FlatPersistence extends RawPersistence {
     this.fileSuffix = fileSuffix;
     this.indexProvider = indexProvider;
     this.saveIndex = saveIndex;
+    this.fileToKeyMapper =
+        path -> {
+          final String name = path.getFileName().toString();
+          return name.substring(0, name.length() - this.fileSuffix.length());
+        };
   }
 
   @Override
@@ -201,6 +202,47 @@ public class FlatPersistence extends RawPersistence {
 
     final Set<String> keys = flatIndex.getValueToKeys().get(String.valueOf(propertyValue));
     if ((keys == null) || keys.isEmpty()) {
+      return Stream.of();
+    }
+
+    return new ArrayList<>(keys)
+        .stream()
+            .map(
+                key -> {
+                  final PersistencePath path = PersistencePath.of(key);
+                  return this.read(collection, path)
+                      .map(data -> new PersistenceEntity<>(path, data))
+                      .orElseGet(
+                          () -> {
+                            this.dropIndex(collection, path);
+                            return null;
+                          });
+                })
+            .filter(Objects::nonNull);
+  }
+
+  @Override
+  public Stream<PersistenceEntity<String>> readByPropertyIgnoreCase(
+      @NonNull final PersistenceCollection collection,
+      @NonNull final PersistencePath property,
+      @NonNull final String propertyValue) {
+
+    if (!this.canUseToString(propertyValue)) {
+      return this.streamAll(collection);
+    }
+
+    final InMemoryIndex flatIndex =
+        this.indexMap.get(collection.getValue()).get(property.getValue());
+    if (flatIndex == null) return this.streamAll(collection);
+
+    final String propertyValueStr = propertyValue.toLowerCase(Locale.ROOT);
+    final Set<String> keys =
+        flatIndex.getValueToKeys().entrySet().stream()
+            .filter(entry -> entry.getKey().toLowerCase(Locale.ROOT).equals(propertyValueStr))
+            .flatMap(entry -> entry.getValue().stream())
+            .collect(Collectors.toSet());
+
+    if (keys.isEmpty()) {
       return Stream.of();
     }
 
@@ -446,7 +488,7 @@ public class FlatPersistence extends RawPersistence {
 
   @Data
   @AllArgsConstructor
-  private class Pair<L, R> {
+  private static class Pair<L, R> {
     private L left;
     private R right;
   }

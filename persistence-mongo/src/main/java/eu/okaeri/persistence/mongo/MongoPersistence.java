@@ -20,13 +20,14 @@ import lombok.NonNull;
 import lombok.SneakyThrows;
 import org.bson.conversions.Bson;
 
+@Getter
 public class MongoPersistence extends NativeRawPersistence {
 
   private static final Logger LOGGER = Logger.getLogger(MongoPersistence.class.getSimpleName());
   private static final ReplaceOptions REPLACE_OPTIONS = new ReplaceOptions().upsert(true);
 
-  @Getter private MongoClient client;
-  @Getter private MongoDatabase database;
+  private MongoClient client;
+  private MongoDatabase database;
 
   public MongoPersistence(
       @NonNull final PersistencePath basePath,
@@ -88,6 +89,27 @@ public class MongoPersistence extends NativeRawPersistence {
         this.mongo(collection)
             .find()
             .filter(Filters.in(property.toMongoPath(), propertyValue))
+            .map(object -> this.transformMongoObject(collection, object))
+            .spliterator(),
+        false);
+  }
+
+  @Override
+  public Stream<PersistenceEntity<String>> readByPropertyIgnoreCase(
+      @NonNull final PersistenceCollection collection,
+      @NonNull final PersistencePath property,
+      @NonNull final String propertyValue) {
+    return StreamSupport.stream(
+        this.mongo(collection)
+            .aggregate(
+                Collections.singletonList(
+                    Aggregates.match(
+                        Filters.expr(
+                            new BasicDBObject(
+                                "$eq",
+                                Arrays.asList(
+                                    new BasicDBObject("$toLower", "$" + property.toMongoPath()),
+                                    propertyValue.toLowerCase()))))))
             .map(object -> this.transformMongoObject(collection, object))
             .spliterator(),
         false);

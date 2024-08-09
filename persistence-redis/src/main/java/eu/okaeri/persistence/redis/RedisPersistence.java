@@ -22,11 +22,12 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
 
+@Getter
 public class RedisPersistence extends RawPersistence {
 
   private static final Logger LOGGER = Logger.getLogger(RedisPersistence.class.getSimpleName());
-  @Getter private StatefulRedisConnection<String, String> connection;
-  @Getter private RedisClient client;
+  private StatefulRedisConnection<String, String> connection;
+  private RedisClient client;
 
   public RedisPersistence(
       @NonNull final PersistencePath basePath, @NonNull final RedisClient client) {
@@ -34,7 +35,7 @@ public class RedisPersistence extends RawPersistence {
     this.connect(client);
   }
 
-  private static <T> List<List<T>> partition(final Collection<T> members, final int maxSize) {
+  private static <T> List<List<T>> partition(final Iterable<T> members, final int maxSize) {
 
     final List<List<T>> res = new ArrayList<>();
     List<T> internal = new ArrayList<>();
@@ -306,6 +307,46 @@ public class RedisPersistence extends RawPersistence {
               }
 
               return out.stream();
+            });
+  }
+
+  @Override
+  public Stream<PersistenceEntity<String>> readByPropertyIgnoreCase(
+      @NonNull final PersistenceCollection collection,
+      @NonNull final PersistencePath property,
+      @NonNull final String propertyValue) {
+
+    if (!this.isIndexed(collection, property)) {
+      return Stream.of();
+    }
+
+    final RedisCommands<String, String> sync = this.connection.sync();
+    final String valuesSet = this.toValuesSet(collection, property).getValue();
+    final Set<String> allValues = sync.smembers(valuesSet);
+
+    final String lowerCasePropertyValue = propertyValue.toLowerCase(Locale.ROOT);
+
+    final Set<String> matchingValues =
+        allValues.stream()
+            .filter(value -> value.toLowerCase(Locale.ROOT).equals(lowerCasePropertyValue))
+            .collect(Collectors.toSet());
+
+    if (matchingValues.isEmpty()) {
+      return Stream.of();
+    }
+
+    return matchingValues.stream()
+        .flatMap(
+            value -> {
+              final PersistencePath indexSet = this.toIndexValueToKeys(collection, property, value);
+              final Set<String> members = sync.smembers(indexSet.getValue());
+              return members.stream();
+            })
+        .map(
+            key -> {
+              final String hKey = this.getBasePath().sub(collection).getValue();
+              final String value = sync.hget(hKey, key);
+              return new PersistenceEntity<>(PersistencePath.of(key), value);
             });
   }
 

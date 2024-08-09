@@ -402,6 +402,64 @@ public class DocumentPersistence implements Persistence<Document> {
   }
 
   @Override
+  public Stream<PersistenceEntity<Document>> readByPropertyIgnoreCase(
+      @NonNull final PersistenceCollection collection,
+      @NonNull final PersistencePath property,
+      @NonNull final String propertyValue) {
+
+    final List<String> pathParts = property.toParts();
+    final Predicate<PersistenceEntity<Document>> documentFilter =
+        entity -> {
+          if (pathParts.size() == 1) {
+            final Object value = entity.getValue().get(pathParts.get(0));
+            if (value instanceof String) {
+              return this.containsIgnoreCase((String) value, propertyValue);
+            }
+            return false;
+          }
+          final Map<String, Object> document = entity.getValue().asMap(this.simplifier, true);
+          final Object value = this.extractValue(document, pathParts);
+          if (value instanceof String) {
+            return this.containsIgnoreCase((String) value, propertyValue);
+          }
+          return false;
+        };
+
+    if (this.getRead().isCanReadByProperty()) {
+      return this.getRead()
+          .readByProperty(collection, property, propertyValue)
+          .map(this.entityToDocumentMapper(collection))
+          .filter(entity -> this.getRead().isNativeIndexes() || documentFilter.test(entity));
+    }
+
+    final boolean stringSearch =
+        this.getRead().isUseStringSearch() && this.getWrite().canUseToString(propertyValue);
+    return this.getRead()
+        .streamAll(collection)
+        .filter(
+            entity ->
+                !stringSearch || this.containsIgnoreCase(entity.getValue(), propertyValue))
+        .map(this.entityToDocumentMapper(collection))
+        .filter(documentFilter);
+  }
+
+  private boolean containsIgnoreCase(final String str, final String searchStr) {
+    if (str == null || searchStr == null) {
+      return false;
+    }
+    final int length = searchStr.length();
+    if (length == 0) {
+      return true; // Empty string is contained in any other string
+    }
+    for (int i = str.length() - length; i >= 0; i--) {
+      if (str.regionMatches(true, i, searchStr, 0, length)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
   public Stream<PersistenceEntity<Document>> streamAll(
       @NonNull final PersistenceCollection collection) {
     return this.getRead().streamAll(collection).map(this.entityToDocumentMapper(collection));
@@ -486,7 +544,7 @@ public class DocumentPersistence implements Persistence<Document> {
     };
   }
 
-  protected Object extractValue(Map<?, ?> document, final List<String> pathParts) {
+  protected Object extractValue(Map<?, ?> document, final Iterable<String> pathParts) {
     for (final String part : pathParts) {
       final Object element = document.get(part);
       if (element instanceof Map) {
