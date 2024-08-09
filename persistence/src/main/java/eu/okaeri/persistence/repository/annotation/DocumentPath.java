@@ -10,4 +10,6 @@ import java.lang.annotation.Target;
 public @interface DocumentPath {
 
   String value();
+
+  boolean ignoreCase() default false;
 }

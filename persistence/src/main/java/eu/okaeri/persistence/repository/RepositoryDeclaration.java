@@ -59,21 +59,25 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
       final PersistencePath path = PersistencePath.parse(property.value(), ".");
       final Class<?> insideType = getInsideType(method);
 
+      final boolean ignoreCase = property.ignoreCase() && method.getParameterTypes()[0] == String.class;
+
       if (method.getReturnType() == Optional.class) {
         if (insideType == PersistenceEntity.class) {
           methods.put(
               method,
               (persistence, collection, args) ->
-                  persistence
-                      .readByProperty(collection, path, args[0])
+                  (ignoreCase
+                          ? persistence.readByPropertyIgnoreCase(collection, path, (String) args[0])
+                          : persistence.readByProperty(collection, path, args[0]))
                       .findFirst()
                       .map(entity -> entity.into(entityType)));
         } else {
           methods.put(
               method,
               (persistence, collection, args) ->
-                  persistence
-                      .readByProperty(collection, path, args[0])
+                  (ignoreCase
+                          ? persistence.readByPropertyIgnoreCase(collection, path, (String) args[0])
+                          : persistence.readByProperty(collection, path, args[0]))
                       .findFirst()
                       .map(entity -> entity.into(entityType))
                       .map(PersistenceEntity::getValue));
@@ -86,15 +90,17 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
           methods.put(
               method,
               (persistence, collection, args) ->
-                  persistence
-                      .readByProperty(collection, path, args[0])
+                  (ignoreCase
+                          ? persistence.readByPropertyIgnoreCase(collection, path, (String) args[0])
+                          : persistence.readByProperty(collection, path, args[0]))
                       .map(entity -> entity.into(entityType)));
         } else {
           methods.put(
               method,
               (persistence, collection, args) ->
-                  persistence
-                      .readByProperty(collection, path, args[0])
+                  (ignoreCase
+                          ? persistence.readByPropertyIgnoreCase(collection, path, (String) args[0])
+                          : persistence.readByProperty(collection, path, args[0]))
                       .map(entity -> entity.into(entityType))
                       .map(PersistenceEntity::getValue));
         }
@@ -106,16 +112,18 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
           methods.put(
               method,
               (persistence, collection, args) ->
-                  persistence
-                      .readByProperty(collection, path, args[0])
+                  (ignoreCase
+                          ? persistence.readByPropertyIgnoreCase(collection, path, (String) args[0])
+                          : persistence.readByProperty(collection, path, args[0]))
                       .map(entity -> entity.into(entityType))
                       .collect(Collectors.toList()));
         } else {
           methods.put(
               method,
               (persistence, collection, args) ->
-                  persistence
-                      .readByProperty(collection, path, args[0])
+                  (ignoreCase
+                          ? persistence.readByPropertyIgnoreCase(collection, path, (String) args[0])
+                          : persistence.readByProperty(collection, path, args[0]))
                       .map(entity -> entity.into(entityType))
                       .map(PersistenceEntity::getValue)
                       .collect(Collectors.toList()));
@@ -128,16 +136,18 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
           methods.put(
               method,
               (persistence, collection, args) ->
-                  persistence
-                      .readByProperty(collection, path, args[0])
+                  (ignoreCase
+                          ? persistence.readByPropertyIgnoreCase(collection, path, (String) args[0])
+                          : persistence.readByProperty(collection, path, args[0]))
                       .map(entity -> entity.into(entityType))
                       .collect(Collectors.toSet()));
         } else {
           methods.put(
               method,
               (persistence, collection, args) ->
-                  persistence
-                      .readByProperty(collection, path, args[0])
+                  (ignoreCase
+                          ? persistence.readByPropertyIgnoreCase(collection, path, (String) args[0])
+                          : persistence.readByProperty(collection, path, args[0]))
                       .map(entity -> entity.into(entityType))
                       .map(PersistenceEntity::getValue)
                       .collect(Collectors.toSet()));
