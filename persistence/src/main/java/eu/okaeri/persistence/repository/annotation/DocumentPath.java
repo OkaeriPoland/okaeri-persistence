@@ -8,5 +8,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface DocumentPath {
-    String value();
+
+  String value();
 }

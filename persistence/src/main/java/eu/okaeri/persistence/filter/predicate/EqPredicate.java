@@ -2,18 +2,15 @@ package eu.okaeri.persistence.filter.predicate;
 
 import lombok.NonNull;
 
-/**
- * VALUE equals X
- * {@code val == x}
- */
+/** VALUE equals X {@code val == x} */
 public class EqPredicate<T> extends PredicateNumeric<T> {
 
-    public EqPredicate(@NonNull T rightOperand) {
-        super(rightOperand);
-    }
+  public EqPredicate(@NonNull final T rightOperand) {
+    super(rightOperand);
+  }
 
-    @Override
-    public boolean results(int compareResult) {
-        return compareResult == 0;
-    }
+  @Override
+  public boolean results(final int compareResult) {
+    return compareResult == 0;
+  }
 }

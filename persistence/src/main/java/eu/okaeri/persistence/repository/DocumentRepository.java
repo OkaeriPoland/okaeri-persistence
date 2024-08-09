@@ -3,42 +3,41 @@ package eu.okaeri.persistence.repository;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
-
 import java.util.Collection;
 import java.util.Optional;
 import java.util.stream.Stream;
 
 public interface DocumentRepository<PATH, T extends Document> {
 
-    DocumentPersistence getPersistence();
+  DocumentPersistence getPersistence();
 
-    PersistenceCollection getCollection();
+  PersistenceCollection getCollection();
 
-    Class<? extends Document> getDocumentType();
+  Class<? extends Document> getDocumentType();
 
-    long count();
+  long count();
 
-    boolean deleteAll();
+  boolean deleteAll();
 
-    long deleteAllByPath(Iterable<? extends PATH> paths);
+  long deleteAllByPath(Iterable<? extends PATH> paths);
 
-    boolean deleteByPath(PATH path);
+  boolean deleteByPath(PATH path);
 
-    boolean existsByPath(PATH path);
+  boolean existsByPath(PATH path);
 
-    Collection<T> findAll();
+  Collection<T> findAll();
 
-    Stream<T> streamAll();
+  Stream<T> streamAll();
 
-    Collection<T> findAllByPath(Iterable<? extends PATH> paths);
+  Collection<T> findAllByPath(Iterable<? extends PATH> paths);
 
-    Collection<T> findOrCreateAllByPath(Iterable<? extends PATH> paths);
+  Collection<T> findOrCreateAllByPath(Iterable<? extends PATH> paths);
 
-    Optional<T> findByPath(PATH path);
+  Optional<T> findByPath(PATH path);
 
-    T findOrCreateByPath(PATH path);
+  T findOrCreateByPath(PATH path);
 
-    T save(T document);
+  T save(T document);
 
-    Iterable<T> saveAll(Iterable<T> documents);
+  Iterable<T> saveAll(Iterable<T> documents);
 }

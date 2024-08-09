@@ -11,15 +11,19 @@ import lombok.NonNull;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Condition {
 
-    private final PersistencePath path;
-    private final Predicate<?>[] predicates;
+  private final PersistencePath path;
+  private final Predicate<?>[] predicates;
 
-    public static Condition on(@NonNull String path, @NonNull Predicate<?>... predicates) {
-        return on(PersistencePath.of(path), predicates);
-    }
+  public static Condition on(
+      @NonNull final String path, @NonNull final Predicate<?>... predicates) {
+    return on(PersistencePath.of(path), predicates);
+  }
 
-    public static Condition on(@NonNull PersistencePath path, @NonNull Predicate<?>... predicates) {
-        if (predicates.length <= 0) throw new IllegalArgumentException("one or more predicate is required");
-        return new Condition(path, predicates);
+  public static Condition on(
+      @NonNull final PersistencePath path, @NonNull final Predicate<?>... predicates) {
+    if (predicates.length <= 0) {
+      throw new IllegalArgumentException("one or more predicate is required");
     }
+    return new Condition(path, predicates);
+  }
 }

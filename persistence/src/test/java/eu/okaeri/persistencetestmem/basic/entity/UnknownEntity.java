@@ -9,5 +9,5 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class UnknownEntity {
-    private int age;
+  private int age;
 }

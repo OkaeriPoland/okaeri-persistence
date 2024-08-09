@@ -9,18 +9,18 @@ import lombok.NonNull;
 @AllArgsConstructor
 public class PersistenceEntity<V> {
 
-    private PersistencePath path;
-    private V value;
+  private PersistencePath path;
+  private V value;
 
-    // limit new allocations when shuffling types
-    @SuppressWarnings("unchecked")
-    public <T> PersistenceEntity<T> into(@NonNull T value) {
-        this.value = (V) value;
-        return (PersistenceEntity<T>) this;
-    }
+  // limit new allocations when shuffling types
+  @SuppressWarnings("unchecked")
+  public <T> PersistenceEntity<T> into(@NonNull final T value) {
+    this.value = (V) value;
+    return (PersistenceEntity<T>) this;
+  }
 
-    // unsafe convert for cleaner code :O
-    public <T extends Document> PersistenceEntity<T> into(@NonNull Class<T> configClazz) {
-        return this.into(((Document) this.value).into(configClazz));
-    }
+  // unsafe convert for cleaner code :O
+  public <T extends Document> PersistenceEntity<T> into(@NonNull final Class<T> configClazz) {
+    return this.into(((Document) this.value).into(configClazz));
+  }
 }

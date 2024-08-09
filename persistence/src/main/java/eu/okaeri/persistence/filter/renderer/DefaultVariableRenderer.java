@@ -5,8 +5,8 @@ import lombok.NonNull;
 
 public class DefaultVariableRenderer implements VariableRenderer {
 
-    @Override
-    public String render(@NonNull PersistencePath path) {
-        return "v_" + path.toSqlIdentifier();
-    }
+  @Override
+  public String render(@NonNull final PersistencePath path) {
+    return "v_" + path.toSqlIdentifier();
+  }
 }

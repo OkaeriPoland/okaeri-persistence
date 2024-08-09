@@ -4,5 +4,6 @@ import lombok.Data;
 
 @Data
 public class PredicateRendererLiteral {
-    private final String value;
+
+  private final String value;
 }

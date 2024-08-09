@@ -13,30 +13,38 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class LazyRefSerializer implements ObjectSerializer<Ref<? extends Document>> {
 
-    private final DocumentPersistence persistence;
+  private final DocumentPersistence persistence;
 
-    @Override
-    public boolean supports(@NonNull Class clazz) {
-        return LazyRef.class.isAssignableFrom(clazz);
+  @Override
+  public boolean supports(@NonNull final Class clazz) {
+    return LazyRef.class.isAssignableFrom(clazz);
+  }
+
+  @Override
+  public void serialize(
+      @NonNull final Ref lazyRef,
+      @NonNull final SerializationData serializationData,
+      @NonNull final GenericsDeclaration genericsDeclaration) {
+    serializationData.add("_id", lazyRef.getId().getValue());
+    serializationData.add("_collection", lazyRef.getCollection().getValue());
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public Ref<? extends Document> deserialize(
+      @NonNull final DeserializationData deserializationData,
+      @NonNull final GenericsDeclaration genericsDeclaration) {
+
+    final PersistencePath id = PersistencePath.of(deserializationData.get("_id", String.class));
+    final PersistencePath collection =
+        PersistencePath.of(deserializationData.get("_collection", String.class));
+
+    final GenericsDeclaration subtype = genericsDeclaration.getSubtypeAtOrNull(0);
+    if (subtype == null) {
+      throw new IllegalArgumentException("cannot create LazyRef from " + genericsDeclaration);
     }
+    final Class<? extends Document> type = (Class<? extends Document>) subtype.getType();
 
-    @Override
-    public void serialize(@NonNull Ref lazyRef, @NonNull SerializationData serializationData, @NonNull GenericsDeclaration genericsDeclaration) {
-        serializationData.add("_id", lazyRef.getId().getValue());
-        serializationData.add("_collection", lazyRef.getCollection().getValue());
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public Ref<? extends Document> deserialize(@NonNull DeserializationData deserializationData, @NonNull GenericsDeclaration genericsDeclaration) {
-
-        PersistencePath id = PersistencePath.of(deserializationData.get("_id", String.class));
-        PersistencePath collection = PersistencePath.of(deserializationData.get("_collection", String.class));
-
-        GenericsDeclaration subtype = genericsDeclaration.getSubtypeAtOrNull(0);
-        if (subtype == null) throw new IllegalArgumentException("cannot create LazyRef from " + genericsDeclaration);
-        Class<? extends Document> type = (Class<? extends Document>) subtype.getType();
-
-        return new LazyRef<>(id, collection, type, null, false, this.persistence);
-    }
+    return new LazyRef<>(id, collection, type, null, false, this.persistence);
+  }
 }

@@ -9,33 +9,35 @@ import lombok.ToString;
 @ToString(callSuper = true)
 public class IndexProperty extends PersistencePath {
 
-    private int maxLength;
+  private int maxLength;
 
-    private IndexProperty(@NonNull String value, int maxLength) {
-        super(value);
-        this.maxLength = maxLength;
-    }
+  private IndexProperty(@NonNull final String value, final int maxLength) {
+    super(value);
+    this.maxLength = maxLength;
+  }
 
-    public static IndexProperty of(@NonNull String path) {
-        return new IndexProperty(path, 255);
-    }
+  public static IndexProperty of(@NonNull final String path) {
+    return new IndexProperty(path, 255);
+  }
 
-    public static IndexProperty of(@NonNull String path, int maxLength) {
-        return of(path).maxLength(maxLength);
-    }
+  public static IndexProperty of(@NonNull final String path, final int maxLength) {
+    return of(path).maxLength(maxLength);
+  }
 
-    public static IndexProperty parse(@NonNull String source) {
-        return of(source.replace(".", SEPARATOR));
-    }
+  public static IndexProperty parse(@NonNull final String source) {
+    return of(source.replace(".", SEPARATOR));
+  }
 
-    @Override
-    public IndexProperty sub(@NonNull String sub) {
-        return of(super.sub(sub).getValue(), this.maxLength);
-    }
+  @Override
+  public IndexProperty sub(@NonNull final String sub) {
+    return of(super.sub(sub).getValue(), this.maxLength);
+  }
 
-    public IndexProperty maxLength(int maxLength) {
-        if ((maxLength < 1) || (maxLength > 255)) throw new IllegalArgumentException("max length should be between 1 and 255");
-        this.maxLength = maxLength;
-        return this;
+  public IndexProperty maxLength(final int maxLength) {
+    if ((maxLength < 1) || (maxLength > 255)) {
+      throw new IllegalArgumentException("max length should be between 1 and 255");
     }
+    this.maxLength = maxLength;
+    return this;
+  }
 }

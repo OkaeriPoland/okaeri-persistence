@@ -4,5 +4,6 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.document.DocumentPersistence;
 
 public interface RepositoryMethodCaller {
-    Object call(DocumentPersistence persistence, PersistenceCollection collection, Object[] args);
+
+  Object call(DocumentPersistence persistence, PersistenceCollection collection, Object[] args);
 }

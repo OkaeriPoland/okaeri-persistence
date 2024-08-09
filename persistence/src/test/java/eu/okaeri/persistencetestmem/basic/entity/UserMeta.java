@@ -7,7 +7,7 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class UserMeta extends Document {
-    private String name;
-    private String fullName;
-    private String description;
+  private String name;
+  private String fullName;
+  private String description;
 }

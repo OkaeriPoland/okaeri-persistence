@@ -1,4 +1,3 @@
 package eu.okaeri.persistence.filter;
 
-public class Filter {
-}
+public class Filter {}

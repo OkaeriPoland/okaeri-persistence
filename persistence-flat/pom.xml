@@ -1,29 +1,29 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <parent>
-        <groupId>eu.okaeri</groupId>
-        <artifactId>okaeri-persistence</artifactId>
-        <version>2.0.4</version>
-    </parent>
-    <modelVersion>4.0.0</modelVersion>
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <artifactId>okaeri-persistence-flat</artifactId>
+  <dependencies>
+    <dependency>
+      <artifactId>okaeri-persistence-core</artifactId>
+      <groupId>eu.okaeri</groupId>
+      <version>2.0.4</version>
+    </dependency>
+  </dependencies>
 
-    <artifactId>okaeri-persistence-flat</artifactId>
+  <modelVersion>4.0.0</modelVersion>
 
-    <dependencies>
-        <dependency>
-            <groupId>eu.okaeri</groupId>
-            <artifactId>okaeri-persistence-core</artifactId>
-            <version>2.0.4</version>
-        </dependency>
-    </dependencies>
+  <parent>
+    <artifactId>okaeri-persistence</artifactId>
+    <groupId>eu.okaeri</groupId>
+    <version>2.0.4</version>
+  </parent>
 
-    <repositories>
-        <repository>
-            <id>okaeri-repo</id>
-            <url>https://storehouse.okaeri.eu/repository/maven-public/</url>
-        </repository>
-    </repositories>
+  <repositories>
+    <repository>
+      <id>okaeri-repo</id>
+      <url>https://storehouse.okaeri.eu/repository/maven-public/</url>
+    </repository>
+  </repositories>
 
 </project>

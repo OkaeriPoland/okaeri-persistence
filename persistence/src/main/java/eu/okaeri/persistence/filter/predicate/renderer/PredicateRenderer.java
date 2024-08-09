@@ -4,9 +4,9 @@ import eu.okaeri.persistence.filter.predicate.Predicate;
 
 public interface PredicateRenderer {
 
-    String render(Predicate<?> predicate);
+  String render(Predicate<?> predicate);
 
-    String render(Object leftOperand, Predicate<?> predicate);
+  String render(Object leftOperand, Predicate<?> predicate);
 
-    String renderOperand(Object operand);
+  String renderOperand(Object operand);
 }

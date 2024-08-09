@@ -7,6 +7,6 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class Author extends Document {
-    private String name;
-//    private List<Book> books;
+  private String name;
+  //    private List<Book> books;
 }

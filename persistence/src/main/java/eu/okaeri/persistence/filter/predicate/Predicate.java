@@ -9,55 +9,55 @@ import lombok.NonNull;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 public abstract class Predicate<T> {
 
-    private final T rightOperand;
+  private final T rightOperand;
 
-    public static Predicate<Double> eq(double rightOperand) {
-        return new EqPredicate<>(rightOperand);
-    }
+  public static Predicate<Double> eq(final double rightOperand) {
+    return new EqPredicate<>(rightOperand);
+  }
 
-    public static Predicate<CharSequence> eq(@NonNull CharSequence rightOperand) {
-        return new EqPredicate<>(rightOperand);
-    }
+  public static Predicate<CharSequence> eq(@NonNull final CharSequence rightOperand) {
+    return new EqPredicate<>(rightOperand);
+  }
 
-    public static Predicate<Double> ge(double rightOperand) {
-        return new GePredicate<>(rightOperand);
-    }
+  public static Predicate<Double> ge(final double rightOperand) {
+    return new GePredicate<>(rightOperand);
+  }
 
-    public static Predicate<CharSequence> ge(@NonNull CharSequence rightOperand) {
-        return new GePredicate<>(rightOperand);
-    }
+  public static Predicate<CharSequence> ge(@NonNull final CharSequence rightOperand) {
+    return new GePredicate<>(rightOperand);
+  }
 
-    public static Predicate<Double> gt(double rightOperand) {
-        return new GtPredicate<>(rightOperand);
-    }
+  public static Predicate<Double> gt(final double rightOperand) {
+    return new GtPredicate<>(rightOperand);
+  }
 
-    public static Predicate<CharSequence> gt(@NonNull CharSequence rightOperand) {
-        return new GtPredicate<>(rightOperand);
-    }
+  public static Predicate<CharSequence> gt(@NonNull final CharSequence rightOperand) {
+    return new GtPredicate<>(rightOperand);
+  }
 
-    public static Predicate<Double> le(double rightOperand) {
-        return new LePredicate<>(rightOperand);
-    }
+  public static Predicate<Double> le(final double rightOperand) {
+    return new LePredicate<>(rightOperand);
+  }
 
-    public static Predicate<CharSequence> le(@NonNull CharSequence rightOperand) {
-        return new LePredicate<>(rightOperand);
-    }
+  public static Predicate<CharSequence> le(@NonNull final CharSequence rightOperand) {
+    return new LePredicate<>(rightOperand);
+  }
 
-    public static Predicate<Double> lt(double rightOperand) {
-        return new LtPredicate<>(rightOperand);
-    }
+  public static Predicate<Double> lt(final double rightOperand) {
+    return new LtPredicate<>(rightOperand);
+  }
 
-    public static Predicate<CharSequence> lt(@NonNull CharSequence rightOperand) {
-        return new LtPredicate<>(rightOperand);
-    }
+  public static Predicate<CharSequence> lt(@NonNull final CharSequence rightOperand) {
+    return new LtPredicate<>(rightOperand);
+  }
 
-    public static Predicate<Double> ne(double rightOperand) {
-        return new NePredicate<>(rightOperand);
-    }
+  public static Predicate<Double> ne(final double rightOperand) {
+    return new NePredicate<>(rightOperand);
+  }
 
-    public static Predicate<CharSequence> ne(@NonNull CharSequence rightOperand) {
-        return new NePredicate<>(rightOperand);
-    }
+  public static Predicate<CharSequence> ne(@NonNull final CharSequence rightOperand) {
+    return new NePredicate<>(rightOperand);
+  }
 
-    public abstract boolean check(Object leftOperand);
+  public abstract boolean check(Object leftOperand);
 }

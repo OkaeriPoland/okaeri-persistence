@@ -9,11 +9,11 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface DocumentCollection {
 
-    String path();
+  String path();
 
-    int keyLength();
+  int keyLength();
 
-    boolean autofixIndexes() default true;
+  boolean autofixIndexes() default true;
 
-    DocumentIndex[] indexes() default {};
+  DocumentIndex[] indexes() default {};
 }

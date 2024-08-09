@@ -1,41 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <parent>
-        <groupId>eu.okaeri</groupId>
-        <artifactId>okaeri-persistence</artifactId>
-        <version>2.0.4</version>
-    </parent>
-    <modelVersion>4.0.0</modelVersion>
+  xmlns="http://maven.apache.org/POM/4.0.0"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <artifactId>okaeri-persistence-jdbc</artifactId>
+  <dependencies>
+    <dependency>
+      <artifactId>okaeri-persistence-core</artifactId>
+      <groupId>eu.okaeri</groupId>
+      <version>2.0.4</version>
+    </dependency>
 
-    <artifactId>okaeri-persistence-jdbc</artifactId>
+    <dependency>
+      <artifactId>HikariCP</artifactId>
+      <groupId>com.zaxxer</groupId>
+      <version>5.1.0</version>
+    </dependency>
 
-    <dependencies>
-        <dependency>
-            <groupId>eu.okaeri</groupId>
-            <artifactId>okaeri-persistence-core</artifactId>
-            <version>2.0.4</version>
-        </dependency>
+    <dependency>
+      <artifactId>h2</artifactId>
+      <groupId>com.h2database</groupId>
+      <scope>test</scope>
+      <version>2.2.224</version>
+    </dependency>
+    <dependency>
+      <artifactId>okaeri-configs-json-simple</artifactId>
+      <groupId>eu.okaeri</groupId>
+      <scope>test</scope>
+      <version>5.0.2</version>
+    </dependency>
+  </dependencies>
 
-        <dependency>
-            <groupId>com.zaxxer</groupId>
-            <artifactId>HikariCP</artifactId>
-            <version>5.1.0</version>
-        </dependency>
+  <modelVersion>4.0.0</modelVersion>
 
-        <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <version>2.2.224</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>eu.okaeri</groupId>
-            <artifactId>okaeri-configs-json-simple</artifactId>
-            <version>5.0.2</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+  <parent>
+    <artifactId>okaeri-persistence</artifactId>
+    <groupId>eu.okaeri</groupId>
+    <version>2.0.4</version>
+  </parent>
 
 </project>
