@@ -1,7 +1,7 @@
 package eu.okaeri.persistence.filter.renderer;
 
 import eu.okaeri.persistence.filter.condition.Condition;
-import eu.okaeri.persistence.filter.condition.ConditionOperator;
+import eu.okaeri.persistence.filter.condition.LogicalOperator;
 import eu.okaeri.persistence.filter.predicate.*;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -15,17 +15,37 @@ public class DefaultFilterRenderer implements FilterRenderer {
 
     private static final FilterRendererLiteral LITERAL_X = new FilterRendererLiteral("x");
 
-    private final VariableRenderer variableRenderer;
+    protected final VariableRenderer variableRenderer;
 
     @Override
-    public String renderOperator(@NonNull ConditionOperator operator) {
-        if (operator == ConditionOperator.AND) {
+    public String renderOperator(@NonNull LogicalOperator operator) {
+        if (operator == LogicalOperator.AND) {
             return " && ";
         }
-        if (operator == ConditionOperator.OR) {
+        if (operator == LogicalOperator.OR) {
             return " || ";
         }
         throw new IllegalArgumentException("Unsupported operator: " + operator);
+    }
+
+    @Override
+    public String renderOperator(@NonNull Predicate<?> predicate) {
+
+        if (predicate instanceof EqPredicate) {
+            return "==";
+        } else if (predicate instanceof GePredicate) {
+            return ">=";
+        } else if (predicate instanceof GtPredicate) {
+            return ">";
+        } else if (predicate instanceof LePredicate) {
+            return "<=";
+        } else if (predicate instanceof LtPredicate) {
+            return "<";
+        } else if (predicate instanceof NePredicate) {
+            return "!=";
+        }
+
+        throw new IllegalArgumentException("cannot render operator " + predicate + " [" + predicate.getClass() + "]");
     }
 
     @Override
@@ -50,32 +70,7 @@ public class DefaultFilterRenderer implements FilterRenderer {
 
     @Override
     public String renderPredicate(@NonNull Object leftOperand, @NonNull Predicate<?> predicate) {
-
-        if (predicate instanceof EqPredicate) {
-            return "(" + this.renderOperand(leftOperand) + " == " + this.renderOperand(predicate) + ")";
-        }
-
-        if (predicate instanceof GePredicate) {
-            return "(" + this.renderOperand(leftOperand) + " >= " + this.renderOperand(predicate) + ")";
-        }
-
-        if (predicate instanceof GtPredicate) {
-            return "(" + this.renderOperand(leftOperand) + " > " + this.renderOperand(predicate) + ")";
-        }
-
-        if (predicate instanceof LePredicate) {
-            return "(" + this.renderOperand(leftOperand) + " <= " + this.renderOperand(predicate) + ")";
-        }
-
-        if (predicate instanceof LtPredicate) {
-            return "(" + this.renderOperand(leftOperand) + " < " + this.renderOperand(predicate) + ")";
-        }
-
-        if (predicate instanceof NePredicate) {
-            return "(" + this.renderOperand(leftOperand) + " != " + this.renderOperand(predicate) + ")";
-        }
-
-        throw new IllegalArgumentException("cannot render predicate " + predicate + " [" + predicate.getClass() + "]");
+        return "(" + this.renderOperand(leftOperand) + " " + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
     }
 
     @Override

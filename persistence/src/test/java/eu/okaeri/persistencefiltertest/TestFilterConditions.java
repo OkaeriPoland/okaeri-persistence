@@ -63,7 +63,7 @@ public class TestFilterConditions {
                 and("thing", gt(123), and("abc", lt(999)))
             )
         ));
-        assertEquals("(((v_distance >= 100) && (v_distance <= 1000)) || ((v_age == 55) && ((v_thing > 123) && (v_ab < 999))))", condition);
+        assertEquals("(((v_distance >= 100) && (v_distance <= 1000)) || ((v_age == 55) && ((v_thing > 123) && (v_abc < 999))))", condition);
     }
 
     @Test
