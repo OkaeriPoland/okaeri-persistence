@@ -5,27 +5,25 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-@AllArgsConstructor
+@RequiredArgsConstructor
 public abstract class RawPersistence implements Persistence<String> {
 
-    @Getter private final PersistencePath basePath;
     @Getter private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
     @Getter private final Map<String, Set<IndexProperty>> knownIndexes = new ConcurrentHashMap<>();
-    @Getter private final boolean canReadByProperty;
-    @Getter private final boolean emulatedIndexes;
-    @Getter private final boolean nativeIndexes;
-    @Getter @Setter private boolean useStringSearch;
-    @Getter @Setter private boolean autoFlush;
+
+    @Getter private final PersistencePath basePath;
+    @Getter private final PersistencePropertyMode propertyMode;
+    @Getter private final PersistenceIndexMode indexMode;
+
+    // currently only used in FlatPersistence for indexes
+    @Getter @Setter private boolean flushOnWrite = true;
 
     @Override
     public void registerCollection(@NonNull PersistenceCollection collection) {

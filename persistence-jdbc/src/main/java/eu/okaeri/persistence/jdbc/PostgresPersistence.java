@@ -28,12 +28,12 @@ public class PostgresPersistence extends NativeRawPersistence {
     @Getter protected HikariDataSource dataSource;
 
     public PostgresPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
-        super(basePath, true, false, true, false, true);
+        super(basePath);
         this.connect(hikariConfig);
     }
 
     public PostgresPersistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource) {
-        super(basePath, true, false, true, false, true);
+        super(basePath);
         this.dataSource = dataSource;
     }
 

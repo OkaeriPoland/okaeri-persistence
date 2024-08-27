@@ -4,6 +4,8 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
+import eu.okaeri.persistence.raw.PersistenceIndexMode;
+import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import eu.okaeri.persistence.raw.RawPersistence;
 import io.lettuce.core.*;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -30,7 +32,7 @@ public class RedisPersistence extends RawPersistence {
     @Getter private RedisClient client;
 
     public RedisPersistence(@NonNull PersistencePath basePath, @NonNull RedisClient client) {
-        super(basePath, true, true, false, true, true);
+        super(basePath, PersistencePropertyMode.NATIVE, PersistenceIndexMode.EMULATED);
         this.connect(client);
     }
 

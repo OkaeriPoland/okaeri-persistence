@@ -9,6 +9,8 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.InMemoryIndex;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.raw.PersistenceIndexMode;
+import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
@@ -29,7 +31,7 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     private final Map<String, Map<PersistencePath, Document>> documents = new ConcurrentHashMap<>();
 
     public InMemoryDocumentPersistence(@NonNull OkaeriSerdesPack... serdesPacks) {
-        super(new RawPersistence(PersistencePath.of("memory"), true, true, true, false, true) {
+        super(new RawPersistence(PersistencePath.of("memory"), PersistencePropertyMode.NATIVE, PersistenceIndexMode.EMULATED) {
             @Override
             public long count(PersistenceCollection collection) {
                 return 0;
@@ -92,7 +94,7 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
-    public void setAutoFlush(boolean state) {
+    public void setFlushOnWrite(boolean state) {
     }
 
     @Override

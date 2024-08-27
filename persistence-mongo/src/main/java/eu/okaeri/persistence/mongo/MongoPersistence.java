@@ -30,7 +30,7 @@ public class MongoPersistence extends NativeRawPersistence {
     @Getter private MongoDatabase database;
 
     public MongoPersistence(@NonNull PersistencePath basePath, @NonNull MongoClient client, @NonNull String databaseName) {
-        super(basePath, true, false, true, false, true);
+        super(basePath);
         this.connect(client, databaseName);
     }
 
