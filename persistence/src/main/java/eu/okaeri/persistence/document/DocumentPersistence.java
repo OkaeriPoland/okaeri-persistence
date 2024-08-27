@@ -14,6 +14,8 @@ import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.document.ref.EagerRefSerializer;
 import eu.okaeri.persistence.document.ref.LazyRefSerializer;
 import eu.okaeri.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.raw.PersistenceIndexMode;
+import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -100,8 +102,8 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public void setAutoFlush(boolean state) {
-        this.getWrite().setAutoFlush(state);
+    public void setFlushOnWrite(boolean state) {
+        this.getWrite().setFlushOnWrite(state);
     }
 
     @Override
@@ -136,7 +138,7 @@ public class DocumentPersistence implements Persistence<Document> {
     @Override
     public long fixIndexes(@NonNull PersistenceCollection collection) {
 
-        if (!this.getWrite().isEmulatedIndexes()) {
+        if (this.getWrite().getIndexMode() != PersistenceIndexMode.EMULATED) {
             return 0;
         }
 
@@ -152,7 +154,7 @@ public class DocumentPersistence implements Persistence<Document> {
         long lastInfo = System.currentTimeMillis();
         int updated = 0;
         LOGGER.warning("[" + this.getBasePath().sub(collection).getValue() + "] Found " + total + " entries with missing indexes, updating..");
-        this.setAutoFlush(false);
+        this.setFlushOnWrite(false);
 
         for (PersistencePath key : withMissingIndexes) {
 
@@ -168,7 +170,7 @@ public class DocumentPersistence implements Persistence<Document> {
             lastInfo = System.currentTimeMillis();
         }
 
-        this.setAutoFlush(true);
+        this.setFlushOnWrite(true);
         this.flush();
         LOGGER.warning("[" + this.getBasePath().sub(collection).getValue() + "] Finished creating indexes! (took: " + (System.currentTimeMillis() - start) + " ms)");
         return updated;
@@ -176,13 +178,13 @@ public class DocumentPersistence implements Persistence<Document> {
 
     @Override
     public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
-        return this.getWrite().isEmulatedIndexes() && this.getWrite().updateIndex(collection, path, property, identity);
+        return (this.getWrite().getIndexMode() == PersistenceIndexMode.EMULATED) && this.getWrite().updateIndex(collection, path, property, identity);
     }
 
     @Override
     public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
 
-        if (!this.getWrite().isEmulatedIndexes()) {
+        if (this.getWrite().getIndexMode() != PersistenceIndexMode.EMULATED) {
             return false;
         }
 
@@ -209,7 +211,7 @@ public class DocumentPersistence implements Persistence<Document> {
     @Override
     public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
 
-        if (!this.getWrite().isEmulatedIndexes()) {
+        if (this.getWrite().getIndexMode() != PersistenceIndexMode.EMULATED) {
             return false;
         }
 
@@ -219,17 +221,17 @@ public class DocumentPersistence implements Persistence<Document> {
 
     @Override
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property) {
-        return this.getWrite().isEmulatedIndexes() && this.getWrite().dropIndex(collection, path, property);
+        return (this.getWrite().getIndexMode() == PersistenceIndexMode.EMULATED) && this.getWrite().dropIndex(collection, path, property);
     }
 
     @Override
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-        return this.getWrite().isEmulatedIndexes() && this.getWrite().dropIndex(collection, path);
+        return (this.getWrite().getIndexMode() == PersistenceIndexMode.EMULATED) && this.getWrite().dropIndex(collection, path);
     }
 
     @Override
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property) {
-        return this.getWrite().isEmulatedIndexes() && this.getWrite().dropIndex(collection, property);
+        return (this.getWrite().getIndexMode() == PersistenceIndexMode.EMULATED) && this.getWrite().dropIndex(collection, property);
     }
 
     @Override
@@ -306,15 +308,15 @@ public class DocumentPersistence implements Persistence<Document> {
         // for every query, depending on the backend supported features
         // the goal is to allow extensibility - i trust but i verify
         // with the exception for non-emulated indexes (native)
-        if (this.getRead().isCanReadByProperty()) {
+        if (this.getRead().getPropertyMode() == PersistencePropertyMode.NATIVE) {
             return this.getRead().readByProperty(collection, property, propertyValue)
                 .map(this.entityToDocumentMapper(collection))
-                .filter(entity -> this.getRead().isNativeIndexes() || documentFilter.test(entity));
+                .filter(entity -> (this.getRead().getIndexMode() == PersistenceIndexMode.NATIVE) || documentFilter.test(entity));
         }
 
-        // streaming search optimzied with string search can
+        // streaming search optimized with string search can
         // greatly reduce search time removing parsing overhead
-        boolean stringSearch = this.getRead().isUseStringSearch() && this.getWrite().canUseToString(propertyValue);
+        boolean stringSearch = (this.getRead().getPropertyMode() == PersistencePropertyMode.TOSTRING) && this.getWrite().canUseToString(propertyValue);
         return this.getRead().streamAll(collection)
             .filter(entity -> !stringSearch || entity.getValue().contains(String.valueOf(propertyValue)))
             .map(this.entityToDocumentMapper(collection))

@@ -6,6 +6,8 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
+import eu.okaeri.persistence.raw.PersistenceIndexMode;
+import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import lombok.NonNull;
 
 import java.sql.Connection;
@@ -21,11 +23,11 @@ import java.util.stream.Stream;
 public class MariaDbPersistence extends JdbcPersistence {
 
     public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
-        super(basePath, hikariConfig);
+        super(basePath, hikariConfig, PersistencePropertyMode.NATIVE, PersistenceIndexMode.EMULATED);
     }
 
     public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource) {
-        super(basePath, dataSource);
+        super(basePath, dataSource, PersistencePropertyMode.NATIVE, PersistenceIndexMode.EMULATED);
     }
 
     @Override

@@ -10,8 +10,8 @@ import java.util.Set;
 
 public abstract class NativeRawPersistence extends RawPersistence {
 
-    public NativeRawPersistence(PersistencePath basePath, boolean canReadByProperty, boolean emulatedIndexes, boolean nativeIndexes, boolean useStringSearch, boolean autoFlush) {
-        super(basePath, canReadByProperty, emulatedIndexes, nativeIndexes, useStringSearch, autoFlush);
+    public NativeRawPersistence(PersistencePath basePath) {
+        super(basePath, PersistencePropertyMode.NATIVE, PersistenceIndexMode.NATIVE);
     }
 
     @Override

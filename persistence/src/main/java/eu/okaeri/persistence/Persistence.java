@@ -36,10 +36,10 @@ public interface Persistence<T> extends Closeable {
      *
      * @param state New autoFlush state
      */
-    void setAutoFlush(boolean state);
+    void setFlushOnWrite(boolean state);
 
     /**
-     * Flush data to the database manually, ignoring {@link #setAutoFlush(boolean)}.
+     * Flush data to the database manually, ignoring {@link #setFlushOnWrite(boolean)}.
      */
     void flush();
 

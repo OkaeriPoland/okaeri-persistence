@@ -9,6 +9,8 @@ import eu.okaeri.persistence.document.ConfigurerProvider;
 import eu.okaeri.persistence.document.index.InMemoryIndex;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.raw.PersistenceIndexMode;
+import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import lombok.*;
 
 import java.io.BufferedWriter;
@@ -52,7 +54,7 @@ public class FlatPersistence extends RawPersistence {
     }
 
     public FlatPersistence(@NonNull File basePath, @NonNull String fileSuffix, @NonNull ConfigurerProvider indexProvider, boolean saveIndex) {
-        super(PersistencePath.of(basePath), true, true, false, true, true);
+        super(PersistencePath.of(basePath), PersistencePropertyMode.TOSTRING, PersistenceIndexMode.EMULATED);
         this.basePath = PersistencePath.of(basePath);
         this.fileSuffix = fileSuffix;
         this.indexProvider = indexProvider;
@@ -88,7 +90,7 @@ public class FlatPersistence extends RawPersistence {
         changed = (flatIndex.getKeyToValue().put(path.getValue(), identity) != null) || changed;
 
         // save index
-        if (this.isSaveIndex() && this.isAutoFlush()) {
+        if (this.isSaveIndex() && this.isFlushOnWrite()) {
             flatIndex.save();
         }
 
@@ -110,7 +112,7 @@ public class FlatPersistence extends RawPersistence {
         boolean changed = (currentValue != null) && flatIndex.getValueToKeys().get(currentValue).remove(path.getValue());
 
         // save index
-        if (this.isSaveIndex() && this.isAutoFlush()) {
+        if (this.isSaveIndex() && this.isFlushOnWrite()) {
             flatIndex.save();
         }
 

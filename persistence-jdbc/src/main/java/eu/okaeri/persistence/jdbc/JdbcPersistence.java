@@ -7,6 +7,8 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.raw.PersistenceIndexMode;
+import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
@@ -27,14 +29,22 @@ public class JdbcPersistence extends RawPersistence {
     private static final Logger LOGGER = Logger.getLogger(JdbcPersistence.class.getSimpleName());
     @Getter protected HikariDataSource dataSource;
 
-    public JdbcPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
-        super(basePath, true, true, false, true, true);
+    protected JdbcPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig, @NonNull PersistencePropertyMode propertyMode, @NonNull PersistenceIndexMode indexMode) {
+        super(basePath, propertyMode, indexMode);
         this.connect(hikariConfig);
     }
 
-    public JdbcPersistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource) {
-        super(basePath, true, true, false, true, true);
+    protected JdbcPersistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource, @NonNull PersistencePropertyMode propertyMode, @NonNull PersistenceIndexMode indexMode) {
+        super(basePath, propertyMode, indexMode);
         this.dataSource = dataSource;
+    }
+
+    public JdbcPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
+        this(basePath, hikariConfig, PersistencePropertyMode.TOSTRING, PersistenceIndexMode.EMULATED);
+    }
+
+    public JdbcPersistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource) {
+        this(basePath, dataSource, PersistencePropertyMode.TOSTRING, PersistenceIndexMode.EMULATED);
     }
 
     @SneakyThrows
