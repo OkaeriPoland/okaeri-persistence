@@ -12,30 +12,32 @@ Originally developed for and part of the [okaeri-platform](https://github.com/Ok
 ## Backends
 
 ### Document native
-| Name | Type | Indexes | Comment |
-|-|-|-|-|
-| MongoPersistence | `mongo` | Yes (native) | Uses [official MongoDB driver](https://github.com/mongodb/mongo-java-driver). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed. |
+
+| Name                | Type       | Indexes      | Comment                                                                                                                                                                                                                            |
+|---------------------|------------|--------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| MongoPersistence    | `mongo`    | Yes (native) | Uses [the official MongoDB driver](https://github.com/mongodb/mongo-java-driver). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed. |
+| PostgresPersistence | `postgres` | Yes (native) | Use [the official PostgreSQL JDBC driver](https://github.com/pgjdbc/pgjdbc). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed.      |
 
 ### Flat & Databases
 
-| Name | Type | Indexes | Comment |
-|-|-|-|-|
-| FlatPersistence | `flat` | Yes (in-memory or file based) | Allows managing collections of the configuration files with the possibility to index certain properties for quick search, any okaeri-configs provider can be used. With the default saveIndex=false index is automatically created every startup. One may choose to save index to disk. However, we highly advise against using persistent index, especially in write intensive applications. |
-| MariaDbPersistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created with MySQL/MariaDB in mind using native JSON datatype, makes use of the json_extract for filtering by properties even when property is not marked as indexed. |
-| H2Persistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for H2 databases in `mode=mysql`. Stores JSON in the text field, makes use of the instr for prefiltering when possible. |
-| JdbcPersistence | `jdbc` | Yes (additional table) | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for generic JDBC support. Stores JSON in the text field, makes no use of any prefiltering whatsoever. Data writes take two queries. |
-| RedisPersistence | `redis` | Yes (additional hashes and sets) | Uses [Lettuce](https://lettuce.io/). Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties. |
+| Name               | Type    | Indexes                          | Comment                                                                                                                                                                                                                                                                                                                                                                                       |
+|--------------------|---------|----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| FlatPersistence    | `flat`  | Yes (in-memory or file based)    | Allows managing collections of the configuration files with the possibility to index certain properties for quick search, any okaeri-configs provider can be used. With the default saveIndex=false index is automatically created every startup. One may choose to save index to disk. However, we highly advise against using persistent index, especially in write intensive applications. |
+| MariaDbPersistence | `jdbc`  | Yes (additional table)           | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created with MySQL/MariaDB in mind using native JSON datatype, makes use of the json_extract for filtering by properties even when property is not marked as indexed.                                                                                                                                                           |
+| H2Persistence      | `jdbc`  | Yes (additional table)           | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for H2 databases in `mode=mysql`. Stores JSON in the text field, makes use of the instr for prefiltering when possible.                                                                                                                                                                                                 |
+| JdbcPersistence    | `jdbc`  | Yes (additional table)           | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for generic JDBC support. Stores JSON in the text field, makes no use of any prefiltering whatsoever. Data writes take two queries.                                                                                                                                                                                     |
+| RedisPersistence   | `redis` | Yes (additional hashes and sets) | Uses [Lettuce](https://lettuce.io/). Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties.                                                                        |
 
 ### Special usage
 
-| Name | Type | Indexes | Comment |
-|-|-|-|-|
+| Name                        | Type   | Indexes         | Comment                                                                                                                                                                                                                                                                                                                                                             |
+|-----------------------------|--------|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | InMemoryDocumentPersistence | `core` | Yes (in-memory) | Included in the core library implementation allowing to manage volatile collections of configurations. Great to store user state, e.g. on gameservers, can store even unserializable entities (it is required to mark them as @Excluded, because indexing still needs to deconstruct documents). Allows to use the power of indexing without the need for database. |
 
 ## Genesis
 
-The library is composed based on the [okaeri-configs](https://github.com/OkaeriPoland/okaeri-configs) and is intended 
-to be used as an extension to store configurations or other documents without thinking about a specific backend. 
+The library is composed based on the [okaeri-configs](https://github.com/OkaeriPoland/okaeri-configs) and is intended
+to be used as an extension to store configurations or other documents without thinking about a specific backend.
 Core library provides relatively small footprint with size below 100kB (even with file persistence) and allows to use more
 sophisticated database drivers when needed.
 
@@ -84,12 +86,12 @@ The backends just work, better or worse. That does not mean your apps would be p
 that if you want to leave the choice to the user you can do that. There is nothing wrong with file based storage
 for small game server or local app, but a real database may be required for the more demanding environments.
 
-Fetching by indexed property is expected to be almost as quick as using ID, but when the implementation does not 
+Fetching by indexed property is expected to be almost as quick as using ID, but when the implementation does not
 provide it, fallback methods are used for slower but still working filtering. Thanks to that you can get the
 best performance possible on the specific backend and it just works.
 
-Indexing comes at the cost of increased memory or/and storage usage and write penalty, varying depending on the backend. 
-It is highly recommended, same as with every database, to chose your indexes wisely. You are trading some of that write 
+Indexing comes at the cost of increased memory or/and storage usage and write penalty, varying depending on the backend.
+It is highly recommended, same as with every database, to chose your indexes wisely. You are trading some of that write
 speed and resources for the greatly reduced read times.
 
 Manual changes done to the databases, depending on the backend, may cause emulated indexes to be inaccurate. We guarantee
@@ -105,7 +107,7 @@ PersistenceCollection.of("player", 36)
 ## Streams
 
 Streaming API opens multiple possibilities, e.g. filters can be automatically optimized. Implementations may fetch
-data in partitions and then parsing is done only when document is about to get into the stream. Everything is 
+data in partitions and then parsing is done only when document is about to get into the stream. Everything is
 done automatically and can decrease fetch times dramatically. Smart tricks like prefiltering can be applied to prevent
 parsing documents determined not to include searched property.
 
@@ -120,8 +122,8 @@ Example pipeline of the stream:
 
 ## Repositories
 
-Reducing boilerplate is one of the primary goals for the project. We provide DocumentRepository<PATH, T> interface which allows to access basic methods similar to 
-Spring Boot's CrudRepository and allows for simple filters to be automatically implemented. Example repository setup and usage can be found in 
+Reducing boilerplate is one of the primary goals for the project. We provide DocumentRepository<PATH, T> interface which allows to access basic methods similar to
+Spring Boot's CrudRepository and allows for simple filters to be automatically implemented. Example repository setup and usage can be found in
 the [TestPersistenceJdbc](https://github.com/OkaeriPoland/okaeri-persistence/blob/master/persistence-jdbc/src/test/java/eu/okaeri/persistencetestjdbc/basic/TestPersistenceJdbc.java).
 
 ### Default methods
@@ -151,8 +153,8 @@ public interface DocumentRepository<PATH, T extends Document> {
 
 ```java
 @DocumentCollection(path = "user", keyLength = 36, indexes = {
-        @DocumentIndex(path = "shortId", maxLength = 8),
-        @DocumentIndex(path = "meta.name", maxLength = 64)
+    @DocumentIndex(path = "shortId", maxLength = 8),
+    @DocumentIndex(path = "meta.name", maxLength = 64)
 })
 public interface UserRepository extends DocumentRepository<UUID, User> {
 
@@ -180,8 +182,8 @@ public interface UserRepository extends DocumentRepository<UUID, User> {
     // custom method
     default String getMetaDescriptionById(UUID id) {
         return this.findByPath(id)
-                .map(user -> user.getMeta().getDescription())
-                .orElse(null);
+            .map(user -> user.getMeta().getDescription())
+            .orElse(null);
     }
 }
 ```
@@ -210,9 +212,9 @@ Add dependency to the `dependencies` section:
 
 ```xml
 <dependency>
-  <groupId>eu.okaeri</groupId>
-  <artifactId>okaeri-persistence-[type]</artifactId>
-  <version>2.0.4</version>
+    <groupId>eu.okaeri</groupId>
+    <artifactId>okaeri-persistence-[type]</artifactId>
+    <version>2.0.4</version>
 </dependency>
 ```
 

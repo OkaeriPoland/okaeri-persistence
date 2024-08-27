@@ -99,6 +99,29 @@ public class PersistencePath {
         return identifier;
     }
 
+    public String toPostgresJsonPath() {
+        return this.toPostgresJsonPath(null);
+    }
+
+    public String toPostgresJsonPath(String parent) {
+
+        StringBuilder identifier = new StringBuilder((parent == null) ? "" : (parent + "->"));
+        String[] parts = this.value.split(SEPARATOR);
+
+        for (int i = 0; i < parts.length; i++) {
+            identifier.append((i == (parts.length - 1)) ? "->>" : "->"); // last as string
+            identifier.append("'");
+            identifier.append(parts[i]);
+            identifier.append("'");
+        }
+
+        if (identifier.toString().contains("'") || identifier.toString().contains("/") || identifier.toString().contains("#") || identifier.toString().contains("--")) {
+            throw new IllegalArgumentException("identifier '" + identifier + "' cannot be used as sql json path");
+        }
+
+        return identifier.toString();
+    }
+
     public String toMongoPath() {
         return this.value.replace(SEPARATOR, ".");
     }
