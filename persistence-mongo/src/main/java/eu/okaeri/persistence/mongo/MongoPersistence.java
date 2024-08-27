@@ -8,10 +8,15 @@ import com.mongodb.client.model.*;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.persistence.filter.condition.Condition;
+import eu.okaeri.persistence.filter.renderer.FilterRenderer;
+import eu.okaeri.persistence.mongo.filter.MongoFilterRenderer;
+import eu.okaeri.persistence.mongo.filter.MongoVariableRenderer;
 import eu.okaeri.persistence.raw.NativeRawPersistence;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
+import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.io.IOException;
@@ -25,6 +30,7 @@ public class MongoPersistence extends NativeRawPersistence {
 
     private static final Logger LOGGER = Logger.getLogger(MongoPersistence.class.getSimpleName());
     private static final ReplaceOptions REPLACE_OPTIONS = new ReplaceOptions().upsert(true);
+    private static final FilterRenderer FILTER_RENDERER = new MongoFilterRenderer(new MongoVariableRenderer());
 
     @Getter private MongoClient client;
     @Getter private MongoDatabase database;
@@ -69,6 +75,14 @@ public class MongoPersistence extends NativeRawPersistence {
     public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
         return StreamSupport.stream(this.mongo(collection).find()
             .filter(Filters.in(property.toMongoPath(), propertyValue))
+            .map(object -> this.transformMongoObject(collection, object))
+            .spliterator(), false);
+    }
+
+    @Override
+    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull Condition<?> condition) {
+        return StreamSupport.stream(this.mongo(collection).find()
+            .filter(Document.parse(FILTER_RENDERER.renderCondition(condition))) // TODO: parse cache
             .map(object -> this.transformMongoObject(collection, object))
             .spliterator(), false);
     }

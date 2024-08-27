@@ -125,7 +125,7 @@ public class DefaultFilterRenderer implements FilterRenderer {
         }
 
         if (operand instanceof CharSequence) {
-            return String.valueOf(String.valueOf(operand).length());
+            return "\"" + operand + "\""; // FIXME: special renderer
         }
 
         throw new IllegalArgumentException("cannot render operand " + operand + " [" + operand.getClass() + "]");

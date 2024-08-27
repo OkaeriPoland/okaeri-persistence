@@ -66,11 +66,11 @@ public class MongoFilterRenderer extends DefaultFilterRenderer {
             })
             .collect(Collectors.joining(", "));
 
-        return "\"" + operator + "\": [" + conditions + "]";
+        return "{\"" + operator + "\": [" + conditions + "]}";
     }
 
     @Override
     public String renderPredicate(@NonNull Object leftOperand, @NonNull Predicate<?> predicate) {
-        return "{ \"" + this.renderOperand(leftOperand) + "\": { \"" + this.renderOperator(predicate) + "\": " + this.renderOperand(predicate) + " }";
+        return "{ \"" + this.renderOperand(leftOperand) + "\": { \"" + this.renderOperator(predicate) + "\": " + this.renderOperand(predicate) + " }}";
     }
 }
