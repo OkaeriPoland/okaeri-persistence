@@ -13,6 +13,7 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.document.ref.EagerRefSerializer;
 import eu.okaeri.persistence.document.ref.LazyRefSerializer;
+import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.raw.RawPersistence;
 import eu.okaeri.persistence.raw.PersistenceIndexMode;
 import eu.okaeri.persistence.raw.PersistencePropertyMode;
@@ -321,6 +322,11 @@ public class DocumentPersistence implements Persistence<Document> {
             .filter(entity -> !stringSearch || entity.getValue().contains(String.valueOf(propertyValue)))
             .map(this.entityToDocumentMapper(collection))
             .filter(documentFilter);
+    }
+
+    @Override
+    public Stream<PersistenceEntity<Document>> readByFilter(PersistenceCollection collection, Condition<?> condition) {
+        return this.getRead().readByFilter(collection, condition).map(this.entityToDocumentMapper(collection));
     }
 
     @Override

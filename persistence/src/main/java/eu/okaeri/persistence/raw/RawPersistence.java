@@ -5,6 +5,7 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
+import eu.okaeri.persistence.filter.condition.Condition;
 import lombok.*;
 
 import java.util.*;
@@ -77,6 +78,11 @@ public abstract class RawPersistence implements Persistence<String> {
 
     @Override
     public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
+        throw new RuntimeException("not implemented yet");
+    }
+
+    @Override
+    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull Condition<?> condition) {
         throw new RuntimeException("not implemented yet");
     }
 
