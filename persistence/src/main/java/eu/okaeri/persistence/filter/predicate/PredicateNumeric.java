@@ -4,7 +4,7 @@ import lombok.NonNull;
 
 import java.math.BigDecimal;
 
-public abstract class PredicateNumeric<T> extends Predicate<T> {
+public abstract class PredicateNumeric<T> extends SimplePredicate<T> {
 
     protected PredicateNumeric(@NonNull T rightOperand) {
         super(rightOperand);
