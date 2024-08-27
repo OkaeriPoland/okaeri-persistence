@@ -1,6 +1,6 @@
 package eu.okaeri.persistence.filter.condition;
 
-public enum ConditionOperator {
+public enum LogicalOperator {
     AND,
     OR
 }

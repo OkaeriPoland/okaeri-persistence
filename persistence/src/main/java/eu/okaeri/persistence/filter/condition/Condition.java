@@ -14,12 +14,12 @@ import java.util.Arrays;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Condition<T> implements Predicate<T> {
 
-    private final ConditionOperator operator;
+    private final LogicalOperator operator;
     private final PersistencePath path;
     private final Predicate<T>[] predicates;
 
     public static <T> Condition<T> and(@NonNull Predicate<T>... predicates) {
-        return new Condition<>(ConditionOperator.AND, null, predicates);
+        return new Condition<>(LogicalOperator.AND, null, predicates);
     }
 
     public static <T> Condition<T> and(@NonNull String path, @NonNull Predicate<T>... predicates) {
@@ -28,11 +28,11 @@ public class Condition<T> implements Predicate<T> {
 
     public static <T> Condition<T> and(@NonNull PersistencePath path, @NonNull Predicate<T>... predicates) {
         if (predicates.length <= 0) throw new IllegalArgumentException("one or more predicate is required");
-        return new Condition<>(ConditionOperator.AND, path, predicates);
+        return new Condition<>(LogicalOperator.AND, path, predicates);
     }
 
     public static <T> Condition<T> or(@NonNull Predicate<T>... predicates) {
-        return new Condition<>(ConditionOperator.OR, null, predicates);
+        return new Condition<>(LogicalOperator.OR, null, predicates);
     }
 
     public static <T> Condition<T> or(@NonNull String path, @NonNull Predicate<T>... predicates) {
@@ -41,15 +41,15 @@ public class Condition<T> implements Predicate<T> {
 
     public static <T> Condition<T> or(@NonNull PersistencePath path, @NonNull Predicate<T>... predicates) {
         if (predicates.length <= 0) throw new IllegalArgumentException("one or more predicate is required");
-        return new Condition<>(ConditionOperator.OR, path, predicates);
+        return new Condition<>(LogicalOperator.OR, path, predicates);
     }
 
     @Override
     public boolean check(Object leftOperand) {
-        if (this.operator == ConditionOperator.AND) {
+        if (this.operator == LogicalOperator.AND) {
             return Arrays.stream(this.predicates).allMatch(p -> p.check(leftOperand));
         }
-        if (this.operator == ConditionOperator.OR) {
+        if (this.operator == LogicalOperator.OR) {
             return Arrays.stream(this.predicates).anyMatch(p -> p.check(leftOperand));
         }
         throw new IllegalArgumentException("Unsupported operator: " + this.operator);
