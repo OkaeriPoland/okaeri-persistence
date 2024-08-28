@@ -5,6 +5,7 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
+import eu.okaeri.persistence.filter.condition.Condition;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -72,6 +73,13 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
         return this.persistence.readAll(this.collection).values().stream()
             .map(entity -> entity.into(this.documentType))
             .collect(Collectors.toList());
+    }
+
+    @Override
+    public Stream<T> find(Condition condition) {
+        return this.persistence.readByFilter(this.collection, condition)
+            .map(document -> document.into(this.documentType))
+            .map(PersistenceEntity::getValue);
     }
 
     @Override

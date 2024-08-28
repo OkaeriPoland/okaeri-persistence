@@ -3,6 +3,7 @@ package eu.okaeri.persistence.repository;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
+import eu.okaeri.persistence.filter.condition.Condition;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -29,6 +30,8 @@ public interface DocumentRepository<PATH, T extends Document> {
     Collection<T> findAll();
 
     Stream<T> streamAll();
+
+    Stream<T> find(Condition condition);
 
     Collection<T> findAllByPath(Iterable<? extends PATH> paths);
 
