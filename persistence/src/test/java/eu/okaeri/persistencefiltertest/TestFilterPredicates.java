@@ -1,7 +1,8 @@
 package eu.okaeri.persistencefiltertest;
 
+import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.filter.renderer.DefaultFilterRenderer;
-import eu.okaeri.persistence.filter.renderer.DefaultVariableRenderer;
+import eu.okaeri.persistence.filter.renderer.DefaultStringRenderer;
 import org.junit.jupiter.api.Test;
 
 import static eu.okaeri.persistence.filter.predicate.SimplePredicate.eq;
@@ -9,6 +10,8 @@ import static eu.okaeri.persistence.filter.predicate.SimplePredicate.ge;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestFilterPredicates {
+
+    private static final PersistencePath X = PersistencePath.of("x");
 
     @Test
     public void test_eq() {
@@ -29,17 +32,17 @@ public class TestFilterPredicates {
 
     @Test
     public void test_eq_render() {
-        DefaultFilterRenderer dpr = new DefaultFilterRenderer(new DefaultVariableRenderer());
-        assertEquals("(x == 1)", dpr.renderPredicate(eq(1)));
-        assertEquals("(x == 1)", dpr.renderPredicate(eq(1.0d)));
-        assertEquals("(x == 1)", dpr.renderPredicate(eq(1.0f)));
-        assertEquals("(x == 1.2)", dpr.renderPredicate(eq(1.2)));
-        assertEquals("(x == 1.12)", dpr.renderPredicate(eq(1.12)));
-        assertEquals("(x == 5.1231231231)", dpr.renderPredicate(eq(5.1231231231)));
-        assertEquals("(x == 1)", dpr.renderPredicate(eq((short) 1)));
-        assertEquals("(x == 1)", dpr.renderPredicate(eq((byte) 1)));
-        assertEquals("(x == 1)", dpr.renderPredicate(eq(1L)));
-        assertEquals("(x == \"abc\")", dpr.renderPredicate(eq("abc")));
+        DefaultFilterRenderer dpr = new DefaultFilterRenderer(new DefaultStringRenderer());
+        assertEquals("(x == 1)", dpr.renderPredicate(X, eq(1)));
+        assertEquals("(x == 1)", dpr.renderPredicate(X, eq(1.0d)));
+        assertEquals("(x == 1)", dpr.renderPredicate(X, eq(1.0f)));
+        assertEquals("(x == 1.2)", dpr.renderPredicate(X, eq(1.2)));
+        assertEquals("(x == 1.12)", dpr.renderPredicate(X, eq(1.12)));
+        assertEquals("(x == 5.1231231231)", dpr.renderPredicate(X, eq(5.1231231231)));
+        assertEquals("(x == 1)", dpr.renderPredicate(X, eq((short) 1)));
+        assertEquals("(x == 1)", dpr.renderPredicate(X, eq((byte) 1)));
+        assertEquals("(x == 1)", dpr.renderPredicate(X, eq(1L)));
+        assertEquals("(x == \"abc\")", dpr.renderPredicate(X, eq("abc")));
     }
 
     @Test

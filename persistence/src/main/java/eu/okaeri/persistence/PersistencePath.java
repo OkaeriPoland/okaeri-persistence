@@ -91,7 +91,7 @@ public class PersistencePath {
         return identifier;
     }
 
-    public String toSqlJsonPath() {
+    public String toMariaDbJsonPath() {
         String identifier = "$." + this.value.replace(SEPARATOR, ".");
         if (identifier.contains("'") || identifier.contains("/") || identifier.contains("#") || identifier.contains("--")) {
             throw new IllegalArgumentException("identifier '" + identifier + "' cannot be used as sql json path");
@@ -100,23 +100,34 @@ public class PersistencePath {
     }
 
     public String toPostgresJsonPath() {
-        return this.toPostgresJsonPath(null);
+        return this.toPostgresJsonPath(false);
     }
 
-    public String toPostgresJsonPath(String parent) {
+    public String toPostgresJsonPath(boolean stringify) {
 
-        StringBuilder identifier = new StringBuilder((parent == null) ? "" : (parent + "->"));
+        StringBuilder identifier = new StringBuilder();
         String[] parts = this.value.split(SEPARATOR);
 
         for (int i = 0; i < parts.length; i++) {
-            identifier.append((i == (parts.length - 1)) ? "->>" : "->"); // last as string
-            identifier.append("'");
+            if (parts[i].contains("'")) {
+                throw new IllegalArgumentException("identifier " + identifier + " cannot be used as sql json path");
+            }
+            if (i > 0) {
+                if ((i == (parts.length - 1)) && stringify) {
+                    identifier.append("->>");
+                } else {
+                    identifier.append("->");
+                }
+                identifier.append("'");
+            }
             identifier.append(parts[i]);
-            identifier.append("'");
+            if (i > 0) {
+                identifier.append("'");
+            }
         }
 
-        if (identifier.toString().contains("'") || identifier.toString().contains("/") || identifier.toString().contains("#") || identifier.toString().contains("--")) {
-            throw new IllegalArgumentException("identifier '" + identifier + "' cannot be used as sql json path");
+        if (identifier.toString().contains("/") || identifier.toString().contains("#") || identifier.toString().contains("--")) {
+            throw new IllegalArgumentException("identifier " + identifier + " cannot be used as sql json path");
         }
 
         return identifier.toString();

@@ -6,7 +6,10 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.filter.condition.Condition;
-import lombok.*;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,6 +18,8 @@ import java.util.stream.Stream;
 
 @RequiredArgsConstructor
 public abstract class RawPersistence implements Persistence<String> {
+
+    private static final boolean DEBUG = Boolean.parseBoolean(System.getProperty("okaeri.platform.debug", "false"));
 
     @Getter private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
     @Getter private final Map<String, Set<IndexProperty>> knownIndexes = new ConcurrentHashMap<>();
@@ -142,6 +147,12 @@ public abstract class RawPersistence implements Persistence<String> {
 
     public boolean canUseToString(Object value) {
         return (value instanceof String) || (value instanceof Integer) || (value instanceof UUID);
+    }
+
+    protected void debugQuery(@NonNull String query) {
+        if (DEBUG) {
+            System.out.println(query);
+        }
     }
 }
 

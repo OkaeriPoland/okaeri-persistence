@@ -120,7 +120,7 @@ public class MariaDbPersistence extends JdbcPersistence {
         try (Connection connection = this.getDataSource().getConnection()) {
 
             PreparedStatement prepared = connection.prepareStatement(sql);
-            prepared.setString(1, property.toSqlJsonPath());
+            prepared.setString(1, property.toMariaDbJsonPath());
             prepared.setObject(2, propertyValue);
             ResultSet resultSet = prepared.executeQuery();
             List<PersistenceEntity<String>> results = new ArrayList<>();

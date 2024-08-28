@@ -1,5 +1,6 @@
 package eu.okaeri.persistence.filter.renderer;
 
+import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.filter.condition.LogicalOperator;
 import eu.okaeri.persistence.filter.predicate.*;
@@ -13,9 +14,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DefaultFilterRenderer implements FilterRenderer {
 
-    private static final FilterRendererLiteral LITERAL_X = new FilterRendererLiteral("x");
+    protected final @NonNull StringRenderer stringRenderer;
 
-    protected final VariableRenderer variableRenderer;
+    public DefaultFilterRenderer() {
+        this.stringRenderer = new DefaultStringRenderer();
+    }
 
     @Override
     public String renderOperator(@NonNull LogicalOperator operator) {
@@ -54,11 +57,9 @@ public class DefaultFilterRenderer implements FilterRenderer {
         String expression = Arrays.stream(condition.getPredicates())
             .map(predicate -> {
                 if (predicate instanceof Condition) {
-                    return this.renderPredicate(predicate);
+                    return this.renderCondition((Condition) predicate);
                 } else {
-                    String variable = this.variableRenderer.render(condition.getPath());
-                    FilterRendererLiteral variableLiteral = new FilterRendererLiteral(variable);
-                    return this.renderPredicate(variableLiteral, predicate);
+                    return this.renderPredicate(condition.getPath(), predicate);
                 }
             })
             .collect(Collectors.joining(this.renderOperator(condition.getOperator())));
@@ -69,26 +70,12 @@ public class DefaultFilterRenderer implements FilterRenderer {
     }
 
     @Override
-    public String renderPredicate(@NonNull Object leftOperand, @NonNull Predicate predicate) {
-        return "(" + this.renderOperand(leftOperand) + " " + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
-    }
-
-    @Override
-    public String renderPredicate(@NonNull Predicate predicate) {
-
-        if (predicate instanceof Condition) {
-            return this.renderCondition((Condition) predicate);
-        }
-
-        return this.renderPredicate(LITERAL_X, predicate);
+    public String renderPredicate(@NonNull PersistencePath path, @NonNull Predicate predicate) {
+        return "(" + path.toSqlIdentifier() + " " + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
     }
 
     @Override
     public String renderOperand(@NonNull Object operand) {
-
-        if (operand instanceof FilterRendererLiteral) {
-            return ((FilterRendererLiteral) operand).getValue();
-        }
 
         if (operand instanceof SimplePredicate) {
             operand = ((SimplePredicate) operand).getRightOperand();
@@ -125,7 +112,7 @@ public class DefaultFilterRenderer implements FilterRenderer {
         }
 
         if (operand instanceof CharSequence) {
-            return "\"" + operand + "\""; // FIXME: special renderer
+            return this.stringRenderer.render(String.valueOf(operand));
         }
 
         throw new IllegalArgumentException("cannot render operand " + operand + " [" + operand.getClass() + "]");

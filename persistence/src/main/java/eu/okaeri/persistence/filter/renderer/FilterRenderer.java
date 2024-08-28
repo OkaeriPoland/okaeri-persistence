@@ -1,5 +1,6 @@
 package eu.okaeri.persistence.filter.renderer;
 
+import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.filter.condition.LogicalOperator;
 import eu.okaeri.persistence.filter.predicate.Predicate;
@@ -13,9 +14,7 @@ public interface FilterRenderer {
 
     String renderCondition(@NonNull Condition condition);
 
-    String renderPredicate(@NonNull Predicate predicate);
-
-    String renderPredicate(@NonNull Object leftOperand, @NonNull Predicate predicate);
+    String renderPredicate(@NonNull PersistencePath path, @NonNull Predicate predicate);
 
     String renderOperand(@NonNull Object operand);
 }
