@@ -5,12 +5,13 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import eu.okaeri.configs.json.simple.JsonSimpleConfigurer;
 import eu.okaeri.persistence.PersistenceCollection;
-import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.mongo.MongoPersistence;
+import eu.okaeri.persistence.repository.DocumentRepository;
+import eu.okaeri.persistence.repository.RepositoryDeclaration;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -35,6 +36,19 @@ public class TestFilterQuery {
     private static final PersistenceCollection USER_COLLECTION = PersistenceCollection.of("user");
 
     private DocumentPersistence persistence;
+    private UserRepository repository;
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @EqualsAndHashCode(callSuper = false)
+    class User extends Document {
+        private String name;
+        private int exp;
+    }
+
+    static interface UserRepository extends DocumentRepository<UUID, User> {
+    }
 
     @BeforeAll
     public void prepare() {
@@ -52,6 +66,8 @@ public class TestFilterQuery {
         this.persistence.write(USER_COLLECTION, PersistencePath.of(UUID.randomUUID()), new User("tester", 123));
         this.persistence.write(USER_COLLECTION, PersistencePath.of(UUID.randomUUID()), new User("tester2", 456));
         this.persistence.write(USER_COLLECTION, PersistencePath.of(UUID.randomUUID()), new User("tester3", 123));
+
+        this.repository = RepositoryDeclaration.of(UserRepository.class).newProxy(this.persistence, USER_COLLECTION, TestFilterQuery.class.getClassLoader());
     }
 
     @AfterAll
@@ -62,27 +78,18 @@ public class TestFilterQuery {
     @Test
     public void test_filter_0() {
         Condition filter = and("name", eq("tester2"));
-        List<PersistenceEntity<Document>> documents = this.persistence.readByFilter(USER_COLLECTION, filter).collect(Collectors.toList());
+        List<User> users = this.repository.find(filter).collect(Collectors.toList());
 
-        assertEquals(1, documents.size());
-        assertEquals("tester2", documents.get(0).getValue().get("name", String.class));
-        assertEquals(456, documents.get(0).getValue().get("exp", int.class));
+        assertEquals(1, users.size());
+        assertEquals("tester2", users.get(0).getName());
+        assertEquals(456, users.get(0).getExp());
     }
 
     @Test
     public void test_filter_1() {
         Condition filter = and("exp", eq(123));
-        List<PersistenceEntity<Document>> documents = this.persistence.readByFilter(USER_COLLECTION, filter).collect(Collectors.toList());
+        List<User> users = this.repository.find(filter).collect(Collectors.toList());
 
-        assertEquals(2, documents.size());
-    }
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @EqualsAndHashCode(callSuper = false)
-    class User extends Document {
-        private String name;
-        private int exp;
+        assertEquals(2, users.size());
     }
 }
