@@ -1,10 +1,14 @@
 package eu.okaeri.persistence.mongo.filter;
 
 import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.filter.condition.LogicalOperator;
 import eu.okaeri.persistence.filter.predicate.*;
 import eu.okaeri.persistence.filter.renderer.DefaultFilterRenderer;
 import lombok.NonNull;
+
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 public class MongoFilterRenderer extends DefaultFilterRenderer {
 
@@ -41,6 +45,23 @@ public class MongoFilterRenderer extends DefaultFilterRenderer {
         }
 
         throw new IllegalArgumentException("cannot render operator " + predicate + " [" + predicate.getClass() + "]");
+    }
+
+    @Override
+    public String renderCondition(@NonNull Condition condition) {
+
+        String operator = this.renderOperator(condition.getOperator());
+        String conditions = Arrays.stream(condition.getPredicates())
+            .map(predicate -> {
+                if (predicate instanceof Condition) {
+                    return this.renderCondition((Condition) predicate);
+                } else {
+                    return this.renderPredicate(condition.getPath(), predicate);
+                }
+            })
+            .collect(Collectors.joining(", "));
+
+        return "{\"" + operator + "\": [" + conditions + "]}";
     }
 
     @Override
