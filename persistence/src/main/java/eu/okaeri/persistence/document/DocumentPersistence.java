@@ -5,6 +5,7 @@ import eu.okaeri.configs.configurer.Configurer;
 import eu.okaeri.configs.serdes.OkaeriSerdesPack;
 import eu.okaeri.configs.serdes.SerdesRegistry;
 import eu.okaeri.configs.serdes.commons.SerdesCommons;
+import eu.okaeri.configs.serdes.commons.serializer.InstantSerializer;
 import eu.okaeri.configs.serdes.standard.StandardSerdes;
 import eu.okaeri.persistence.Persistence;
 import eu.okaeri.persistence.PersistenceCollection;
@@ -23,6 +24,7 @@ import lombok.NonNull;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -52,7 +54,15 @@ public class DocumentPersistence implements Persistence<Document> {
         this.serdesPacks = serdesPacks;
         // shared transform registry for faster transformations
         this.serdesRegistry = new SerdesRegistry();
-        Stream.concat(Stream.of(new StandardSerdes(), new SerdesCommons()), Stream.of(this.serdesPacks)).forEach(pack -> pack.register(this.serdesRegistry));
+        Stream.concat(
+                Stream.of(
+                    new StandardSerdes(),
+                    new SerdesCommons(),
+                    registry -> registry.registerExclusive(Instant.class, new InstantSerializer(true))
+                ),
+                Stream.of(this.serdesPacks)
+            )
+            .forEach(pack -> pack.register(this.serdesRegistry));
         this.serdesRegistry.register(new LazyRefSerializer(this));
         this.serdesRegistry.register(new EagerRefSerializer(this));
         // simplifier for document mappings

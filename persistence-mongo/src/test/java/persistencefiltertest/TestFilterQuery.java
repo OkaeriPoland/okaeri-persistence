@@ -22,12 +22,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static eu.okaeri.persistence.filter.condition.Condition.on;
 import static eu.okaeri.persistence.filter.predicate.SimplePredicate.eq;
+import static eu.okaeri.persistence.filter.predicate.SimplePredicate.gt;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -45,6 +48,7 @@ public class TestFilterQuery {
     class User extends Document {
         private String name;
         private int exp;
+        private Instant created;
     }
 
     static interface UserRepository extends DocumentRepository<UUID, User> {
@@ -64,9 +68,9 @@ public class TestFilterQuery {
         );
 
         this.persistence.deleteAll(USER_COLLECTION);
-        this.persistence.write(USER_COLLECTION, PersistencePath.of(UUID.randomUUID()), new User("tester", 123));
-        this.persistence.write(USER_COLLECTION, PersistencePath.of(UUID.randomUUID()), new User("tester2", 456));
-        this.persistence.write(USER_COLLECTION, PersistencePath.of(UUID.randomUUID()), new User("tester3", 123));
+        this.persistence.write(USER_COLLECTION, PersistencePath.of(UUID.randomUUID()), new User("tester", 123, Instant.now()));
+        this.persistence.write(USER_COLLECTION, PersistencePath.of(UUID.randomUUID()), new User("tester2", 456, Instant.now().minus(Duration.ofDays(1))));
+        this.persistence.write(USER_COLLECTION, PersistencePath.of(UUID.randomUUID()), new User("tester3", 123, Instant.now()));
 
         this.repository = RepositoryDeclaration.of(UserRepository.class).newProxy(this.persistence, USER_COLLECTION, TestFilterQuery.class.getClassLoader());
     }
@@ -127,5 +131,13 @@ public class TestFilterQuery {
                 .skip(2))
             .collect(Collectors.toList());
         assertEquals(0, users.size());
+    }
+
+    @Test
+    public void test_filter_2_instant() {
+        List<User> users = this.repository
+            .find(q -> q.where(on("created", gt(Instant.now().minus(Duration.ofHours(1)).toEpochMilli()))))
+            .collect(Collectors.toList());
+        assertEquals(2, users.size());
     }
 }
