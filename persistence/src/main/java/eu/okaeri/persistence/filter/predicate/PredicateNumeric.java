@@ -4,9 +4,9 @@ import lombok.NonNull;
 
 import java.math.BigDecimal;
 
-public abstract class PredicateNumeric<T> extends SimplePredicate<T> {
+public abstract class PredicateNumeric extends SimplePredicate {
 
-    protected PredicateNumeric(@NonNull T rightOperand) {
+    protected PredicateNumeric(@NonNull Object rightOperand) {
         super(rightOperand);
     }
 

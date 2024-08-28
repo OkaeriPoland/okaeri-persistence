@@ -29,7 +29,7 @@ public class DefaultFilterRenderer implements FilterRenderer {
     }
 
     @Override
-    public String renderOperator(@NonNull Predicate<?> predicate) {
+    public String renderOperator(@NonNull Predicate predicate) {
 
         if (predicate instanceof EqPredicate) {
             return "==";
@@ -69,12 +69,12 @@ public class DefaultFilterRenderer implements FilterRenderer {
     }
 
     @Override
-    public String renderPredicate(@NonNull Object leftOperand, @NonNull Predicate<?> predicate) {
+    public String renderPredicate(@NonNull Object leftOperand, @NonNull Predicate predicate) {
         return "(" + this.renderOperand(leftOperand) + " " + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
     }
 
     @Override
-    public String renderPredicate(@NonNull Predicate<?> predicate) {
+    public String renderPredicate(@NonNull Predicate predicate) {
 
         if (predicate instanceof Condition) {
             return this.renderCondition((Condition) predicate);
@@ -91,7 +91,7 @@ public class DefaultFilterRenderer implements FilterRenderer {
         }
 
         if (operand instanceof SimplePredicate) {
-            operand = ((SimplePredicate<?>) operand).getRightOperand();
+            operand = ((SimplePredicate) operand).getRightOperand();
         }
 
         if (operand instanceof Condition) {

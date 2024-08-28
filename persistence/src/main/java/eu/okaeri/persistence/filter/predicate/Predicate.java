@@ -1,5 +1,5 @@
 package eu.okaeri.persistence.filter.predicate;
 
-public interface Predicate<T> {
+public interface Predicate {
     abstract boolean check(Object leftOperand);
 }

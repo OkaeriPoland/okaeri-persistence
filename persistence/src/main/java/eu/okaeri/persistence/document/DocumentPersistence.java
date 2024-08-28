@@ -325,7 +325,7 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public Stream<PersistenceEntity<Document>> readByFilter(PersistenceCollection collection, Condition<?> condition) {
+    public Stream<PersistenceEntity<Document>> readByFilter(PersistenceCollection collection, Condition condition) {
         return this.getRead().readByFilter(collection, condition).map(this.entityToDocumentMapper(collection));
     }
 

@@ -13,8 +13,6 @@ import java.util.stream.Collectors;
 
 public class MongoFilterRenderer extends DefaultFilterRenderer {
 
-    private static final FilterRendererLiteral LITERAL_X = new FilterRendererLiteral("x");
-
     public MongoFilterRenderer(VariableRenderer variableRenderer) {
         super(variableRenderer);
     }
@@ -31,7 +29,7 @@ public class MongoFilterRenderer extends DefaultFilterRenderer {
     }
 
     @Override
-    public String renderOperator(@NonNull Predicate<?> predicate) {
+    public String renderOperator(@NonNull Predicate predicate) {
 
         if (predicate instanceof EqPredicate) {
             return "$eq";
@@ -70,7 +68,7 @@ public class MongoFilterRenderer extends DefaultFilterRenderer {
     }
 
     @Override
-    public String renderPredicate(@NonNull Object leftOperand, @NonNull Predicate<?> predicate) {
+    public String renderPredicate(@NonNull Object leftOperand, @NonNull Predicate predicate) {
         return "{ \"" + this.renderOperand(leftOperand) + "\": { \"" + this.renderOperator(predicate) + "\": " + this.renderOperand(predicate) + " }}";
     }
 }

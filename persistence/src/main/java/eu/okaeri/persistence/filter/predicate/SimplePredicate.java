@@ -7,55 +7,55 @@ import lombok.NonNull;
 
 @Data
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
-public abstract class SimplePredicate<T> implements Predicate<T> {
+public abstract class SimplePredicate implements Predicate {
 
-    private final T rightOperand;
+    private final Object rightOperand;
 
-    public static SimplePredicate<Double> eq(double rightOperand) {
-        return new EqPredicate<>(rightOperand);
+    public static SimplePredicate eq(double rightOperand) {
+        return new EqPredicate(rightOperand);
     }
 
-    public static SimplePredicate<CharSequence> eq(@NonNull CharSequence rightOperand) {
-        return new EqPredicate<>(rightOperand);
+    public static SimplePredicate eq(@NonNull CharSequence rightOperand) {
+        return new EqPredicate(rightOperand);
     }
 
-    public static SimplePredicate<Double> ge(double rightOperand) {
-        return new GePredicate<>(rightOperand);
+    public static SimplePredicate ge(double rightOperand) {
+        return new GePredicate(rightOperand);
     }
 
-    public static SimplePredicate<CharSequence> ge(@NonNull CharSequence rightOperand) {
-        return new GePredicate<>(rightOperand);
+    public static SimplePredicate ge(@NonNull CharSequence rightOperand) {
+        return new GePredicate(rightOperand);
     }
 
-    public static SimplePredicate<Double> gt(double rightOperand) {
-        return new GtPredicate<>(rightOperand);
+    public static SimplePredicate gt(double rightOperand) {
+        return new GtPredicate(rightOperand);
     }
 
-    public static SimplePredicate<CharSequence> gt(@NonNull CharSequence rightOperand) {
-        return new GtPredicate<>(rightOperand);
+    public static SimplePredicate gt(@NonNull CharSequence rightOperand) {
+        return new GtPredicate(rightOperand);
     }
 
-    public static SimplePredicate<Double> le(double rightOperand) {
-        return new LePredicate<>(rightOperand);
+    public static SimplePredicate le(double rightOperand) {
+        return new LePredicate(rightOperand);
     }
 
-    public static SimplePredicate<CharSequence> le(@NonNull CharSequence rightOperand) {
-        return new LePredicate<>(rightOperand);
+    public static SimplePredicate le(@NonNull CharSequence rightOperand) {
+        return new LePredicate(rightOperand);
     }
 
-    public static SimplePredicate<Double> lt(double rightOperand) {
-        return new LtPredicate<>(rightOperand);
+    public static SimplePredicate lt(double rightOperand) {
+        return new LtPredicate(rightOperand);
     }
 
-    public static SimplePredicate<CharSequence> lt(@NonNull CharSequence rightOperand) {
-        return new LtPredicate<>(rightOperand);
+    public static SimplePredicate lt(@NonNull CharSequence rightOperand) {
+        return new LtPredicate(rightOperand);
     }
 
-    public static SimplePredicate<Double> ne(double rightOperand) {
-        return new NePredicate<>(rightOperand);
+    public static SimplePredicate ne(double rightOperand) {
+        return new NePredicate(rightOperand);
     }
 
-    public static SimplePredicate<CharSequence> ne(@NonNull CharSequence rightOperand) {
-        return new NePredicate<>(rightOperand);
+    public static SimplePredicate ne(@NonNull CharSequence rightOperand) {
+        return new NePredicate(rightOperand);
     }
 }
