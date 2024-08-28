@@ -8,6 +8,7 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
+import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.mongo.MongoPersistence;
 import eu.okaeri.persistence.repository.DocumentRepository;
@@ -36,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TestFilterQuery {
 
-    private static final PersistenceCollection USER_COLLECTION = PersistenceCollection.of("user");
+    private static final PersistenceCollection USER_COLLECTION = PersistenceCollection.of("users").index(IndexProperty.of("name"));
 
     private DocumentPersistence persistence;
     private UserRepository repository;
