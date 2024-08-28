@@ -24,13 +24,13 @@ public class TestFilterConditions {
     @Test
     public void test_condition_0() {
         String condition = this.renderer.renderCondition(and("age", eq(55))); // age equal to 55
-        assertEquals("(v_age == 55)", condition);
+        assertEquals("(age == 55)", condition);
     }
 
     @Test
     public void test_condition_1() {
         String condition = this.renderer.renderCondition(and("distance", ge(100), le(1000))); // distance between 100 and 1000
-        assertEquals("((v_distance >= 100) && (v_distance <= 1000))", condition);
+        assertEquals("((distance >= 100) && (distance <= 1000))", condition);
     }
 
     @Test
@@ -39,7 +39,7 @@ public class TestFilterConditions {
             and("distance", ge(100), le(1000)),
             and("age", eq(55))
         ));
-        assertEquals("(((v_distance >= 100) && (v_distance <= 1000)) || (v_age == 55))", condition);
+        assertEquals("(((distance >= 100) && (distance <= 1000)) || (age == 55))", condition);
     }
 
     @Test
@@ -51,7 +51,7 @@ public class TestFilterConditions {
                 and("thing", gt(123), lt(999))
             )
         ));
-        assertEquals("(((v_distance >= 100) && (v_distance <= 1000)) || ((v_age == 55) && ((v_thing > 123) && (v_thing < 999))))", condition);
+        assertEquals("(((distance >= 100) && (distance <= 1000)) || ((age == 55) && ((thing > 123) && (thing < 999))))", condition);
     }
 
     @Test
@@ -63,7 +63,7 @@ public class TestFilterConditions {
                 and("thing", gt(123), and("abc", lt(999)))
             )
         ));
-        assertEquals("(((v_distance >= 100) && (v_distance <= 1000)) || ((v_age == 55) && ((v_thing > 123) && (v_abc < 999))))", condition);
+        assertEquals("(((distance >= 100) && (distance <= 1000)) || ((age == 55) && ((thing > 123) && (abc < 999))))", condition);
     }
 
     @Test
@@ -78,6 +78,6 @@ public class TestFilterConditions {
                 )
             )
         ));
-        assertEquals("(((v_distance >= 100) && (v_distance <= 1000)) || ((v_age == 55) && (((v_thing > 123) && (v_abc < 999)) || (v_abcd == -1))))", condition);
+        assertEquals("(((distance >= 100) && (distance <= 1000)) || ((age == 55) && (((thing > 123) && (abc < 999)) || (abcd == -1))))", condition);
     }
 }
