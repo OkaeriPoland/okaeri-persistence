@@ -5,6 +5,8 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
+import eu.okaeri.persistence.filter.FindFilter;
+import eu.okaeri.persistence.filter.FindFilterBuilder;
 import eu.okaeri.persistence.filter.condition.Condition;
 import lombok.Getter;
 import lombok.NonNull;
@@ -76,10 +78,25 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     }
 
     @Override
-    public Stream<T> find(Condition condition) {
-        return this.persistence.readByFilter(this.collection, condition)
+    public Stream<T> find(@NonNull FindFilter filter) {
+        return this.persistence.readByFilter(this.collection, filter)
             .map(document -> document.into(this.documentType))
             .map(PersistenceEntity::getValue);
+    }
+
+    @Override
+    public Stream<T> find(@NonNull Function<FindFilterBuilder, FindFilterBuilder> function) {
+        return this.find(function.apply(FindFilter.builder()).build());
+    }
+
+    @Override
+    public Stream<T> find(@NonNull Condition condition) {
+        return this.find(q -> q.where(condition));
+    }
+
+    @Override
+    public Optional<T> findOne(@NonNull Condition condition) {
+        return this.find(q -> q.where(condition).limit(1)).findAny();
     }
 
     @Override

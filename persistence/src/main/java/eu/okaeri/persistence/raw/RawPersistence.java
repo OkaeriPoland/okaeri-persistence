@@ -5,7 +5,7 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
-import eu.okaeri.persistence.filter.condition.Condition;
+import eu.okaeri.persistence.filter.FindFilter;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -87,7 +87,7 @@ public abstract class RawPersistence implements Persistence<String> {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull Condition condition) {
+    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
         throw new RuntimeException("not implemented yet");
     }
 

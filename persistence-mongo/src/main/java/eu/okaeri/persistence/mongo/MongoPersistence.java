@@ -1,6 +1,7 @@
 package eu.okaeri.persistence.mongo;
 
 import com.mongodb.BasicDBObject;
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -8,7 +9,7 @@ import com.mongodb.client.model.*;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
-import eu.okaeri.persistence.filter.condition.Condition;
+import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.filter.renderer.FilterRenderer;
 import eu.okaeri.persistence.mongo.filter.MongoFilterRenderer;
 import eu.okaeri.persistence.raw.NativeRawPersistence;
@@ -79,11 +80,24 @@ public class MongoPersistence extends NativeRawPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull Condition condition) {
-        return StreamSupport.stream(this.mongo(collection).find()
-            .filter(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(condition)))) // TODO: parse cache
+    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
+
+        FindIterable<BasicDBObject> findIterable = this.mongo(collection).find()
+            .filter(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere())))); // TODO: parse cache
+
+        if (filter.hasSkip()) {
+            findIterable = findIterable.skip(filter.getSkip());
+        }
+
+        if (filter.hasLimit()) {
+            findIterable = findIterable.limit(filter.getLimit());
+        }
+
+        Spliterator<PersistenceEntity<String>> iterator = findIterable
             .map(object -> this.transformMongoObject(collection, object))
-            .spliterator(), false);
+            .spliterator();
+
+        return StreamSupport.stream(iterator, false);
     }
 
     @Override

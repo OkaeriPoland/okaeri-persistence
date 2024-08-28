@@ -1,7 +1,7 @@
 package eu.okaeri.persistence;
 
 import eu.okaeri.persistence.document.index.IndexProperty;
-import eu.okaeri.persistence.filter.condition.Condition;
+import eu.okaeri.persistence.filter.FindFilter;
 
 import java.io.Closeable;
 import java.util.Collection;
@@ -196,10 +196,10 @@ public interface Persistence<T> extends Closeable {
 
     /**
      * @param collection Target collection (eg. player)
-     * @param condition  Search condition
+     * @param filter     Search filter
      * @return Stream of entities matching the query
      */
-    Stream<PersistenceEntity<T>> readByFilter(PersistenceCollection collection, Condition condition);
+    Stream<PersistenceEntity<T>> readByFilter(PersistenceCollection collection, FindFilter filter);
 
     /**
      * Visit all entities from the specific collection.
