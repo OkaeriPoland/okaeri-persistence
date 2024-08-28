@@ -6,9 +6,9 @@ import lombok.NonNull;
  * VALUE equals X
  * {@code val == x}
  */
-public class EqPredicate<T> extends PredicateNumeric<T> {
+public class EqPredicate extends PredicateNumeric {
 
-    public EqPredicate(@NonNull T rightOperand) {
+    public EqPredicate(@NonNull Object rightOperand) {
         super(rightOperand);
     }
 

@@ -82,7 +82,7 @@ public abstract class RawPersistence implements Persistence<String> {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull Condition<?> condition) {
+    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull Condition condition) {
         throw new RuntimeException("not implemented yet");
     }
 

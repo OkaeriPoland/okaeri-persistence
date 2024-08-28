@@ -199,7 +199,7 @@ public interface Persistence<T> extends Closeable {
      * @param condition  Search condition
      * @return Stream of entities matching the query
      */
-    Stream<PersistenceEntity<T>> readByFilter(PersistenceCollection collection, Condition<?> condition);
+    Stream<PersistenceEntity<T>> readByFilter(PersistenceCollection collection, Condition condition);
 
     /**
      * Visit all entities from the specific collection.

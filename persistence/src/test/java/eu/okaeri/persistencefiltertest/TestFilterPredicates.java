@@ -39,7 +39,7 @@ public class TestFilterPredicates {
         assertEquals("(x == 1)", dpr.renderPredicate(eq((short) 1)));
         assertEquals("(x == 1)", dpr.renderPredicate(eq((byte) 1)));
         assertEquals("(x == 1)", dpr.renderPredicate(eq(1L)));
-        assertEquals("(x == 3)", dpr.renderPredicate(eq("abc")));
+        assertEquals("(x == \"abc\")", dpr.renderPredicate(eq("abc")));
     }
 
     @Test

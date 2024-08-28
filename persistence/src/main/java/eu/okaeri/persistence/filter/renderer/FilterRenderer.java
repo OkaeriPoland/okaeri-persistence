@@ -9,13 +9,13 @@ public interface FilterRenderer {
 
     String renderOperator(@NonNull LogicalOperator operator);
 
-    String renderOperator(@NonNull Predicate<?> predicate);
+    String renderOperator(@NonNull Predicate predicate);
 
     String renderCondition(@NonNull Condition condition);
 
-    String renderPredicate(@NonNull Predicate<?> predicate);
+    String renderPredicate(@NonNull Predicate predicate);
 
-    String renderPredicate(@NonNull Object leftOperand, @NonNull Predicate<?> predicate);
+    String renderPredicate(@NonNull Object leftOperand, @NonNull Predicate predicate);
 
     String renderOperand(@NonNull Object operand);
 }

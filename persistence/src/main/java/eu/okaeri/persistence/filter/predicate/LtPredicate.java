@@ -6,9 +6,9 @@ import lombok.NonNull;
  * VALUE lower than X
  * {@code val < x}
  */
-public class LtPredicate<T> extends PredicateNumeric<T> {
+public class LtPredicate extends PredicateNumeric {
 
-    public LtPredicate(@NonNull T rightOperand) {
+    public LtPredicate(@NonNull Object rightOperand) {
         super(rightOperand);
     }
 

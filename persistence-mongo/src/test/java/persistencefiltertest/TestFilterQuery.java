@@ -61,7 +61,7 @@ public class TestFilterQuery {
 
     @Test
     public void test_filter_0() {
-        Condition<CharSequence> filter = and("name", eq("tester2"));
+        Condition filter = and("name", eq("tester2"));
         List<PersistenceEntity<Document>> documents = this.persistence.readByFilter(USER_COLLECTION, filter).collect(Collectors.toList());
 
         assertEquals(1, documents.size());
@@ -71,7 +71,7 @@ public class TestFilterQuery {
 
     @Test
     public void test_filter_1() {
-        Condition<Double> filter = and("exp", eq(123));
+        Condition filter = and("exp", eq(123));
         List<PersistenceEntity<Document>> documents = this.persistence.readByFilter(USER_COLLECTION, filter).collect(Collectors.toList());
 
         assertEquals(2, documents.size());

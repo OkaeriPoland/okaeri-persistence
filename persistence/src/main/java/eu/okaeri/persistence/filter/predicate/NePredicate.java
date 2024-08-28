@@ -6,9 +6,9 @@ import lombok.NonNull;
  * VALUE not equals X
  * {@code val != x}
  */
-public class NePredicate<T> extends PredicateNumeric<T> {
+public class NePredicate extends PredicateNumeric {
 
-    public NePredicate(@NonNull T rightOperand) {
+    public NePredicate(@NonNull Object rightOperand) {
         super(rightOperand);
     }
 
