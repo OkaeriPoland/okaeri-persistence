@@ -13,10 +13,10 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.document.ref.EagerRefSerializer;
 import eu.okaeri.persistence.document.ref.LazyRefSerializer;
-import eu.okaeri.persistence.filter.condition.Condition;
-import eu.okaeri.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.raw.PersistenceIndexMode;
 import eu.okaeri.persistence.raw.PersistencePropertyMode;
+import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -325,8 +325,8 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public Stream<PersistenceEntity<Document>> readByFilter(PersistenceCollection collection, Condition condition) {
-        return this.getRead().readByFilter(collection, condition).map(this.entityToDocumentMapper(collection));
+    public Stream<PersistenceEntity<Document>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
+        return this.getRead().readByFilter(collection, filter).map(this.entityToDocumentMapper(collection));
     }
 
     @Override

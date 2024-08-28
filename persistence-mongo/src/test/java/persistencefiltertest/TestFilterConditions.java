@@ -49,7 +49,7 @@ public class TestFilterConditions {
 
     @Test
     public void test_condition_3() {
-        String condition = this.renderer.renderCondition(and("name", eq("tester"))); // age equal to 55
+        String condition = this.renderer.renderCondition(and("name", eq("tester")));
         assertDoesNotThrow(() -> Document.parse(condition), condition);
         assertEquals("{\"$and\": [{ \"name\": { \"$eq\": \"tester\" }}]}", condition);
     }

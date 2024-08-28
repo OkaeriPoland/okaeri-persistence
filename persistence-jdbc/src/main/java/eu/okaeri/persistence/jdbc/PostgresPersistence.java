@@ -6,7 +6,7 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
-import eu.okaeri.persistence.filter.condition.Condition;
+import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.filter.renderer.FilterRenderer;
 import eu.okaeri.persistence.jdbc.filter.PostgresFilterRenderer;
 import eu.okaeri.persistence.jdbc.filter.SqlStringRenderer;
@@ -118,10 +118,18 @@ public class PostgresPersistence extends NativeRawPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull Condition condition) {
+    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
 
         this.checkCollectionRegistered(collection);
-        String sql = "select key, value from \"" + this.table(collection) + "\" where " + FILTER_RENDERER.renderCondition(condition);
+        String sql = "select key, value from \"" + this.table(collection) + "\" where " + FILTER_RENDERER.renderCondition(filter.getWhere());
+
+        if (filter.hasSkip()) {
+            sql += " offset " + filter.getSkip();
+        }
+
+        if (filter.hasLimit()) {
+            sql += " limit " + filter.getLimit();
+        }
 
         try (Connection connection = this.getDataSource().getConnection()) {
 
