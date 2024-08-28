@@ -13,10 +13,10 @@ Originally developed for and part of the [okaeri-platform](https://github.com/Ok
 
 ### Document native
 
-| Name                | Type       | Indexes      | Comment                                                                                                                                                                                                                            |
-|---------------------|------------|--------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| MongoPersistence    | `mongo`    | Yes (native) | Uses [the official MongoDB driver](https://github.com/mongodb/mongo-java-driver). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed. |
-| PostgresPersistence | `postgres` | Yes (native) | Use [the official PostgreSQL JDBC driver](https://github.com/pgjdbc/pgjdbc). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed.      |
+| Name                | Type    | Indexes      | Comment                                                                                                                                                                                                                            |
+|---------------------|---------|--------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| MongoPersistence    | `mongo` | Yes (native) | Uses [the official MongoDB driver](https://github.com/mongodb/mongo-java-driver). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed. |
+| PostgresPersistence | `jdbc`  | Yes (native) | Use [the official PostgreSQL JDBC driver](https://github.com/pgjdbc/pgjdbc). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed.      |
 
 ### Flat & Databases
 
