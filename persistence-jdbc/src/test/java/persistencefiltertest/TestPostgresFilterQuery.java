@@ -35,7 +35,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class TestPostgresFilterQuery {
 
-    private static final PersistenceCollection USER_COLLECTION = PersistenceCollection.of("users").index(IndexProperty.of("name"));
+    private static final PersistenceCollection USER_COLLECTION = PersistenceCollection.of("users")
+        .index(IndexProperty.of("name"))
+        .index(IndexProperty.of("created")); // TODO: index numeric
 
     private DocumentPersistence persistence;
     private UserRepository repository;

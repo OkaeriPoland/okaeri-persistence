@@ -78,12 +78,11 @@ public class PostgresPersistence extends NativeRawPersistence {
         collection.getIndexes().forEach(index -> {
 
             String indexName = this.getBasePath().sub(collection).sub(index).sub("idx").toSqlIdentifier();
-            String jsonPath = PersistencePath.of("value").sub(index).toPostgresJsonPath(true);
+            String jsonPath = PersistencePath.of("value").sub(index).toPostgresJsonPath();
             String indexSql = "create index if not exists " + indexName + " on " + collectionTable + " ((" + jsonPath + "));";
 
             try (Connection connection = this.getDataSource().getConnection()) {
-                this.debugQuery(indexSql);
-                connection.createStatement().execute(indexSql);
+                connection.createStatement().execute(this.debugQuery(indexSql));
             } catch (SQLException exception) {
                 throw new RuntimeException("cannot register collection index " + indexName, exception);
             }
