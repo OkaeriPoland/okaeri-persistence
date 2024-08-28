@@ -5,6 +5,8 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
+import eu.okaeri.persistence.filter.DeleteFilter;
+import eu.okaeri.persistence.filter.DeleteFilterBuilder;
 import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.filter.FindFilterBuilder;
 import eu.okaeri.persistence.filter.condition.Condition;
@@ -44,6 +46,16 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     @Override
     public boolean deleteAll() {
         return this.persistence.deleteAll(this.collection);
+    }
+
+    @Override
+    public long delete(DeleteFilter filter) {
+        return this.persistence.deleteByFilter(this.collection, filter);
+    }
+
+    @Override
+    public long delete(Function<DeleteFilterBuilder, DeleteFilterBuilder> function) {
+        return this.delete(function.apply(DeleteFilter.builder()).build());
     }
 
     @Override

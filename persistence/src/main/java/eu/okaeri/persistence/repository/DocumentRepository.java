@@ -3,6 +3,8 @@ package eu.okaeri.persistence.repository;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
+import eu.okaeri.persistence.filter.DeleteFilter;
+import eu.okaeri.persistence.filter.DeleteFilterBuilder;
 import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.filter.FindFilterBuilder;
 import eu.okaeri.persistence.filter.condition.Condition;
@@ -23,6 +25,10 @@ public interface DocumentRepository<PATH, T extends Document> {
     long count();
 
     boolean deleteAll();
+
+    long delete(DeleteFilter filter);
+
+    long delete(Function<DeleteFilterBuilder, DeleteFilterBuilder> function);
 
     long deleteAllByPath(Iterable<? extends PATH> paths);
 

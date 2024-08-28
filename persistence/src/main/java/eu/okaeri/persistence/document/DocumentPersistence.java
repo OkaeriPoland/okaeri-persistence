@@ -13,6 +13,7 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.document.ref.EagerRefSerializer;
 import eu.okaeri.persistence.document.ref.LazyRefSerializer;
+import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.raw.PersistenceIndexMode;
 import eu.okaeri.persistence.raw.PersistencePropertyMode;
@@ -385,6 +386,11 @@ public class DocumentPersistence implements Persistence<Document> {
     @Override
     public long deleteAll() {
         return this.getWrite().deleteAll();
+    }
+
+    @Override
+    public long deleteByFilter(@NonNull PersistenceCollection collection, @NonNull DeleteFilter filter) {
+        return this.getWrite().deleteByFilter(collection, filter);
     }
 
     public Document createDocument(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {

@@ -6,6 +6,7 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
+import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.filter.renderer.FilterRenderer;
 import eu.okaeri.persistence.jdbc.filter.PostgresFilterRenderer;
@@ -374,6 +375,20 @@ public class PostgresPersistence extends NativeRawPersistence {
         .map(this::deleteAll)
         .filter(Predicate.isEqual(true))
         .count();
+    }
+
+    @Override
+    public long deleteByFilter(@NonNull PersistenceCollection collection, @NonNull DeleteFilter filter) {
+
+        this.checkCollectionRegistered(collection);
+        String sql = "delete from \"" + this.table(collection) + "\" where " + FILTER_RENDERER.renderCondition(filter.getWhere());
+
+        try (Connection connection = this.getDataSource().getConnection()) {
+            Statement statement = connection.createStatement();
+            return statement.executeUpdate(this.debugQuery(sql));
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot delete from " + collection + " with " + filter, exception);
+        }
     }
 
     @Override

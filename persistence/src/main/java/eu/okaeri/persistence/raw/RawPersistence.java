@@ -5,6 +5,7 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
+import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
 import lombok.Getter;
 import lombok.NonNull;
@@ -116,6 +117,11 @@ public abstract class RawPersistence implements Persistence<String> {
             .map(entry -> this.write(collection, entry.getKey(), entry.getValue()))
             .filter(Predicate.isEqual(true))
             .count();
+    }
+
+    @Override
+    public long deleteByFilter(PersistenceCollection collection, DeleteFilter filter) {
+        throw new RuntimeException("not implemented yet");
     }
 
     public void checkCollectionRegistered(@NonNull PersistenceCollection collection) {
