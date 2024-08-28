@@ -81,7 +81,7 @@ public class MongoPersistence extends NativeRawPersistence {
     @Override
     public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull Condition condition) {
         return StreamSupport.stream(this.mongo(collection).find()
-            .filter(Document.parse(FILTER_RENDERER.renderCondition(condition))) // TODO: parse cache
+            .filter(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(condition)))) // TODO: parse cache
             .map(object -> this.transformMongoObject(collection, object))
             .spliterator(), false);
     }
