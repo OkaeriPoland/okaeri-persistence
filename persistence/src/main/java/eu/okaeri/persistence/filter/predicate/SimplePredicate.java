@@ -23,15 +23,7 @@ public abstract class SimplePredicate implements Predicate {
         return new GePredicate(rightOperand);
     }
 
-    public static SimplePredicate ge(@NonNull CharSequence rightOperand) {
-        return new GePredicate(rightOperand);
-    }
-
     public static SimplePredicate gt(double rightOperand) {
-        return new GtPredicate(rightOperand);
-    }
-
-    public static SimplePredicate gt(@NonNull CharSequence rightOperand) {
         return new GtPredicate(rightOperand);
     }
 
@@ -39,15 +31,7 @@ public abstract class SimplePredicate implements Predicate {
         return new LePredicate(rightOperand);
     }
 
-    public static SimplePredicate le(@NonNull CharSequence rightOperand) {
-        return new LePredicate(rightOperand);
-    }
-
     public static SimplePredicate lt(double rightOperand) {
-        return new LtPredicate(rightOperand);
-    }
-
-    public static SimplePredicate lt(@NonNull CharSequence rightOperand) {
         return new LtPredicate(rightOperand);
     }
 

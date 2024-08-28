@@ -11,7 +11,6 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.filter.renderer.FilterRenderer;
 import eu.okaeri.persistence.mongo.filter.MongoFilterRenderer;
-import eu.okaeri.persistence.mongo.filter.MongoVariableRenderer;
 import eu.okaeri.persistence.raw.NativeRawPersistence;
 import lombok.Getter;
 import lombok.NonNull;
@@ -30,7 +29,7 @@ public class MongoPersistence extends NativeRawPersistence {
 
     private static final Logger LOGGER = Logger.getLogger(MongoPersistence.class.getSimpleName());
     private static final ReplaceOptions REPLACE_OPTIONS = new ReplaceOptions().upsert(true);
-    private static final FilterRenderer FILTER_RENDERER = new MongoFilterRenderer(new MongoVariableRenderer());
+    private static final FilterRenderer FILTER_RENDERER = new MongoFilterRenderer(); // TODO: allow customization
 
     @Getter private MongoClient client;
     @Getter private MongoDatabase database;

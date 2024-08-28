@@ -1,7 +1,7 @@
 package eu.okaeri.persistencefiltertest;
 
 import eu.okaeri.persistence.filter.renderer.DefaultFilterRenderer;
-import eu.okaeri.persistence.filter.renderer.DefaultVariableRenderer;
+import eu.okaeri.persistence.filter.renderer.DefaultStringRenderer;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -18,7 +18,7 @@ public class TestFilterConditions {
 
     @BeforeAll
     public void prepare() {
-        this.renderer = new DefaultFilterRenderer(new DefaultVariableRenderer());
+        this.renderer = new DefaultFilterRenderer(new DefaultStringRenderer());
     }
 
     @Test
