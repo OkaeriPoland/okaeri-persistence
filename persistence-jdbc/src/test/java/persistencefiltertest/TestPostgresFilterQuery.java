@@ -97,4 +97,35 @@ public class TestPostgresFilterQuery {
 
         assertEquals(2, users.size());
     }
+
+    @Test
+    public void test_filter_1_limit_1() {
+        List<User> users = this.repository
+            .find(q -> q
+                .where(and("exp", eq(123)))
+                .limit(1))
+            .collect(Collectors.toList());
+        assertEquals(1, users.size());
+    }
+
+    @Test
+    public void test_filter_1_skip_1_limit_1() {
+        List<User> users = this.repository
+            .find(q -> q
+                .where(and("exp", eq(123)))
+                .skip(1)
+                .limit(1))
+            .collect(Collectors.toList());
+        assertEquals(1, users.size());
+    }
+
+    @Test
+    public void test_filter_1_skip_2() {
+        List<User> users = this.repository
+            .find(q -> q
+                .where(and("exp", eq(123)))
+                .skip(2))
+            .collect(Collectors.toList());
+        assertEquals(0, users.size());
+    }
 }
