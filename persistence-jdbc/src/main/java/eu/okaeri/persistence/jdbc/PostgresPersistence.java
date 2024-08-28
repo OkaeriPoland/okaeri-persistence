@@ -79,7 +79,7 @@ public class PostgresPersistence extends NativeRawPersistence {
 
             String indexName = this.getBasePath().sub(collection).sub(index).sub("idx").toSqlIdentifier();
             String jsonPath = PersistencePath.of("value").sub(index).toPostgresJsonPath(true);
-            String indexSql = "create index " + indexName + " on " + collectionTable + " ((" + jsonPath + "));";
+            String indexSql = "create index if not exists " + indexName + " on " + collectionTable + " ((" + jsonPath + "));";
 
             try (Connection connection = this.getDataSource().getConnection()) {
                 this.debugQuery(indexSql);
