@@ -22,6 +22,10 @@ public class Condition implements Predicate {
         return new Condition(LogicalOperator.AND, null, predicates);
     }
 
+    public static Condition on(@NonNull String path, @NonNull Predicate... predicates) {
+        return and(path, predicates);
+    }
+
     public static Condition and(@NonNull String path, @NonNull Predicate... predicates) {
         return and(PersistencePath.of(path), predicates);
     }

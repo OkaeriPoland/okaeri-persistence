@@ -1,6 +1,7 @@
 package eu.okaeri.persistence;
 
 import eu.okaeri.persistence.document.index.IndexProperty;
+import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
 
 import java.io.Closeable;
@@ -254,6 +255,13 @@ public interface Persistence<T> extends Closeable {
      * @return True when changed else otherwise
      */
     boolean deleteAll(PersistenceCollection collection);
+
+    /**
+     * @param collection Target collection (eg. player)
+     * @param filter     Search filter
+     * @return Count of changes
+     */
+    long deleteByFilter(PersistenceCollection collection, DeleteFilter filter);
 
     /**
      * Truncate all registered collections.

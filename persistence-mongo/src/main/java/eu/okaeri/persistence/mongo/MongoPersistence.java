@@ -9,6 +9,7 @@ import com.mongodb.client.model.*;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.filter.renderer.FilterRenderer;
 import eu.okaeri.persistence.mongo.filter.MongoFilterRenderer;
@@ -83,7 +84,7 @@ public class MongoPersistence extends NativeRawPersistence {
     public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
 
         FindIterable<BasicDBObject> findIterable = this.mongo(collection).find()
-            .filter(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere())))); // TODO: parse cache
+            .filter(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere()))));
 
         if (filter.hasSkip()) {
             findIterable = findIterable.skip(filter.getSkip());
@@ -211,6 +212,13 @@ public class MongoPersistence extends NativeRawPersistence {
     @Override
     public long deleteAll() {
         throw new RuntimeException("Not implemented yet");
+    }
+
+    @Override
+    public long deleteByFilter(@NonNull PersistenceCollection collection, @NonNull DeleteFilter filter) {
+        return this.mongo(collection)
+            .deleteMany(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere()))))
+            .getDeletedCount();
     }
 
     @Override

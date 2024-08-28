@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static eu.okaeri.persistence.filter.condition.Condition.and;
+import static eu.okaeri.persistence.filter.condition.Condition.on;
 import static eu.okaeri.persistence.filter.predicate.SimplePredicate.eq;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -73,12 +73,16 @@ public class TestFilterQuery {
 
     @AfterAll
     public void shutdown() throws IOException {
+
+        assertEquals(1, this.repository.delete(q -> q.where(on("name", eq("tester")))));
+        assertEquals(2, this.repository.count());
+
         this.persistence.close();
     }
 
     @Test
     public void test_filter_0() {
-        Condition filter = and("name", eq("tester2"));
+        Condition filter = on("name", eq("tester2"));
         List<User> users = this.repository.find(filter).collect(Collectors.toList());
 
         assertEquals(1, users.size());
@@ -88,7 +92,7 @@ public class TestFilterQuery {
 
     @Test
     public void test_filter_1() {
-        Condition filter = and("exp", eq(123));
+        Condition filter = on("exp", eq(123));
         List<User> users = this.repository.find(filter).collect(Collectors.toList());
 
         assertEquals(2, users.size());
@@ -98,7 +102,7 @@ public class TestFilterQuery {
     public void test_filter_1_limit_1() {
         List<User> users = this.repository
             .find(q -> q
-                .where(and("exp", eq(123)))
+                .where(on("exp", eq(123)))
                 .limit(1))
             .collect(Collectors.toList());
         assertEquals(1, users.size());
@@ -108,7 +112,7 @@ public class TestFilterQuery {
     public void test_filter_1_skip_1_limit_1() {
         List<User> users = this.repository
             .find(q -> q
-                .where(and("exp", eq(123)))
+                .where(on("exp", eq(123)))
                 .skip(1)
                 .limit(1))
             .collect(Collectors.toList());
@@ -119,7 +123,7 @@ public class TestFilterQuery {
     public void test_filter_1_skip_2() {
         List<User> users = this.repository
             .find(q -> q
-                .where(and("exp", eq(123)))
+                .where(on("exp", eq(123)))
                 .skip(2))
             .collect(Collectors.toList());
         assertEquals(0, users.size());
