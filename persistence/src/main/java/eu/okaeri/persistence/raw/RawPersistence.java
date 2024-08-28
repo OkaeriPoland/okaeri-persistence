@@ -149,10 +149,11 @@ public abstract class RawPersistence implements Persistence<String> {
         return (value instanceof String) || (value instanceof Integer) || (value instanceof UUID);
     }
 
-    protected void debugQuery(@NonNull String query) {
+    protected String debugQuery(@NonNull String query) {
         if (DEBUG) {
             System.out.println(query);
         }
+        return query;
     }
 }
 

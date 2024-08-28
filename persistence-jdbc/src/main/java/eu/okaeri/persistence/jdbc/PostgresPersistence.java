@@ -68,10 +68,8 @@ public class PostgresPersistence extends NativeRawPersistence {
         String alterKeySql = "alter table " + collectionTable + " alter column key type varchar(" + keyLength + ")";
 
         try (Connection connection = this.getDataSource().getConnection()) {
-            this.debugQuery(sql);
-            connection.createStatement().execute(sql);
-            this.debugQuery(alterKeySql);
-            connection.createStatement().execute(alterKeySql);
+            connection.createStatement().execute(this.debugQuery(sql));
+            connection.createStatement().execute(this.debugQuery(alterKeySql));
         } catch (SQLException exception) {
             throw new RuntimeException("cannot register collection", exception);
         }
@@ -101,10 +99,9 @@ public class PostgresPersistence extends NativeRawPersistence {
 
         try (Connection connection = this.getDataSource().getConnection()) {
 
-            PreparedStatement prepared = connection.prepareStatement(sql);
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
             prepared.setString(1, PersistencePath.of("value").sub(property).toPostgresJsonPath(true));
             prepared.setObject(2, propertyValue);
-            this.debugQuery(sql);
             ResultSet resultSet = prepared.executeQuery();
             List<PersistenceEntity<String>> results = new ArrayList<>();
 
@@ -129,8 +126,7 @@ public class PostgresPersistence extends NativeRawPersistence {
         try (Connection connection = this.getDataSource().getConnection()) {
 
             Statement statement = connection.createStatement();
-            this.debugQuery(sql);
-            ResultSet resultSet = statement.executeQuery(sql);
+            ResultSet resultSet = statement.executeQuery(this.debugQuery(sql));
             List<PersistenceEntity<String>> results = new ArrayList<>();
 
             while (resultSet.next()) {
@@ -152,9 +148,8 @@ public class PostgresPersistence extends NativeRawPersistence {
         String sql = "select value from \"" + this.table(collection) + "\" where key = ? limit 1";
 
         try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(sql);
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
             prepared.setString(1, path.getValue());
-            this.debugQuery(sql);
             ResultSet resultSet = prepared.executeQuery();
             if (resultSet.next()) {
                 return Optional.ofNullable(resultSet.getString("value"));
@@ -175,12 +170,11 @@ public class PostgresPersistence extends NativeRawPersistence {
         Map<PersistencePath, String> map = new LinkedHashMap<>();
 
         try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(sql);
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
             int currentIndex = 1;
             for (PersistencePath path : paths) {
                 prepared.setString(currentIndex++, path.getValue());
             }
-            this.debugQuery(sql);
             ResultSet resultSet = prepared.executeQuery();
             while (resultSet.next()) {
                 String key = resultSet.getString("key");
@@ -211,8 +205,7 @@ public class PostgresPersistence extends NativeRawPersistence {
 
         try (Connection connection = this.getDataSource().getConnection()) {
 
-            PreparedStatement prepared = connection.prepareStatement(sql);
-            this.debugQuery(sql);
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
             ResultSet resultSet = prepared.executeQuery();
             List<PersistenceEntity<String>> results = new ArrayList<>();
 
@@ -235,8 +228,7 @@ public class PostgresPersistence extends NativeRawPersistence {
         String sql = "select count(1) from \"" + this.table(collection) + "\"";
 
         try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(sql);
-            this.debugQuery(sql);
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
             ResultSet resultSet = prepared.executeQuery();
             if (resultSet.next()) {
                 return resultSet.getLong(1);
@@ -255,9 +247,8 @@ public class PostgresPersistence extends NativeRawPersistence {
         String sql = "select 1 from \"" + this.table(collection) + "\" where key = ? limit 1";
 
         try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(sql);
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
             prepared.setString(1, path.getValue());
-            this.debugQuery(sql);
             ResultSet resultSet = prepared.executeQuery();
             return resultSet.next();
         } catch (SQLException exception) {
@@ -272,10 +263,9 @@ public class PostgresPersistence extends NativeRawPersistence {
         String sql = "insert into \"" + this.table(collection) + "\" (key, value) values (?, ?::json) on conflict(key) do update set value = EXCLUDED.value";
 
         try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(sql);
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
             prepared.setString(1, path.getValue());
             prepared.setString(2, raw);
-            this.debugQuery(sql);
             return prepared.executeUpdate() > 0;
         } catch (SQLException exception) {
             throw new RuntimeException("cannot write " + path + " to " + collection, exception);
@@ -285,18 +275,23 @@ public class PostgresPersistence extends NativeRawPersistence {
     @Override
     public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, String> entities) {
 
+        boolean first = true;
         this.checkCollectionRegistered(collection);
         String sql = "insert into \"" + this.table(collection) + "\" (key, value) values (?, ?::json) on conflict(key) do update set value = EXCLUDED.value";
 
         try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(sql);
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
             connection.setAutoCommit(false);
             for (Map.Entry<PersistencePath, String> entry : entities.entrySet()) {
                 prepared.setString(1, entry.getKey().getValue());
                 prepared.setString(2, entry.getValue());
                 prepared.setString(3, entry.getValue());
-                this.debugQuery(sql);
                 prepared.addBatch();
+                if (first) {
+                    first = false;
+                } else {
+                    this.debugQuery(sql);
+                }
             }
             int changes = prepared.executeUpdate();
             connection.commit();
@@ -319,9 +314,8 @@ public class PostgresPersistence extends NativeRawPersistence {
         }
 
         try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(sql);
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
             prepared.setString(1, key);
-            this.debugQuery(sql);
             return prepared.executeUpdate() > 0;
         } catch (SQLException exception) {
             throw new RuntimeException("cannot delete " + path + " from " + collection, exception);
@@ -340,12 +334,11 @@ public class PostgresPersistence extends NativeRawPersistence {
         String deleteSql = "delete from \"" + this.table(collection) + "\" where key in (" + keys + ")";
 
         try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(deleteSql);
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(deleteSql));
             int currentIndex = 1;
             for (PersistencePath path : paths) {
                 prepared.setString(currentIndex++, path.getValue());
             }
-            this.debugQuery(deleteSql);
             return prepared.executeUpdate();
         } catch (SQLException exception) {
             throw new RuntimeException("cannot delete " + paths + " from " + collection, exception);
@@ -359,8 +352,7 @@ public class PostgresPersistence extends NativeRawPersistence {
         String sql = "truncate table \"" + this.table(collection) + "\"";
 
         try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(sql);
-            this.debugQuery(sql);
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
             prepared.executeUpdate();
             return true;
         } catch (SQLException exception) {

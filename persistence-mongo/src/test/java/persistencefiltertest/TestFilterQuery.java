@@ -53,6 +53,7 @@ public class TestFilterQuery {
     @BeforeAll
     public void prepare() {
 
+        System.setProperty("okaeri.platform.debug", "true");
         PersistencePath basePath = PersistencePath.of("");
         ConnectionString mongoUri = new ConnectionString("mongodb://localhost:27017/okaeri_persistence");
         MongoClient mongoClient = MongoClients.create(mongoUri);
