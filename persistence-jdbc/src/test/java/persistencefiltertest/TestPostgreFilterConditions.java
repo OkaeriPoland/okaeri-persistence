@@ -30,14 +30,14 @@ public class TestPostgreFilterConditions {
 
     @Test
     public void test_condition_1() {
-        String condition = this.renderer.renderCondition(and("distance", ge(100), le(1000))); // distance between 100 and 1000
+        String condition = this.renderer.renderCondition(and("distance", gte(100), lte(1000))); // distance between 100 and 1000
         assertEquals("(((value->'distance')::numeric >= 100) and ((value->'distance')::numeric <= 1000))", condition);
     }
 
     @Test
     public void test_condition_2() {
         String condition = this.renderer.renderCondition(or(
-            and("distance", ge(100), le(1000)),
+            and("distance", gte(100), lte(1000)),
             and("age", eq(55))
         ));
         assertEquals("((((value->'distance')::numeric >= 100) and ((value->'distance')::numeric <= 1000)) or ((value->'age')::numeric = 55))", condition);

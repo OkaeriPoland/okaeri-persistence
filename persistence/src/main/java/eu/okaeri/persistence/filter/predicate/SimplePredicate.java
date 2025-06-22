@@ -19,16 +19,16 @@ public abstract class SimplePredicate implements Predicate {
         return new EqPredicate(rightOperand);
     }
 
-    public static SimplePredicate ge(double rightOperand) {
-        return new GePredicate(rightOperand);
+    public static SimplePredicate gte(double rightOperand) {
+        return new GtePredicate(rightOperand);
     }
 
     public static SimplePredicate gt(double rightOperand) {
         return new GtPredicate(rightOperand);
     }
 
-    public static SimplePredicate le(double rightOperand) {
-        return new LePredicate(rightOperand);
+    public static SimplePredicate lte(double rightOperand) {
+        return new LtePredicate(rightOperand);
     }
 
     public static SimplePredicate lt(double rightOperand) {

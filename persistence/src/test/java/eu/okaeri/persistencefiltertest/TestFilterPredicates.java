@@ -6,7 +6,7 @@ import eu.okaeri.persistence.filter.renderer.DefaultStringRenderer;
 import org.junit.jupiter.api.Test;
 
 import static eu.okaeri.persistence.filter.predicate.SimplePredicate.eq;
-import static eu.okaeri.persistence.filter.predicate.SimplePredicate.ge;
+import static eu.okaeri.persistence.filter.predicate.SimplePredicate.gte;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestFilterPredicates {
@@ -48,19 +48,19 @@ public class TestFilterPredicates {
     @Test
     public void test_ge() {
         // 0 >= 1
-        assertFalse(ge(1).check(0));
-        assertFalse(ge(1).check(-0d));
-        assertFalse(ge(1).check(0.9999999999999999));
-        assertTrue(ge(1).check(0.999999999999999999999)); // nice
-        assertTrue(ge(1).check(1));
-        assertFalse(ge(1).check(-2321323));
-        assertFalse(ge(1).check(-2321323.324434343));
-        assertTrue(ge(1).check(2));
-        assertTrue(ge(1).check(3));
-        assertTrue(ge(1).check(1231));
-        assertTrue(ge(1).check(1231.232323));
-        assertTrue(ge(1).check(1.01));
-        assertTrue(ge(1).check(1.00000222));
-        assertTrue(ge(1).check(3590530953000000d));
+        assertFalse(gte(1).check(0));
+        assertFalse(gte(1).check(-0d));
+        assertFalse(gte(1).check(0.9999999999999999));
+        assertTrue(gte(1).check(0.999999999999999999999)); // nice
+        assertTrue(gte(1).check(1));
+        assertFalse(gte(1).check(-2321323));
+        assertFalse(gte(1).check(-2321323.324434343));
+        assertTrue(gte(1).check(2));
+        assertTrue(gte(1).check(3));
+        assertTrue(gte(1).check(1231));
+        assertTrue(gte(1).check(1231.232323));
+        assertTrue(gte(1).check(1.01));
+        assertTrue(gte(1).check(1.00000222));
+        assertTrue(gte(1).check(3590530953000000d));
     }
 }

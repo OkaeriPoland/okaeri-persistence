@@ -32,12 +32,12 @@ public class MongoFilterRenderer extends DefaultFilterRenderer {
 
         if (predicate instanceof EqPredicate) {
             return "$eq";
-        } else if (predicate instanceof GePredicate) {
-            return "$ge";
+        } else if (predicate instanceof GtePredicate) {
+            return "$gte";
         } else if (predicate instanceof GtPredicate) {
             return "$gt";
-        } else if (predicate instanceof LePredicate) {
-            return "$le";
+        } else if (predicate instanceof LtePredicate) {
+            return "$lte";
         } else if (predicate instanceof LtPredicate) {
             return "$lt";
         } else if (predicate instanceof NePredicate) {

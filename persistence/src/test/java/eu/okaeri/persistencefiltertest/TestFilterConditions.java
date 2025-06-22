@@ -29,14 +29,14 @@ public class TestFilterConditions {
 
     @Test
     public void test_condition_1() {
-        String condition = this.renderer.renderCondition(and("distance", ge(100), le(1000))); // distance between 100 and 1000
+        String condition = this.renderer.renderCondition(and("distance", gte(100), lte(1000))); // distance between 100 and 1000
         assertEquals("((distance >= 100) && (distance <= 1000))", condition);
     }
 
     @Test
     public void test_condition_2() {
         String condition = this.renderer.renderCondition(or(
-            and("distance", ge(100), le(1000)),
+            and("distance", gte(100), lte(1000)),
             and("age", eq(55))
         ));
         assertEquals("(((distance >= 100) && (distance <= 1000)) || (age == 55))", condition);
@@ -45,7 +45,7 @@ public class TestFilterConditions {
     @Test
     public void test_condition_3() {
         String condition = this.renderer.renderCondition(or(
-            and("distance", ge(100), le(1000)),
+            and("distance", gte(100), lte(1000)),
             and(
                 and("age", eq(55)),
                 and("thing", gt(123), lt(999))
@@ -57,7 +57,7 @@ public class TestFilterConditions {
     @Test
     public void test_condition_4() {
         String condition = this.renderer.renderCondition(or(
-            and("distance", ge(100), le(1000)),
+            and("distance", gte(100), lte(1000)),
             and(
                 and("age", eq(55)),
                 and("thing", gt(123), and("abc", lt(999)))
@@ -69,7 +69,7 @@ public class TestFilterConditions {
     @Test
     public void test_condition_5() {
         String condition = this.renderer.renderCondition(or(
-            and("distance", ge(100), le(1000)),
+            and("distance", gte(100), lte(1000)),
             and(
                 and("age", eq(55)),
                 or(

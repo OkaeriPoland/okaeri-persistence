@@ -32,19 +32,19 @@ public class TestFilterConditions {
 
     @Test
     public void test_condition_1() {
-        String condition = this.renderer.renderCondition(and("distance", ge(100), le(1000))); // distance between 100 and 1000
+        String condition = this.renderer.renderCondition(and("distance", gte(100), lte(1000))); // distance between 100 and 1000
         assertDoesNotThrow(() -> Document.parse(condition), condition);
-        assertEquals("{\"$and\": [{ \"distance\": { \"$ge\": 100 }}, { \"distance\": { \"$le\": 1000 }}]}", condition);
+        assertEquals("{\"$and\": [{ \"distance\": { \"$gte\": 100 }}, { \"distance\": { \"$lte\": 1000 }}]}", condition);
     }
 
     @Test
     public void test_condition_2() {
         String condition = this.renderer.renderCondition(or(
-            and("distance", ge(100), le(1000)),
+            and("distance", gte(100), lte(1000)),
             and("age", eq(55))
         ));
         assertDoesNotThrow(() -> Document.parse(condition), condition);
-        assertEquals("{\"$or\": [{\"$and\": [{ \"distance\": { \"$ge\": 100 }}, { \"distance\": { \"$le\": 1000 }}]}, {\"$and\": [{ \"age\": { \"$eq\": 55 }}]}]}", condition);
+        assertEquals("{\"$or\": [{\"$and\": [{ \"distance\": { \"$gte\": 100 }}, { \"distance\": { \"$lte\": 1000 }}]}, {\"$and\": [{ \"age\": { \"$eq\": 55 }}]}]}", condition);
     }
 
     @Test

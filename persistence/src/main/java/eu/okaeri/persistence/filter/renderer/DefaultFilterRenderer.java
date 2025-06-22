@@ -36,11 +36,11 @@ public class DefaultFilterRenderer implements FilterRenderer {
 
         if (predicate instanceof EqPredicate) {
             return "==";
-        } else if (predicate instanceof GePredicate) {
+        } else if (predicate instanceof GtePredicate) {
             return ">=";
         } else if (predicate instanceof GtPredicate) {
             return ">";
-        } else if (predicate instanceof LePredicate) {
+        } else if (predicate instanceof LtePredicate) {
             return "<=";
         } else if (predicate instanceof LtPredicate) {
             return "<";

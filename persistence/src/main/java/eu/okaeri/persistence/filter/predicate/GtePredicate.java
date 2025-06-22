@@ -6,9 +6,9 @@ import lombok.NonNull;
  * VALUE greater than or equal to X
  * {@code val >= x}
  */
-public class GePredicate extends PredicateNumeric {
+public class GtePredicate extends PredicateNumeric {
 
-    public GePredicate(@NonNull Object rightOperand) {
+    public GtePredicate(@NonNull Object rightOperand) {
         super(rightOperand);
     }
 
