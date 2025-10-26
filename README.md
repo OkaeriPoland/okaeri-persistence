@@ -214,7 +214,7 @@ Add dependency to the `dependencies` section:
 <dependency>
     <groupId>eu.okaeri</groupId>
     <artifactId>okaeri-persistence-[type]</artifactId>
-    <version>3.0.1-beta.4</version>
+    <version>3.0.1-beta.5</version>
 </dependency>
 ```
 
@@ -229,5 +229,5 @@ maven("https://storehouse.okaeri.eu/repository/maven-public/")
 Add dependency to the `dependencies` section:
 
 ```kotlin
-implementation("eu.okaeri:okaeri-persistence-[type]:3.0.1-beta.4")
+implementation("eu.okaeri:okaeri-persistence-[type]:3.0.1-beta.5")
 ```
