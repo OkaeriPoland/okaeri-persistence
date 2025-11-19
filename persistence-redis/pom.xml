@@ -15,13 +15,13 @@
         <dependency>
             <groupId>eu.okaeri</groupId>
             <artifactId>okaeri-persistence-core</artifactId>
-            <version>3.0.1-beta.5</version>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>io.lettuce</groupId>
             <artifactId>lettuce-core</artifactId>
-            <version>6.3.2.RELEASE</version>
+            <version>${lettuce.version}</version>
         </dependency>
     </dependencies>
 

@@ -27,7 +27,7 @@ public class Condition implements Predicate {
     }
 
     public static Condition and(@NonNull String path, @NonNull Predicate... predicates) {
-        return and(PersistencePath.of(path), predicates);
+        return and(PersistencePath.parse(path, "."), predicates);
     }
 
     public static Condition and(@NonNull PersistencePath path, @NonNull Predicate... predicates) {
@@ -40,7 +40,7 @@ public class Condition implements Predicate {
     }
 
     public static Condition or(@NonNull String path, @NonNull Predicate... predicates) {
-        return or(PersistencePath.of(path), predicates);
+        return or(PersistencePath.parse(path, "."), predicates);
     }
 
     public static Condition or(@NonNull PersistencePath path, @NonNull Predicate... predicates) {

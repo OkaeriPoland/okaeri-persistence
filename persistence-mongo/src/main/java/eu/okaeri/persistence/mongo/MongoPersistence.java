@@ -41,6 +41,10 @@ public class MongoPersistence extends NativeRawPersistence {
         this.connect(client, databaseName);
     }
 
+    public MongoPersistence(@NonNull MongoClient client, @NonNull String databaseName) {
+        this(PersistencePath.of(""), client, databaseName);
+    }
+
     @SneakyThrows
     private void connect(@NonNull MongoClient client, @NonNull String databaseName) {
         do {
@@ -85,6 +89,10 @@ public class MongoPersistence extends NativeRawPersistence {
 
         FindIterable<BasicDBObject> findIterable = this.mongo(collection).find()
             .filter(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere()))));
+
+        if (filter.hasOrderBy()) {
+            findIterable = findIterable.sort(Document.parse(this.debugQuery(FILTER_RENDERER.renderOrderBy(filter.getOrderBy()))));
+        }
 
         if (filter.hasSkip()) {
             findIterable = findIterable.skip(filter.getSkip());

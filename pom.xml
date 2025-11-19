@@ -10,6 +10,7 @@
     <version>3.0.1-beta.5</version>
     <modules>
         <module>persistence</module>
+        <module>persistence-test</module>
         <module>persistence-flat</module>
         <module>persistence-jdbc</module>
         <module>persistence-mongo</module>
@@ -20,26 +21,69 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
+
+        <!-- Dependency versions -->
+        <lombok.version>1.18.42</lombok.version>
+        <junit.version>5.10.2</junit.version>
+        <testcontainers.version>2.0.2</testcontainers.version>
+        <okaeri-configs.version>6.0.0-beta.3</okaeri-configs.version>
+        <hikaricp.version>7.0.2</hikaricp.version>
+        <h2.version>2.4.240</h2.version>
+        <postgresql.version>42.7.5</postgresql.version>
+        <mongodb-driver.version>5.5.1</mongodb-driver.version>
+        <lettuce.version>7.0.0.RELEASE</lettuce.version>
+
+        <!-- Maven plugin versions -->
+        <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
+        <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
+        <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
-            <version>1.18.38</version>
+            <version>${lombok.version}</version>
             <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>5.10.2</version>
+            <version>${junit.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
-            <version>5.10.2</version>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Testcontainers for automatic Docker container management in tests -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-mongodb</artifactId>
+            <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -49,11 +93,11 @@
             <plugins>
                 <plugin>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.0.0-M7</version>
+                    <version>${maven-surefire-plugin.version}</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.12.1</version>
+                    <version>${maven-compiler-plugin.version}</version>
                     <configuration>
                         <compilerArgs>
                             <arg>-parameters</arg>
@@ -62,7 +106,7 @@
                 </plugin>
                 <plugin>
                     <artifactId>maven-source-plugin</artifactId>
-                    <version>3.2.1</version>
+                    <version>${maven-source-plugin.version}</version>
                     <executions>
                         <execution>
                             <id>attach-sources</id>
@@ -74,7 +118,7 @@
                 </plugin>
                 <plugin>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.6.3</version>
+                    <version>${maven-javadoc-plugin.version}</version>
                     <configuration>
                         <doclint>all,-missing</doclint>
                     </configuration>
@@ -93,19 +137,19 @@
 
     <repositories>
         <repository>
-            <id>storehouse-releases</id>
-            <url>https://storehouse.okaeri.eu/repository/maven-releases/</url>
+            <id>okaeri-releases</id>
+            <url>https://repo.okaeri.cloud/releases</url>
         </repository>
     </repositories>
 
     <distributionManagement>
         <repository>
-            <id>storehouse-releases</id>
-            <url>https://storehouse.okaeri.eu/repository/maven-releases/</url>
+            <id>okaeri-releases</id>
+            <url>https://repo.okaeri.cloud/releases</url>
         </repository>
         <snapshotRepository>
-            <id>storehouse-snapshots</id>
-            <url>https://storehouse.okaeri.eu/repository/maven-snapshots/</url>
+            <id>okaeri-snapshots</id>
+            <url>https://repo.okaeri.cloud/snapshots</url>
         </snapshotRepository>
     </distributionManagement>
 

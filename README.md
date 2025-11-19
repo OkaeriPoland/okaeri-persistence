@@ -1,233 +1,539 @@
 # Okaeri Persistence
 
-![License](https://img.shields.io/github/license/OkaeriPoland/okaeri-persistence)
-![Total lines](https://img.shields.io/tokei/lines/github/OkaeriPoland/okaeri-persistence)
-![Repo size](https://img.shields.io/github/repo-size/OkaeriPoland/okaeri-persistence)
-![Contributors](https://img.shields.io/github/contributors/OkaeriPoland/okaeri-persistence)
-[![Discord](https://img.shields.io/discord/589089838200913930)](https://discord.gg/hASN5eX)
+![License](https://img.shields.io/github/license/OkaeriPoland/okaeri-persistence?style=for-the-badge&color=blue)
+[![Discord](https://img.shields.io/discord/589089838200913930?style=for-the-badge&logo=discord&color=blue)](https://discord.gg/hASN5eX)
 
-Object Document Mapping (ODM) library allowing to focus on data instead of the storage layer.
-Originally developed for and part of the [okaeri-platform](https://github.com/OkaeriPoland/okaeri-platform).
+Object Document Mapping (ODM) library for Java - write your data layer once, run it anywhere. MongoDB today, PostgreSQL tomorrow, in-memory for tests.
 
-## Backends
+## Features
 
-### Document native
+- **Write Once, Run Anywhere**: Swap databases with one line - the core Java philosophy (without the XML hell)
+- **Fluent Query API**: Basic filtering, ordering, and pagination (MongoDB/PostgreSQL; other backends coming soon)
+- **Repository Pattern**: Annotate fields and get auto-implemented finders - simple but effective
+- **Unified Indexing**: Declare indexes once, backends create native indexes when supported or emulate them
+- **Document-Based**: Store data as JSON/YAML documents - flexible but not schema-free
+- **Streaming Support**: Process large datasets with Java streams and automatic batching
 
-| Name                | Type    | Indexes      | Comment                                                                                                                                                                                                                            |
-|---------------------|---------|--------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| MongoPersistence    | `mongo` | Yes (native) | Uses [the official MongoDB driver](https://github.com/mongodb/mongo-java-driver). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed. |
-| PostgresPersistence | `jdbc`  | Yes (native) | Use [the official PostgreSQL JDBC driver](https://github.com/pgjdbc/pgjdbc). Automatically creates native indexes for indexed fields and supports native filtering by properties even when property is not marked as indexed.      |
+## The Philosophy (and the Pitfalls)
 
-### Flat & Databases
+**The Good**: Write your persistence code once against our interface, switch from MongoDB to PostgreSQL without changing application code. Your dev team can use H2, staging uses PostgreSQL, production uses MongoDB. Same code.
 
-| Name               | Type    | Indexes                          | Comment                                                                                                                                                                                                                                                                                                                                                                                       |
-|--------------------|---------|----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| FlatPersistence    | `flat`  | Yes (in-memory or file based)    | Allows managing collections of the configuration files with the possibility to index certain properties for quick search, any okaeri-configs provider can be used. With the default saveIndex=false index is automatically created every startup. One may choose to save index to disk. However, we highly advise against using persistent index, especially in write intensive applications. |
-| MariaDbPersistence | `jdbc`  | Yes (additional table)           | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created with MySQL/MariaDB in mind using native JSON datatype, makes use of the json_extract for filtering by properties even when property is not marked as indexed.                                                                                                                                                           |
-| H2Persistence      | `jdbc`  | Yes (additional table)           | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for H2 databases in `mode=mysql`. Stores JSON in the text field, makes use of the instr for prefiltering when possible.                                                                                                                                                                                                 |
-| JdbcPersistence    | `jdbc`  | Yes (additional table)           | Uses [HikariCP](https://github.com/brettwooldridge/HikariCP). Created for generic JDBC support. Stores JSON in the text field, makes no use of any prefiltering whatsoever. Data writes take two queries.                                                                                                                                                                                     |
-| RedisPersistence   | `redis` | Yes (additional hashes and sets) | Uses [Lettuce](https://lettuce.io/). Created for storing JSON documents with something the redis itself is missing - ability to access entity by property without the need to manually manage additional keys. Makes use of lua scripts for blazing-fast startup index validation and filtering by indexed properties.                                                                        |
+**The Catch**: You're trading database-specific optimizations for portability. Need MongoDB's aggregation pipeline? You'll have to fetch and process in Java. Need PostgreSQL's full-text search? Same deal. This library is for when you value flexibility and developer velocity over squeezing every bit of performance from your database.
 
-### Special usage
+**Good For**: Apps where data naturally clusters around an ID (user profiles, game state, session data), rapid prototyping, when you want to defer the database choice.
 
-| Name                        | Type   | Indexes         | Comment                                                                                                                                                                                                                                                                                                                                                             |
-|-----------------------------|--------|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| InMemoryDocumentPersistence | `core` | Yes (in-memory) | Included in the core library implementation allowing to manage volatile collections of configurations. Great to store user state, e.g. on gameservers, can store even unserializable entities (it is required to mark them as @Excluded, because indexing still needs to deconstruct documents). Allows to use the power of indexing without the need for database. |
+**Not Good For**: Complex joins, analytical queries, when you need database-specific features, when you need every bit of performance.
 
-## Genesis
+## Requirements
 
-The library is composed based on the [okaeri-configs](https://github.com/OkaeriPoland/okaeri-configs) and is intended
-to be used as an extension to store configurations or other documents without thinking about a specific backend.
-Core library provides relatively small footprint with size below 100kB (even with file persistence) and allows to use more
-sophisticated database drivers when needed.
+### Java
+- **Java 8 or higher** for library code
+- **Java 21** for running tests (but your app can use Java 8)
 
-```java
-new DocumentPersistence(new JdbcPersistence(basePath, hikari), JsonSimpleConfigurer::new)
-```
+### Backends
 
-## Documents
+Pick one (or multiple):
 
-Being based on the documents allows supporting practically any platform possible. Store as a file? No problem, YAML, HJSON, anything.
-What about the databases? Dedicated for the document stores, NoSQL or abusing relational database to store JSON? No problem!
+**Native Document Support:**
 
-Documents come at the additional benefit of not having to worry about complex relations based on the multiple tables which can
-limit the developer possibilities for storing the data. Storing objects in the relational database isn't fun when it comes
-to nested maps and lists and may require the change of the project core concepts or means accepting the limitations and potential
-performance impact of the complex joins and queries.
+| Backend | Artifact | Description |
+|---------|----------|-------------|
+| **MongoDB** | `okaeri-persistence-mongo` | Uses the official MongoDB driver. Native document store with automatic index creation and native filtering by properties. Best for pure document workloads and horizontal scaling. |
+| **PostgreSQL** | `okaeri-persistence-jdbc` | Uses the official PostgreSQL JDBC driver with HikariCP. Stores documents as JSONB with native GIN indexes and JSONB operators for filtering. ACID guarantees and excellent query performance. |
 
-There is a great place for optimizations of the object structure and relational databases, but sometimes it is just not the right fit.
-We value flexibility and fast development. Carefully designing fine-tuned 6 table schemas to store just a few tens of thousands objects
-is the opposite of that.
+**Emulated/Workaround Storage:**
 
-You are developing a simple concept TODO app, you can take your time and manually create your tables and then write really complex
-queries just to get poor performance. You can use complex ORM framework like Hibernate and skip most of the queries part. But then
-you realize that you probably just fetch the data for the single user all the time, so why bother? Documents just fit in here.
-
-Anything that closely bounds to some identifier and is used almost exclusively for that scope is the perfect example where spending
-time thinking about your database backend may be just not worth it. You just need to define your expectations and make a decision
-what do you value more.
-
-```java
-// example document vs tables used in the relational databases
-public class UserProperties extends Document {
-    private UUID uuid;
-    private List<Instant> lastLogins; // table: user_logins
-    private String name;
-    private List<String> aliases; // table: user_aliases
-    private Map<String, List<String>> todoLists; // table: user_todo, user_todo_task
-    private List<UUID> friends; // table: user_friends
-}
-```
-
-## Indexes
-
-Implementations may provide indexing support. The idea is the developer does not need to care about the specifics.
-The backends just work, better or worse. That does not mean your apps would be poorly performing. It just means
-that if you want to leave the choice to the user you can do that. There is nothing wrong with file based storage
-for small game server or local app, but a real database may be required for the more demanding environments.
-
-Fetching by indexed property is expected to be almost as quick as using ID, but when the implementation does not
-provide it, fallback methods are used for slower but still working filtering. Thanks to that you can get the
-best performance possible on the specific backend and it just works.
-
-Indexing comes at the cost of increased memory or/and storage usage and write penalty, varying depending on the backend.
-It is highly recommended, same as with every database, to chose your indexes wisely. You are trading some of that write
-speed and resources for the greatly reduced read times.
-
-Manual changes done to the databases, depending on the backend, may cause emulated indexes to be inaccurate. We guarantee
-however, to never feed you wrong data (e.g. when you are searching by prop=123 you should always get only matching documents).
-It is possible to miss some data in such search, where the database was manually altered without updating indexes.
-
-```java
-PersistenceCollection.of("player", 36)
-    .index(IndexProperty.of("name", 24))
-    .index(IndexProperty.of("lastJoinedLocation").sub("world").maxLength(64))
-```
-
-## Streams
-
-Streaming API opens multiple possibilities, e.g. filters can be automatically optimized. Implementations may fetch
-data in partitions and then parsing is done only when document is about to get into the stream. Everything is
-done automatically and can decrease fetch times dramatically. Smart tricks like prefiltering can be applied to prevent
-parsing documents determined not to include searched property.
-
-Example pipeline of the stream:
-
-- Redis cursor, Files.list or other generator
-- Optional string prefilter for readByProperty calls
-- Format to Document mapper (basically parsing JSON/YAML)
-- Optional document filter for readByProperty
-- Optional mapping to the custom object
-- Your filters and processing
-
-## Repositories
-
-Reducing boilerplate is one of the primary goals for the project. We provide DocumentRepository<PATH, T> interface which allows to access basic methods similar to
-Spring Boot's CrudRepository and allows for simple filters to be automatically implemented. Example repository setup and usage can be found in
-the [TestPersistenceJdbc](https://github.com/OkaeriPoland/okaeri-persistence/blob/master/persistence-jdbc/src/test/java/eu/okaeri/persistencetestjdbc/basic/TestPersistenceJdbc.java).
-
-### Default methods
-
-```java
-public interface DocumentRepository<PATH, T extends Document> {
-    DocumentPersistence getPersistence();
-    PersistenceCollection getCollection();
-    Class<? extends Document> getDocumentType();
-    long count();
-    boolean deleteAll();
-    long deleteAllByPath(Iterable<? extends PATH> paths);
-    boolean deleteByPath(PATH path);
-    boolean existsByPath(PATH path);
-    Collection<T> findAll();
-    Stream<T> streamAll();
-    Collection<T> findAllByPath(Iterable<? extends PATH> paths);
-    Collection<T> findOrCreateAllByPath(Iterable<? extends PATH> paths);
-    Optional<T> findByPath(PATH path);
-    T findOrCreateByPath(PATH path);
-    T save(T document);
-    Iterable<T> saveAll(Iterable<T> documents);
-}
-```
-
-### Example repository
-
-```java
-@DocumentCollection(path = "user", keyLength = 36, indexes = {
-    @DocumentIndex(path = "shortId", maxLength = 8),
-    @DocumentIndex(path = "meta.name", maxLength = 64)
-})
-public interface UserRepository extends DocumentRepository<UUID, User> {
-
-    @DocumentPath("shortId")
-    Stream<User> streamByShortId(String shortId);
-
-    @DocumentPath("shortId")
-    Optional<User> findByShortId(String shortId);
-
-    @DocumentPath("shortId")
-    List<User> listByShortId(String shortId);
-
-    @DocumentPath("shortId")
-    Stream<PersistenceEntity<User>> streamEntityByShortId(String shortId);
-
-    @DocumentPath("shortId")
-    Optional<PersistenceEntity<User>> findEntityByShortId(String shortId);
-
-    @DocumentPath("shortId")
-    List<PersistenceEntity<User>> listEntityByShortId(String shortId);
-
-    @DocumentPath("meta.name")
-    Stream<User> streamByMetaName(String name);
-
-    // custom method
-    default String getMetaDescriptionById(UUID id) {
-        return this.findByPath(id)
-            .map(user -> user.getMeta().getDescription())
-            .orElse(null);
-    }
-}
-```
-
-## Examples
-
-See [PlayerRepository](https://github.com/OkaeriPoland/okaeri-platform/blob/master/bukkit-example/src/main/java/org/example/okaeriplatformtest/persistence/PlayerRepository.java) in the okaeri-platform
-example. For the methods available in Persistence classes refer to
-the [source code comments](https://github.com/OkaeriPoland/okaeri-persistence/blob/master/persistence/src/main/java/eu/okaeri/persistence/Persistence.java). Thank you for the interest in the project.
-We wish you an enjoyable stay or a pleasant onward journey.
+| Backend | Artifact | Description |
+|---------|----------|-------------|
+| **Redis** | `okaeri-persistence-redis` | Uses Lettuce client. Stores JSON as strings with Lua script-based filtering and hash/set secondary indexes. Blazing fast key-value access, supports TTL. Filtering is slower than native document stores. |
+| **MariaDB/MySQL** | `okaeri-persistence-jdbc` | Uses HikariCP with MySQL/MariaDB. Stores documents using native JSON datatype with json_extract for filtering. Emulated indexes in separate table. Slower JSON queries than PostgreSQL. |
+| **H2** | `okaeri-persistence-jdbc` | Uses HikariCP with H2 in MySQL mode. Stores JSON as text with basic string filtering (instr). Emulated indexes in separate table. Good for embedded use and testing. |
+| **Flat Files** | `okaeri-persistence-flat` | File-based storage using any okaeri-configs format (YAML/JSON/HOCON). In-memory or file-based indexes. Perfect for small servers, config files, or when you don't want a database. |
+| **In-Memory** | `okaeri-persistence-core` | Pure in-memory storage with HashMap-based indexes. Zero persistence, excellent performance. Great for testing, temporary state, or volatile data like game sessions. |
 
 ## Installation
 
+![Version](https://img.shields.io/badge/version-3.0.1--beta.5-blue.svg?style=for-the-badge)
+![Java](https://img.shields.io/badge/java-8%2B-blue.svg?style=for-the-badge)
+
 ### Maven
-
-Add repository to the `repositories` section:
-
 ```xml
-<repository>
-    <id>okaeri-repo</id>
-    <url>https://storehouse.okaeri.eu/repository/maven-public/</url>
-</repository>
+<repositories>
+    <repository>
+        <id>okaeri-releases</id>
+        <url>https://repo.okaeri.cloud/releases</url>
+    </repository>
+</repositories>
 ```
-
-Add dependency to the `dependencies` section:
-
 ```xml
 <dependency>
     <groupId>eu.okaeri</groupId>
-    <artifactId>okaeri-persistence-[type]</artifactId>
+    <artifactId>okaeri-persistence-mongo</artifactId>
     <version>3.0.1-beta.5</version>
 </dependency>
 ```
 
-### Gradle
-
-Add repository to the `repositories` section:
-
+### Gradle (Kotlin DSL)
 ```kotlin
-maven("https://storehouse.okaeri.eu/repository/maven-public/")
+repositories {
+    maven("https://repo.okaeri.cloud/releases")
+}
+```
+```kotlin
+dependencies {
+    implementation("eu.okaeri:okaeri-persistence-mongo:3.0.1-beta.5")
+}
 ```
 
-Add dependency to the `dependencies` section:
+**Replace `mongo` with:** `jdbc`, `redis`, `flat` depending on your backend.
 
-```kotlin
-implementation("eu.okaeri:okaeri-persistence-[type]:3.0.1-beta.5")
+## Quick Start
+
+### 1. Define Your Document
+
+```java
+@Data
+public class User extends Document {
+    private String name;
+    private int level;
+    private Instant lastLogin;
+    private List<String> achievements;
+}
 ```
+
+### 2. Create a Repository
+
+```java
+@DocumentCollection(
+    path = "users",
+    keyLength = 36,
+    indexes = {
+        @DocumentIndex(path = "name", maxLength = 32),
+        @DocumentIndex(path = "level")
+    }
+)
+public interface UserRepository extends DocumentRepository<UUID, User> {
+
+    @DocumentPath("name")
+    Optional<User> findByName(String name);
+
+    @DocumentPath("level")
+    Stream<User> streamByLevel(int level);
+}
+```
+
+### 3. Use It
+
+```java
+import static eu.okaeri.persistence.filter.OrderBy.*;
+import static eu.okaeri.persistence.filter.condition.Condition.*;
+import static eu.okaeri.persistence.filter.predicate.SimplePredicate.*;
+
+// Setup (MongoDB example - swap for any backend)
+MongoClient mongo = MongoClients.create("mongodb://localhost");
+DocumentPersistence persistence = new DocumentPersistence(
+    new MongoPersistence(mongo, "mydb"),
+    JsonSimpleConfigurer::new
+);
+
+// Create repository (convenience method)
+UserRepository users = persistence.createRepository(UserRepository.class);
+
+// Advanced: manual approach for custom ClassLoader or collection customization
+// PersistenceCollection collection = PersistenceCollection.of(UserRepository.class);
+// persistence.registerCollection(collection);
+// UserRepository users = RepositoryDeclaration.of(UserRepository.class)
+//     .newProxy(persistence, collection, customClassLoader);
+
+// Create
+User alice = new User();
+alice.setPath(PersistencePath.of(UUID.randomUUID()));
+alice.setName("alice");
+alice.setLevel(42);
+alice.setAchievements(List.of("speedrun", "pacifist"));
+users.save(alice);
+
+// Find by ID
+User found = users.findByPath(alice.getPath()).orElseThrow();
+
+// Find by indexed field (auto-implemented @DocumentPath method)
+User byName = users.findByName("alice").orElseThrow();
+
+// Query with filtering and ordering
+List<User> topPlayers = users.find(q -> q
+  .where(on("level", gt(10)))
+  .orderBy(desc("level"), asc("name"))
+  .limit(10))
+  .collect(Collectors.toList());
+
+// Stream processing
+users.streamByLevel(42)
+  .filter(u -> u.getAchievements().size() > 1)
+  .forEach(u -> System.out.println(u.getName()));
+```
+
+## Query API
+
+The `find()` method takes a lambda that builds a query and returns a Stream (MongoDB and PostgreSQL only):
+
+```java
+// Filtering
+List<User> users = userRepo.find(q -> q
+  .where(on("level", gt(10))))
+  .collect(Collectors.toList());
+
+// Multiple conditions
+List<User> users = userRepo.find(q -> q
+  .where(and(
+    on("level", gte(10)),
+    on("lastLogin", gt(yesterday)))))
+  .collect(Collectors.toList());
+
+// Ordering (single or multiple)
+List<User> users = userRepo.find(q -> q
+  .orderBy(desc("level")))
+  .collect(Collectors.toList());
+
+List<User> users = userRepo.find(q -> q
+  .orderBy(desc("score"), asc("name")))
+  .collect(Collectors.toList());
+
+// Nested properties
+List<Profile> profiles = profileRepo.find(q -> q
+  .where(on("address.city", eq("London")))
+  .orderBy(asc("profile.age")))
+  .collect(Collectors.toList());
+
+// Pagination
+List<User> users = userRepo.find(q -> q
+  .where(on("active", eq(true)))
+  .orderBy(desc("score"))
+  .skip(20)
+  .limit(10))
+  .collect(Collectors.toList()); // Page 3 of results
+
+// All together
+List<User> results = userRepo.find(q -> q
+  .where(and(
+    on("level", between(10, 50)),
+    on("banned", eq(false))))
+  .orderBy(desc("level"), asc("name"))
+  .skip(0)
+  .limit(25))
+  .collect(Collectors.toList());
+```
+
+**Supported Operators**: `eq`, `gt`, `gte`, `lt`, `lte`, `between`, `in`, `and`, `or`
+
+**Backend Support**: Native query translation currently available for:
+- **MongoDB** → Native queries with `$gt`, `$and`, etc.
+- **PostgreSQL** → JSONB operators (`->`, `->>`) with GIN indexes
+
+**Note**: Redis, Flat Files, and In-Memory backends will support `find()` with in-memory filtering in a future release. For now, use `@DocumentPath` methods or `streamAll()` with Java stream filters for these backends.
+
+## Repository Methods
+
+Annotate methods with `@DocumentPath` and they're auto-implemented (works for any field, but indexing recommended for performance):
+
+```java
+@DocumentCollection(path = "players", keyLength = 36, indexes = {
+    @DocumentIndex(path = "username", maxLength = 16),
+    @DocumentIndex(path = "rank", maxLength = 32)
+})
+public interface PlayerRepository extends DocumentRepository<UUID, Player> {
+
+    // Returns Optional<Player>
+    @DocumentPath("username")
+    Optional<Player> findByUsername(String username);
+
+    // Returns Stream<Player>
+    @DocumentPath("rank")
+    Stream<Player> streamByRank(String rank);
+
+    // Returns List<Player>
+    @DocumentPath("rank")
+    List<Player> listByRank(String rank);
+
+    // Nested properties
+    @DocumentPath("stats.level")
+    Stream<Player> streamByStatsLevel(int level);
+
+    // Custom logic
+    default boolean isUsernameTaken(String username) {
+        return findByUsername(username).isPresent();
+    }
+
+    default Player getOrCreate(UUID id, String username) {
+        return findByPath(id).orElseGet(() -> {
+            Player p = new Player();
+            p.setPath(id);
+            p.setUsername(username);
+            return save(p);
+        });
+    }
+}
+```
+
+**Built-in Methods** (from `DocumentRepository`):
+
+```java
+// Metadata
+DocumentPersistence getPersistence()
+PersistenceCollection getCollection()
+Class<? extends Document> getDocumentType()
+
+// Counting
+long count()
+
+// Finding - by path
+Optional<T> findByPath(PATH path)
+T findOrCreateByPath(PATH path)
+Collection<T> findAll()
+Collection<T> findAllByPath(Iterable<PATH> paths)
+Collection<T> findOrCreateAllByPath(Iterable<PATH> paths)
+Stream<T> streamAll()
+
+// Finding - with queries (MongoDB/PostgreSQL only)
+Stream<T> find(FindFilter filter)
+Stream<T> find(Function<FindFilterBuilder, FindFilterBuilder> function)
+Stream<T> find(Condition condition)
+Optional<T> findOne(Condition condition)
+
+// Saving
+T save(T document)
+Iterable<T> saveAll(Iterable<T> documents)
+
+// Deleting - by path
+boolean deleteByPath(PATH path)
+long deleteAllByPath(Iterable<PATH> paths)
+boolean deleteAll()
+
+// Deleting - with queries (MongoDB/PostgreSQL only)
+long delete(DeleteFilter filter)
+long delete(Function<DeleteFilterBuilder, DeleteFilterBuilder> function)
+
+// Existence
+boolean existsByPath(PATH path)
+```
+
+## Switching Backends
+
+Change one line, everything else stays the same:
+
+```java
+// MongoDB
+new DocumentPersistence(new MongoPersistence(mongoClient, "mydb"), JsonSimpleConfigurer::new);
+
+// PostgreSQL
+new DocumentPersistence(new PostgresPersistence(hikariDataSource), JsonSimpleConfigurer::new);
+
+// Redis
+new DocumentPersistence(new RedisPersistence(redisClient), JsonSimpleConfigurer::new);
+
+// Flat files (YAML/JSON/HOCON)
+new DocumentPersistence(new FlatPersistence(new File("./data"), ".yml", YamlBukkitConfigurer::new), YamlBukkitConfigurer::new);
+
+// In-memory (volatile, no persistence)
+new DocumentPersistence(new InMemoryDocumentPersistence(), JsonSimpleConfigurer::new);
+```
+
+**Namespace support**: Add `PersistencePath.of("prefix")` as first parameter to prevent collection name conflicts when multiple apps share storage (e.g., `new MongoPersistence(PersistencePath.of("app"), mongoClient, "mydb")`).
+
+Your repositories, queries, and business logic stay the same.
+
+## Indexing
+
+Declare indexes once in your `@DocumentCollection`:
+
+```java
+@DocumentCollection(
+    path = "users",
+    keyLength = 36,
+    indexes = {
+        @DocumentIndex(path = "username", maxLength = 32),
+        @DocumentIndex(path = "email", maxLength = 128),
+        @DocumentIndex(path = "profile.age"),
+        @DocumentIndex(path = "settings.notifications.email")
+    }
+)
+```
+
+What happens:
+- **MongoDB**: Creates native `db.collection.createIndex()`
+- **PostgreSQL**: Creates GIN indexes on JSONB paths
+- **Redis**: Maintains hash-based secondary indexes with Lua scripts
+- **Flat/Memory**: Builds in-memory maps for O(1) lookups
+
+**Tradeoff**: Indexes speed up reads but slow down writes and use more memory/storage. Choose wisely.
+
+## Streaming Large Datasets
+
+Process large datasets with automatic batching:
+
+```java
+// Stream all users (fetched in batches automatically)
+userRepository.streamAll()
+  .filter(u -> u.getLevel() > 50)
+  .map(User::getName)
+  .forEach(System.out::println);
+
+// Custom queries return streams
+userRepository.find(q -> q.where(on("active", eq(true))))
+  .parallel() // Process in parallel
+  .map(this::calculateStats)
+  .collect(Collectors.toList());
+```
+
+Backend-specific optimizations:
+- **MongoDB**: Uses cursors with configurable batch size
+- **PostgreSQL**: Streams result set without loading everything into memory
+- **Others**: Fetch and stream from storage
+
+## Advanced: Document References
+
+Store references to other documents:
+
+```java
+public class Post extends Document {
+    private String title;
+    private String content;
+    private Ref<User> author; // Reference to User document
+
+    public User getAuthor() {
+        return author.fetch(); // Lazy-loads when accessed
+    }
+}
+
+// Usage
+Post post = postRepository.findByPath(postId).orElseThrow();
+User author = post.getAuthor(); // Fetches user document
+System.out.println("Posted by: " + author.getName());
+```
+
+## Real-World Example
+
+Complete user management system:
+
+```java
+// Document model
+@Data
+public class UserAccount extends Document {
+    private String email;
+    private String username;
+    private UserProfile profile;
+    private String role; // e.g., "USER", "ADMIN", "MODERATOR"
+    private Instant createdAt;
+    private Instant lastLogin;
+}
+
+@Data
+public class UserProfile {
+    private String displayName;
+    private String bio;
+    private String avatarUrl;
+    private Map<String, Object> preferences;
+}
+
+// Repository
+@DocumentCollection(
+    path = "accounts",
+    keyLength = 36,
+    indexes = {
+        @DocumentIndex(path = "email", maxLength = 128),
+        @DocumentIndex(path = "username", maxLength = 32),
+        @DocumentIndex(path = "role", maxLength = 16)
+    }
+)
+public interface UserAccountRepository extends DocumentRepository<UUID, UserAccount> {
+
+    @DocumentPath("email")
+    Optional<UserAccount> findByEmail(String email);
+
+    @DocumentPath("username")
+    Optional<UserAccount> findByUsername(String username);
+
+    @DocumentPath("role")
+    Stream<UserAccount> streamByRole(String role);
+
+    default UserAccount register(String email, String username) {
+        // WARNING: This has a race condition! In production, use:
+        // - External locking (e.g., Redisson distributed locks)
+        // - Action queue/message broker for sequential processing
+        if (findByEmail(email).isPresent()) {
+            throw new IllegalStateException("Email already registered");
+        }
+
+        UserAccount account = new UserAccount();
+        account.setPath(PersistencePath.of(UUID.randomUUID()));
+        account.setEmail(email);
+        account.setUsername(username);
+        account.setRole("USER");
+        account.setCreatedAt(Instant.now());
+
+        UserProfile profile = new UserProfile();
+        profile.setDisplayName(username);
+        account.setProfile(profile);
+
+        return save(account);
+    }
+
+    default void updateLastLogin(UUID userId) {
+        findByPath(userId).ifPresent(account -> {
+            account.setLastLogin(Instant.now());
+            save(account);
+        });
+    }
+
+    default List<UserAccount> getAdmins() {
+        return streamByRole("ADMIN").collect(Collectors.toList());
+    }
+}
+
+// Usage
+UserAccountRepository accounts = persistence.createRepository(UserAccountRepository.class);
+
+// Register new user
+UserAccount alice = accounts.register("alice@example.com", "alice");
+
+// Login
+accounts.findByEmail("alice@example.com").ifPresent(account -> {
+    accounts.updateLastLogin(account.getPath());
+    System.out.println("Welcome back, " + account.getUsername());
+});
+
+// Find all admins (using indexed field)
+List<UserAccount> admins = accounts.getAdmins();
+
+// Search users by role with ordering
+List<UserAccount> moderators = accounts.find(q -> q
+  .where(on("role", eq("MODERATOR")))
+  .orderBy(asc("username")))
+  .collect(Collectors.toList());
+```
+
+## Backend Comparison
+
+| Feature | MongoDB | PostgreSQL | Redis | Flat Files | In-Memory |
+|---------|---------|------------|-------|------------|-----------|
+| **Indexes** | Native | JSONB GIN | Hash+Set | File/Memory map | HashMap |
+| **Query Support** | find()/delete() | find()/delete() | Planned | Planned | Planned |
+| **Best For** | Document workloads | Already using Postgres | Because you can | Config files, small apps | Testing, temp state |
+
+## Configurer Support
+
+Serialization formats from [okaeri-configs](https://github.com/OkaeriPoland/okaeri-configs):
+
+```java
+// JSON (all backends)
+new DocumentPersistence(backend, JsonSimpleConfigurer::new)
+
+// YAML/HOCON/TOML (flat files only)
+new DocumentPersistence(new FlatPersistence(new File("./data"), ".yml", YamlBukkitConfigurer::new), YamlBukkitConfigurer::new)
+```
+
+MongoDB, PostgreSQL, Redis, and In-Memory use JSON. Flat Files support any format.
+
+## Related Projects
+
+- [okaeri-configs](https://github.com/OkaeriPoland/okaeri-configs) - Configuration library powering the serialization
+- [okaeri-platform](https://github.com/OkaeriPoland/okaeri-platform) - Full application framework using okaeri-persistence

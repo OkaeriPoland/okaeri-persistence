@@ -15,14 +15,14 @@
         <dependency>
             <groupId>eu.okaeri</groupId>
             <artifactId>okaeri-persistence-core</artifactId>
-            <version>3.0.1-beta.5</version>
+            <version>${project.version}</version>
         </dependency>
     </dependencies>
 
     <repositories>
         <repository>
-            <id>okaeri-repo</id>
-            <url>https://storehouse.okaeri.eu/repository/maven-public/</url>
+            <id>okaeri-releases</id>
+            <url>https://repo.okaeri.cloud/releases</url>
         </repository>
     </repositories>
 

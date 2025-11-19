@@ -19,6 +19,8 @@ import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.raw.PersistenceIndexMode;
 import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import eu.okaeri.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.repository.DocumentRepository;
+import eu.okaeri.persistence.repository.RepositoryDeclaration;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -484,6 +486,21 @@ public class DocumentPersistence implements Persistence<Document> {
         }
 
         return document;
+    }
+
+    /**
+     * Convenience method to create and register a repository in one call.
+     * Combines collection creation, registration, and proxy instantiation.
+     *
+     * @param repositoryClass the repository interface class
+     * @param <T> the repository type
+     * @return a proxy instance of the repository
+     */
+    public <T extends DocumentRepository<?, ?>> T createRepository(@NonNull Class<T> repositoryClass) {
+        PersistenceCollection collection = PersistenceCollection.of(repositoryClass);
+        this.registerCollection(collection);
+        return RepositoryDeclaration.of(repositoryClass)
+            .newProxy(this, collection, repositoryClass.getClassLoader());
     }
 
     @Override

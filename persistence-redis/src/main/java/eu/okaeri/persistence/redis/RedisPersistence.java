@@ -36,6 +36,10 @@ public class RedisPersistence extends RawPersistence {
         this.connect(client);
     }
 
+    public RedisPersistence(@NonNull RedisClient client) {
+        this(PersistencePath.of(""), client);
+    }
+
     private static <T> List<List<T>> partition(Collection<T> members, int maxSize) {
 
         List<List<T>> res = new ArrayList<>();

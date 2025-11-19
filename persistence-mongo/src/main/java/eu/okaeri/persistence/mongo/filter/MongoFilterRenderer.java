@@ -1,6 +1,8 @@
 package eu.okaeri.persistence.mongo.filter;
 
 import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.persistence.filter.OrderBy;
+import eu.okaeri.persistence.filter.OrderDirection;
 import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.filter.condition.LogicalOperator;
 import eu.okaeri.persistence.filter.predicate.*;
@@ -8,6 +10,7 @@ import eu.okaeri.persistence.filter.renderer.DefaultFilterRenderer;
 import lombok.NonNull;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class MongoFilterRenderer extends DefaultFilterRenderer {
@@ -67,5 +70,16 @@ public class MongoFilterRenderer extends DefaultFilterRenderer {
     @Override
     public String renderPredicate(@NonNull PersistencePath path, @NonNull Predicate predicate) {
         return "{ \"" + path.toMongoPath() + "\": { \"" + this.renderOperator(predicate) + "\": " + this.renderOperand(predicate) + " }}";
+    }
+
+    @Override
+    public String renderOrderBy(@NonNull List<OrderBy> orderBy) {
+        String fields = orderBy.stream()
+            .map(order -> {
+                int direction = (order.getDirection() == OrderDirection.ASC) ? 1 : -1;
+                return "\"" + order.getPath().toMongoPath() + "\": " + direction;
+            })
+            .collect(Collectors.joining(", "));
+        return "{" + fields + "}";
     }
 }

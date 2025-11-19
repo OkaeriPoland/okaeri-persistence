@@ -1,6 +1,7 @@
 package eu.okaeri.persistence.filter.renderer;
 
 import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.persistence.filter.OrderBy;
 import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.filter.condition.LogicalOperator;
 import eu.okaeri.persistence.filter.predicate.*;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -116,5 +118,12 @@ public class DefaultFilterRenderer implements FilterRenderer {
         }
 
         throw new IllegalArgumentException("cannot render operand " + operand + " [" + operand.getClass() + "]");
+    }
+
+    @Override
+    public String renderOrderBy(@NonNull List<OrderBy> orderBy) {
+        return orderBy.stream()
+            .map(order -> order.getPath().toSqlIdentifier() + " " + order.getDirection().name())
+            .collect(Collectors.joining(", "));
     }
 }

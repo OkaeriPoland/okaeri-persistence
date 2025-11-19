@@ -36,9 +36,17 @@ public class PostgresPersistence extends NativeRawPersistence {
         this.connect(hikariConfig);
     }
 
+    public PostgresPersistence(@NonNull HikariConfig hikariConfig) {
+        this(PersistencePath.of(""), hikariConfig);
+    }
+
     public PostgresPersistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource) {
         super(basePath);
         this.dataSource = dataSource;
+    }
+
+    public PostgresPersistence(@NonNull HikariDataSource dataSource) {
+        this(PersistencePath.of(""), dataSource);
     }
 
     @SneakyThrows
@@ -122,6 +130,10 @@ public class PostgresPersistence extends NativeRawPersistence {
 
         this.checkCollectionRegistered(collection);
         String sql = "select key, value from \"" + this.table(collection) + "\" where " + FILTER_RENDERER.renderCondition(filter.getWhere());
+
+        if (filter.hasOrderBy()) {
+            sql += " order by " + FILTER_RENDERER.renderOrderBy(filter.getOrderBy());
+        }
 
         if (filter.hasSkip()) {
             sql += " offset " + filter.getSkip();

@@ -11,23 +11,36 @@
 
     <artifactId>okaeri-persistence-mongo</artifactId>
 
+    <properties>
+        <!-- Use Java 21 for test compilation -->
+        <maven.compiler.testSource>21</maven.compiler.testSource>
+        <maven.compiler.testTarget>21</maven.compiler.testTarget>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>eu.okaeri</groupId>
             <artifactId>okaeri-persistence-core</artifactId>
-            <version>3.0.1-beta.5</version>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver-sync</artifactId>
-            <version>5.1.1</version>
+            <version>${mongodb-driver.version}</version>
         </dependency>
 
+        <!-- Test infrastructure -->
+        <dependency>
+            <groupId>eu.okaeri</groupId>
+            <artifactId>okaeri-persistence-test</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>eu.okaeri</groupId>
             <artifactId>okaeri-configs-json-simple</artifactId>
-            <version>5.0.4</version>
+            <version>${okaeri-configs.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
