@@ -30,6 +30,10 @@ public abstract class Ref<T extends Document> {
         return Optional.ofNullable(this.fetched ? this.value : this.fetch());
     }
 
+    public T orNull() {
+        return this.get().orElse(null);
+    }
+
     @SuppressWarnings("unchecked")
     public T fetch() {
 
