@@ -219,7 +219,10 @@ public class MongoPersistence extends NativeRawPersistence {
 
     @Override
     public long deleteAll() {
-        throw new UnsupportedOperationException();
+        return this.getKnownCollections().values().stream()
+            .map(this::deleteAll)
+            .filter(Boolean::booleanValue)
+            .count();
     }
 
     @Override

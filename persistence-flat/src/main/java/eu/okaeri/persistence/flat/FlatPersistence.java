@@ -70,9 +70,12 @@ public class FlatPersistence extends RawPersistence {
     @Override
     public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
 
-        // get index
-        InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).get(property.getValue());
-        if (flatIndex == null) throw new IllegalArgumentException("non-indexed property used: " + property);
+        // get index - return false if not registered (FlatFile uses in-memory filtering, indexes optional)
+        Map<String, InMemoryIndex> indexes = this.indexMap.get(collection.getValue());
+        if (indexes == null) return false;
+
+        InMemoryIndex flatIndex = indexes.get(property.getValue());
+        if (flatIndex == null) return false;
 
         // get current value by key and remove from mapping
         String currentValue = flatIndex.getKeyToValue().remove(path.getValue());
@@ -101,9 +104,12 @@ public class FlatPersistence extends RawPersistence {
     @Override
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property) {
 
-        // get index
-        InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).get(property.getValue());
-        if (flatIndex == null) throw new IllegalArgumentException("non-indexed property used: " + property);
+        // get index - return false if not registered (FlatFile uses in-memory filtering, indexes optional)
+        Map<String, InMemoryIndex> indexes = this.indexMap.get(collection.getValue());
+        if (indexes == null) return false;
+
+        InMemoryIndex flatIndex = indexes.get(property.getValue());
+        if (flatIndex == null) return false;
 
         // get current value by key and remove from mapping
         String currentValue = flatIndex.getKeyToValue().remove(path.getValue());
@@ -356,6 +362,11 @@ public class FlatPersistence extends RawPersistence {
 
     @SneakyThrows
     private Stream<Path> scanCollection(@NonNull Path collectionFile) {
+        // Return empty stream if collection directory doesn't exist yet
+        if (!Files.exists(collectionFile)) {
+            return Stream.empty();
+        }
+
         return Files.list(collectionFile)
             .filter(path -> {
                 boolean endsWithSuffix = path.toString().endsWith(this.getFileSuffix());

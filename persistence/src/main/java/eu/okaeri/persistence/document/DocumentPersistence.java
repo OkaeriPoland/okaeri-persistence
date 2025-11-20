@@ -16,6 +16,7 @@ import eu.okaeri.persistence.document.ref.EagerRefSerializer;
 import eu.okaeri.persistence.document.ref.LazyRefSerializer;
 import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
+import eu.okaeri.persistence.filter.InMemoryFilterEvaluator;
 import eu.okaeri.persistence.raw.PersistenceIndexMode;
 import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import eu.okaeri.persistence.raw.RawPersistence;
@@ -25,7 +26,6 @@ import lombok.Getter;
 import lombok.NonNull;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
@@ -33,6 +33,9 @@ import java.util.function.Predicate;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static eu.okaeri.persistence.document.DocumentValueUtils.compareEquals;
+import static eu.okaeri.persistence.document.DocumentValueUtils.extractValue;
 
 public class DocumentPersistence implements Persistence<Document> {
 
@@ -46,6 +49,7 @@ public class DocumentPersistence implements Persistence<Document> {
 
     protected SerdesRegistry serdesRegistry;
     protected Configurer simplifier;
+    protected InMemoryFilterEvaluator filterEvaluator;
 
     /**
      * @param configurerProvider Okaeri Config's provider (mostly json)
@@ -70,6 +74,8 @@ public class DocumentPersistence implements Persistence<Document> {
         // simplifier for document mappings
         this.simplifier = configurerProvider.get();
         this.simplifier.setRegistry(this.serdesRegistry);
+        // in-memory filter evaluator for backends without native query support
+        this.filterEvaluator = new InMemoryFilterEvaluator(this.simplifier);
     }
 
     /**
@@ -211,7 +217,7 @@ public class DocumentPersistence implements Persistence<Document> {
         int changes = 0;
 
         for (IndexProperty index : collectionIndexes) {
-            Object value = this.extractValue(documentMap, index.toParts());
+            Object value = extractValue(documentMap, index.toParts());
             if ((value != null) && !this.getWrite().canUseToString(value)) {
                 throw new RuntimeException("cannot transform " + value + " to index as string");
             }
@@ -312,10 +318,10 @@ public class DocumentPersistence implements Persistence<Document> {
         List<String> pathParts = property.toParts();
         Predicate<PersistenceEntity<Document>> documentFilter = entity -> {
             if (pathParts.size() == 1) {
-                return this.compare(propertyValue, entity.getValue().get(pathParts.get(0)));
+                return compareEquals(propertyValue, entity.getValue().get(pathParts.get(0)));
             }
             Map<String, Object> document = entity.getValue().asMap(this.simplifier, true);
-            return this.compare(propertyValue, this.extractValue(document, pathParts));
+            return compareEquals(propertyValue, extractValue(document, pathParts));
         };
 
         // native read implementation may or may not filter entries
@@ -339,7 +345,12 @@ public class DocumentPersistence implements Persistence<Document> {
 
     @Override
     public Stream<PersistenceEntity<Document>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
-        return this.getRead().readByFilter(collection, filter).map(this.entityToDocumentMapper(collection));
+        try {
+            return this.getRead().readByFilter(collection, filter).map(this.entityToDocumentMapper(collection));
+        } catch (UnsupportedOperationException e) {
+            LOGGER.fine("Backend doesn't support native find(), using in-memory filtering for collection: " + collection.getValue());
+            return this.filterEvaluator.applyFilter(this.streamAll(collection), filter);
+        }
     }
 
     @Override
@@ -402,7 +413,18 @@ public class DocumentPersistence implements Persistence<Document> {
 
     @Override
     public long deleteByFilter(@NonNull PersistenceCollection collection, @NonNull DeleteFilter filter) {
-        return this.getWrite().deleteByFilter(collection, filter);
+        try {
+            return this.getWrite().deleteByFilter(collection, filter);
+        } catch (UnsupportedOperationException e) {
+            LOGGER.fine("Backend doesn't support native delete(), using in-memory filtering for collection: " + collection.getValue());
+            // Search for matching documents, then delete them
+            Stream<PersistenceEntity<Document>> stream = this.streamAll(collection);
+            if (filter.getWhere() != null) {
+                stream = stream.filter(entity -> this.filterEvaluator.evaluateCondition(filter.getWhere(), entity.getValue()));
+            }
+            List<PersistencePath> pathsToDelete = stream.map(PersistenceEntity::getPath).collect(Collectors.toList());
+            return this.getWrite().delete(collection, pathsToDelete);
+        }
     }
 
     public Document createDocument(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
@@ -417,51 +439,6 @@ public class DocumentPersistence implements Persistence<Document> {
             document.load(entity.getValue());
             return entity.into(document);
         };
-    }
-
-    protected Object extractValue(Map<?, ?> document, List<String> pathParts) {
-        for (String part : pathParts) {
-            Object element = document.get(part);
-            if (element instanceof Map) {
-                document = (Map<?, ?>) element;
-                continue;
-            }
-            return element;
-        }
-        return null;
-    }
-
-    protected boolean compare(Object object1, Object object2) {
-
-        if ((object1 == null) && (object2 == null)) {
-            return true;
-        }
-
-        if ((object1 == null) || (object2 == null)) {
-            return false;
-        }
-
-        if ((object1 instanceof Number) && (object2 instanceof Number)) {
-            return ((Number) object1).doubleValue() == ((Number) object2).doubleValue();
-        }
-
-        if (object1.getClass() == object2.getClass()) {
-            return object1.equals(object2);
-        }
-
-        if (((object1 instanceof String) && (object2 instanceof Number)) || ((object1 instanceof Number) && (object2 instanceof String))) {
-            try {
-                return new BigDecimal(String.valueOf(object1)).compareTo(new BigDecimal(String.valueOf(object2))) == 0;
-            } catch (NumberFormatException ignored) {
-                return false;
-            }
-        }
-
-        if (((object1 instanceof String) && (object2 instanceof UUID)) || ((object1 instanceof UUID) && (object2 instanceof String))) {
-            return Objects.equals(String.valueOf(object1), String.valueOf(object2));
-        }
-
-        throw new IllegalArgumentException("cannot compare " + object1 + " [" + object1.getClass() + "] to " + object2 + " [" + object2.getClass() + "]");
     }
 
     public Document update(Document document, PersistenceCollection collection) {
@@ -493,7 +470,7 @@ public class DocumentPersistence implements Persistence<Document> {
      * Combines collection creation, registration, and proxy instantiation.
      *
      * @param repositoryClass the repository interface class
-     * @param <T> the repository type
+     * @param <T>             the repository type
      * @return a proxy instance of the repository
      */
     public <T extends DocumentRepository<?, ?>> T createRepository(@NonNull Class<T> repositoryClass) {

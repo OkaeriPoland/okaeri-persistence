@@ -2,18 +2,20 @@ package eu.okaeri.persistence.filter.predicate;
 
 import lombok.NonNull;
 
+import static eu.okaeri.persistence.document.DocumentValueUtils.compareEquals;
+
 /**
  * VALUE equals X
  * {@code val == x}
  */
-public class EqPredicate extends PredicateNumeric {
+public class EqPredicate extends SimplePredicate {
 
     public EqPredicate(@NonNull Object rightOperand) {
         super(rightOperand);
     }
 
     @Override
-    public boolean results(int compareResult) {
-        return compareResult == 0;
+    public boolean check(@NonNull Object leftOperand) {
+        return compareEquals(leftOperand, this.getRightOperand());
     }
 }
