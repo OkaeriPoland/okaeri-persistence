@@ -40,7 +40,7 @@ public abstract class RawPersistence implements Persistence<String> {
 
     @Override
     public long fixIndexes(PersistenceCollection collection) {
-        throw new RuntimeException("not implemented yet");
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -49,47 +49,47 @@ public abstract class RawPersistence implements Persistence<String> {
 
     @Override
     public boolean updateIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property, String identity) {
-        throw new RuntimeException("not implemented yet");
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public boolean updateIndex(PersistenceCollection collection, PersistencePath path, String entity) {
-        throw new RuntimeException("not implemented yet");
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public boolean updateIndex(PersistenceCollection collection, PersistencePath path) {
-        throw new RuntimeException("not implemented yet");
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public boolean dropIndex(PersistenceCollection collection, PersistencePath path, IndexProperty property) {
-        throw new RuntimeException("not implemented yet");
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public boolean dropIndex(PersistenceCollection collection, PersistencePath path) {
-        throw new RuntimeException("not implemented yet");
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public boolean dropIndex(PersistenceCollection collection, IndexProperty property) {
-        throw new RuntimeException("not implemented yet");
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public Set<PersistencePath> findMissingIndexes(PersistenceCollection collection, Set<IndexProperty> indexProperties) {
-        throw new RuntimeException("not implemented yet");
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
-        throw new RuntimeException("not implemented yet");
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
-        throw new RuntimeException("not implemented yet");
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -121,7 +121,7 @@ public abstract class RawPersistence implements Persistence<String> {
 
     @Override
     public long deleteByFilter(PersistenceCollection collection, DeleteFilter filter) {
-        throw new RuntimeException("not implemented yet");
+        throw new UnsupportedOperationException();
     }
 
     public void checkCollectionRegistered(@NonNull PersistenceCollection collection) {

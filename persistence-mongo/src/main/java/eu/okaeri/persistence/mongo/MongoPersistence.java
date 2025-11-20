@@ -219,7 +219,7 @@ public class MongoPersistence extends NativeRawPersistence {
 
     @Override
     public long deleteAll() {
-        throw new RuntimeException("Not implemented yet");
+        throw new UnsupportedOperationException();
     }
 
     @Override
