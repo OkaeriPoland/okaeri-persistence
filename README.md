@@ -396,24 +396,38 @@ Backend-specific optimizations:
 
 ## Advanced: Document References
 
-Store references to other documents:
+Store references to other documents using `EagerRef` or `LazyRef`:
 
 ```java
-public class Post extends Document {
+public class Book extends Document {
     private String title;
-    private String content;
-    private Ref<User> author; // Reference to User document
-
-    public User getAuthor() {
-        return author.fetch(); // Lazy-loads when accessed
-    }
+    // EagerRef: fetches authors immediately when Book is loaded
+    // LazyRef: defers fetch until .get() is called
+    private List<EagerRef<Author>> authors;
 }
 
-// Usage
-Post post = postRepository.findByPath(postId).orElseThrow();
-User author = post.getAuthor(); // Fetches user document
-System.out.println("Posted by: " + author.getName());
+// Creating references
+Author author = authorRepository.findOrCreateByPath(authorId);
+author.setName("Alice");
+author.save();
+
+Book book = new Book();
+book.setTitle("Some Book");
+book.setAuthors(List.of(EagerRef.of(author))); // Store reference
+book.save();
+
+// Accessing references
+Book loaded = bookRepository.findByPath(bookId).orElseThrow();
+for (Ref<Author> authorRef : loaded.getAuthors()) {
+    // EagerRef: already loaded, LazyRef: fetches now
+    Author author = authorRef.orNull();
+    System.out.println(author.getName());
+}
 ```
+
+**How it works:** Refs serialize as `{"collection": "author", "id": "uuid"}` in the database. The field type (`EagerRef` vs `LazyRef`) controls when referenced documents are fetched during deserialization.
+
+**N+1 Warning:** Each ref triggers a separate database query (EagerRef on load, LazyRef on `.get()`). For documents with many refs, fetch referenced documents in bulk using `findAllByPath()` instead.
 
 ## Real-World Example
 
