@@ -69,7 +69,7 @@ Pick one (or multiple):
 <dependency>
     <groupId>eu.okaeri</groupId>
     <artifactId>okaeri-persistence-mongo</artifactId>
-    <version>3.0.1-beta.6</version>
+    <version>3.0.1-beta.7</version>
 </dependency>
 ```
 
@@ -81,7 +81,7 @@ repositories {
 ```
 ```kotlin
 dependencies {
-    implementation("eu.okaeri:okaeri-persistence-mongo:3.0.1-beta.6")
+    implementation("eu.okaeri:okaeri-persistence-mongo:3.0.1-beta.7")
 }
 ```
 
