@@ -5,7 +5,7 @@
     <parent>
         <groupId>eu.okaeri</groupId>
         <artifactId>okaeri-persistence</artifactId>
-        <version>3.0.1-beta.8</version>
+        <version>3.0.1-beta.9</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
