@@ -16,8 +16,13 @@ public @interface DocumentIndex {
     String path();
 
     /**
-     * Maximum length for indexed values (column size in SQL databases).
-     * Only relevant for JDBC backends (PostgreSQL, H2). Ignored by MongoDB, Redis, and Flat Files.
+     * Maximum length for indexed values in emulated index tables.
+     * Used ONLY by H2 and MariaDB for VARCHAR column sizing in the separate index table.
+     * <p>
+     * NOT used by PostgreSQL (native JSONB GIN indexes), MongoDB (native indexes),
+     * Redis, Flat Files, or In-Memory.
+     * <p>
+     * Default of 255 handles most strings. Increase for longer text fields.
      *
      * @return max length in characters (default: 255)
      */

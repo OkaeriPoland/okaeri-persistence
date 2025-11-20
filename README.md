@@ -8,7 +8,7 @@ Object Document Mapping (ODM) library for Java - write your data layer once, run
 ## Features
 
 - **Write Once, Run Anywhere**: Swap databases with one line - the core Java philosophy (without the XML hell)
-- **Fluent Query API**: Basic filtering, ordering, and pagination (MongoDB/PostgreSQL; other backends coming soon)
+- **Fluent Query DSL**: Basic filtering, ordering, and pagination across all backends (native translation for MongoDB/PostgreSQL, in-memory evaluation for others)
 - **Repository Pattern**: Annotate fields and get auto-implemented finders - simple but effective
 - **Unified Indexing**: Declare indexes once, backends create native indexes when supported or emulate them
 - **Document-Based**: Store data as JSON/YAML documents - flexible but not schema-free
@@ -36,20 +36,20 @@ Pick one (or multiple):
 
 **Native Document Support:**
 
-| Backend | Artifact | Description |
-|---------|----------|-------------|
-| **MongoDB** | `okaeri-persistence-mongo` | Uses the official MongoDB driver. Native document store with automatic index creation and native filtering by properties. Best for pure document workloads and horizontal scaling. |
-| **PostgreSQL** | `okaeri-persistence-jdbc` | Uses the official PostgreSQL JDBC driver with HikariCP. Stores documents as JSONB with native GIN indexes and JSONB operators for filtering. ACID guarantees and excellent query performance. |
+| Backend        | Artifact                    | Description                                                                                                                                                                                   |
+|----------------|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **MongoDB**    | `okaeri-persistence-mongo`  | Uses the official MongoDB driver. Native document store with automatic index creation and native filtering by properties. Best for pure document workloads and horizontal scaling.            |
+| **PostgreSQL** | `okaeri-persistence-jdbc`   | Uses the official PostgreSQL JDBC driver with HikariCP. Stores documents as JSONB with native GIN indexes and JSONB operators for filtering. ACID guarantees and excellent query performance. |
 
 **Emulated/Workaround Storage:**
 
-| Backend | Artifact | Description |
-|---------|----------|-------------|
-| **Redis** | `okaeri-persistence-redis` | Uses Lettuce client. Stores JSON as strings with Lua script-based filtering and hash/set secondary indexes. Blazing fast key-value access, supports TTL. Filtering is slower than native document stores. |
-| **MariaDB/MySQL** | `okaeri-persistence-jdbc` | Uses HikariCP with MySQL/MariaDB. Stores documents using native JSON datatype with json_extract for filtering. Emulated indexes in separate table. Slower JSON queries than PostgreSQL. |
-| **H2** | `okaeri-persistence-jdbc` | Uses HikariCP with H2 in MySQL mode. Stores JSON as text with basic string filtering (instr). Emulated indexes in separate table. Good for embedded use and testing. |
-| **Flat Files** | `okaeri-persistence-flat` | File-based storage using any okaeri-configs format (YAML/JSON/HOCON). In-memory or file-based indexes. Perfect for small servers, config files, or when you don't want a database. |
-| **In-Memory** | `okaeri-persistence-core` | Pure in-memory storage with HashMap-based indexes. Zero persistence, excellent performance. Great for testing, temporary state, or volatile data like game sessions. |
+| Backend           | Artifact                    | Description                                                                                                                                                                                               |
+|-------------------|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Redis**         | `okaeri-persistence-redis`  | Uses Lettuce client. Stores JSON as strings with Lua script-based filtering and hash/set secondary indexes. Blazing fast key-value access, supports TTL. Filtering is slower than native document stores. |
+| **MariaDB/MySQL** | `okaeri-persistence-jdbc`   | Uses HikariCP with MySQL/MariaDB. Stores documents using native JSON datatype with json_extract for filtering. Emulated indexes in separate table. Slower JSON queries than PostgreSQL.                   |
+| **H2**            | `okaeri-persistence-jdbc`   | Uses HikariCP with H2 in MySQL mode. Stores JSON as text with basic string filtering (instr). Emulated indexes in separate table. Good for embedded use and testing.                                      |
+| **Flat Files**    | `okaeri-persistence-flat`   | File-based storage using any okaeri-configs format (YAML/JSON/HOCON). In-memory or file-based indexes. Perfect for small servers, config files, or when you don't want a database.                        |
+| **In-Memory**     | `okaeri-persistence-core`   | Pure in-memory storage with HashMap-based indexes. Zero persistence, excellent performance. Great for testing, temporary state, or volatile data like game sessions.                                      |
 
 ## Installation
 
@@ -106,9 +106,9 @@ public class User extends Document {
 ```java
 @DocumentCollection(
     path = "users",
-    keyLength = 36,
+    // keyLength auto-detected: UUID=36, Integer=11, Long=20, others=255
     indexes = {
-        @DocumentIndex(path = "name", maxLength = 32),
+        @DocumentIndex(path = "name", maxLength = 32),  // Optional (default 255). Used only by H2/MariaDB
         @DocumentIndex(path = "level")
     }
 )
@@ -173,7 +173,7 @@ users.streamByLevel(42)
 
 ## Query API
 
-The `find()` method takes a lambda that builds a query and returns a Stream (MongoDB and PostgreSQL only):
+The `find()` method takes a lambda that builds a query and returns a Stream:
 
 ```java
 // Filtering
@@ -224,18 +224,19 @@ List<User> results = userRepo.find(q -> q
 
 **Supported Operators**: `eq`, `gt`, `gte`, `lt`, `lte`, `between`, `in`, `and`, `or`
 
-**Backend Support**: Native query translation currently available for:
-- **MongoDB** → Native queries with `$gt`, `$and`, etc.
-- **PostgreSQL** → JSONB operators (`->`, `->>`) with GIN indexes
+**Backend Support**:
+- **MongoDB** → Native query translation with `$gt`, `$and`, etc.
+- **PostgreSQL** → Native JSONB operators (`->`, `->>`) with GIN indexes
+- **Redis, Flat Files, In-Memory** → In-memory filter evaluation (fetch all, filter in Java)
 
-**Note**: Redis, Flat Files, and In-Memory backends will support `find()` with in-memory filtering in a future release. For now, use `@DocumentPath` methods or `streamAll()` with Java stream filters for these backends.
+**Performance Note**: Native backends (MongoDB/PostgreSQL) push filtering to the database for optimal performance. Other backends fetch all documents and filter in memory, so use `@DocumentPath` indexed methods when possible for better performance on large datasets.
 
 ## Repository Methods
 
 Annotate methods with `@DocumentPath` and they're auto-implemented (works for any field, but indexing recommended for performance):
 
 ```java
-@DocumentCollection(path = "players", keyLength = 36, indexes = {
+@DocumentCollection(path = "players", indexes = {
     @DocumentIndex(path = "username", maxLength = 16),
     @DocumentIndex(path = "rank", maxLength = 32)
 })
@@ -292,7 +293,7 @@ Collection<T> findAllByPath(Iterable<PATH> paths)
 Collection<T> findOrCreateAllByPath(Iterable<PATH> paths)
 Stream<T> streamAll()
 
-// Finding - with queries (MongoDB/PostgreSQL only)
+// Finding - with queries (all backends)
 Stream<T> find(FindFilter filter)
 Stream<T> find(Function<FindFilterBuilder, FindFilterBuilder> function)
 Stream<T> find(Condition condition)
@@ -307,7 +308,7 @@ boolean deleteByPath(PATH path)
 long deleteAllByPath(Iterable<PATH> paths)
 boolean deleteAll()
 
-// Deleting - with queries (MongoDB/PostgreSQL only)
+// Deleting - with queries (all backends)
 long delete(DeleteFilter filter)
 long delete(Function<DeleteFilterBuilder, DeleteFilterBuilder> function)
 
@@ -347,23 +348,28 @@ Declare indexes once in your `@DocumentCollection`:
 ```java
 @DocumentCollection(
     path = "users",
-    keyLength = 36,
+    // keyLength auto-detected: UUID=36, Integer=11, Long=20, others=255 (override by specifying explicitly)
     indexes = {
-        @DocumentIndex(path = "username", maxLength = 32),
-        @DocumentIndex(path = "email", maxLength = 128),
+        @DocumentIndex(path = "username", maxLength = 32),  // Optional (default: 255). Used only by H2/MariaDB
+        @DocumentIndex(path = "email"),
         @DocumentIndex(path = "profile.age"),
         @DocumentIndex(path = "settings.notifications.email")
     }
 )
 ```
 
-What happens:
-- **MongoDB**: Creates native `db.collection.createIndex()`
-- **PostgreSQL**: Creates GIN indexes on JSONB paths
-- **Redis**: Maintains hash-based secondary indexes with Lua scripts
-- **Flat/Memory**: Builds in-memory maps for O(1) lookups
+| Backend         | keyLength Usage      | maxLength Usage          | Index Type                   |
+|-----------------|----------------------|--------------------------|------------------------------|
+| **MongoDB**     | Ignored              | Ignored                  | Native `createIndex()`       |
+| **PostgreSQL**  | Uses for key VARCHAR | Ignored (uses JSONB GIN) | Native JSONB GIN indexes     |
+| **H2**          | Uses for key VARCHAR | Uses for index VARCHAR   | Emulated (separate table)    |
+| **MariaDB**     | Uses for key VARCHAR | Uses for index VARCHAR   | Emulated (separate table)    |
+| **Redis**       | Ignored              | Ignored                  | Hash-based secondary indexes |
+| **Flat/Memory** | Ignored              | Ignored                  | In-memory HashMap            |
 
-**Tradeoff**: Indexes speed up reads but slow down writes and use more memory/storage. Choose wisely.
+- `keyLength` auto-detected (UUID=36, Integer=11, Long=20, others=255) - used by JDBC backends for primary key VARCHAR
+- `maxLength` only used by H2/MariaDB for emulated indexes - **NOT PostgreSQL!**
+- Indexes speed up reads but slow writes - use sparingly
 
 ## Streaming Large Datasets
 
@@ -436,9 +442,8 @@ public class UserProfile {
 // Repository
 @DocumentCollection(
     path = "accounts",
-    keyLength = 36,
     indexes = {
-        @DocumentIndex(path = "email", maxLength = 128),
+        @DocumentIndex(path = "email"),
         @DocumentIndex(path = "username", maxLength = 32),
         @DocumentIndex(path = "role", maxLength = 16)
     }
@@ -511,11 +516,11 @@ List<UserAccount> moderators = accounts.find(q -> q
 
 ## Backend Comparison
 
-| Feature | MongoDB | PostgreSQL | Redis | Flat Files | In-Memory |
-|---------|---------|------------|-------|------------|-----------|
-| **Indexes** | Native | JSONB GIN | Hash+Set | File/Memory map | HashMap |
-| **Query Support** | find()/delete() | find()/delete() | Planned | Planned | Planned |
-| **Best For** | Document workloads | Already using Postgres | Because you can | Config files, small apps | Testing, temp state |
+| Feature       | MongoDB            | PostgreSQL             | Redis           | Flat Files               | In-Memory           |
+|---------------|--------------------|------------------------|-----------------|--------------------------|---------------------|
+| **Indexes**   | Native             | JSONB GIN              | Hash+Set        | File/Memory map          | HashMap             |
+| **Query DSL** | Native             | Native                 | In-memory       | In-memory                | In-memory           |
+| **Best For**  | Document workloads | Already using Postgres | Because you can | Config files, small apps | Testing, temp state |
 
 ## Configurer Support
 

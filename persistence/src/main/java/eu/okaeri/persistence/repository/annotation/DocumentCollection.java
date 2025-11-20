@@ -20,9 +20,19 @@ public @interface DocumentCollection {
 
     /**
      * Maximum length for document keys (primary key column size in SQL databases).
-     * Only relevant for JDBC backends (PostgreSQL, H2). Ignored by MongoDB, Redis, and Flat Files.
+     * Used by all JDBC backends (PostgreSQL, H2, MariaDB) for VARCHAR column sizing.
+     * Ignored by MongoDB, Redis, Flat Files, and In-Memory.
+     * <p>
+     * Auto-detection: If not specified (default 255), automatically uses optimal values:
+     * <ul>
+     *   <li>UUID: 36 (exact length of UUID strings)</li>
+     *   <li>Integer: 11 (Integer.MIN_VALUE is -2147483648)</li>
+     *   <li>Long: 20 (Long.MIN_VALUE is -9223372036854775808)</li>
+     *   <li>Other types: 255 (default)</li>
+     * </ul>
+     * Specify explicitly to override auto-detection.
      *
-     * @return key length in characters (default: 255)
+     * @return key length in characters (default: 255 with auto-detection, maximum: 255)
      */
     int keyLength() default 255;
 
