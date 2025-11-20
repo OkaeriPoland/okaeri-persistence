@@ -20,6 +20,10 @@ public class PersistencePath {
     public static final String SEPARATOR = ":";
     private String value;
 
+    public static PersistencePath randomUUID() {
+        return new PersistencePath(UUID.randomUUID().toString());
+    }
+
     public static PersistencePath of(@NonNull File file) {
         return new PersistencePath(file.getPath().replace(File.separator, SEPARATOR));
     }

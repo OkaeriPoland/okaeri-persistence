@@ -145,9 +145,8 @@ UserRepository users = persistence.createRepository(UserRepository.class);
 // UserRepository users = RepositoryDeclaration.of(UserRepository.class)
 //     .newProxy(persistence, collection, customClassLoader);
 
-// Create
+// Create (UUID auto-generated on save)
 User alice = new User();
-alice.setPath(PersistencePath.of(UUID.randomUUID()));
 alice.setName("alice");
 alice.setLevel(42);
 alice.setAchievements(List.of("speedrun", "pacifist"));
@@ -464,7 +463,6 @@ public interface UserAccountRepository extends DocumentRepository<UUID, UserAcco
         }
 
         UserAccount account = new UserAccount();
-        account.setPath(PersistencePath.of(UUID.randomUUID()));
         account.setEmail(email);
         account.setUsername(username);
         account.setRole("USER");

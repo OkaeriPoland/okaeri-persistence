@@ -1,6 +1,5 @@
 package eu.okaeri.persistencetest;
 
-import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.repository.DocumentRepository;
 import org.junit.jupiter.api.Test;
 
@@ -57,36 +56,24 @@ public abstract class AbstractFilterQueryTest<R extends DocumentRepository<UUID,
 
         // Setup flat user collection
         userRepo.deleteAll();
-        userRepo.save(this.createUser("tester", 123));
-        userRepo.save(this.createUser("tester2", 456));
-        userRepo.save(this.createUser("tester3", 123));
+        userRepo.save(new User("tester", 123));
+        userRepo.save(new User("tester2", 456));
+        userRepo.save(new User("tester3", 123));
 
         // Setup nested profile collection
         profileRepo.deleteAll();
-        profileRepo.save(this.createUserProfile("alice",
+        profileRepo.save(new UserProfile("alice",
             new Profile(25, "Engineer",
                 new Address("New York", "USA", 10001))));
-        profileRepo.save(this.createUserProfile("bob",
+        profileRepo.save(new UserProfile("bob",
             new Profile(30, "Designer",
                 new Address("London", "UK", 20002))));
-        profileRepo.save(this.createUserProfile("charlie",
+        profileRepo.save(new UserProfile("charlie",
             new Profile(25, "Manager",
                 new Address("Paris", "France", 75001))));
-        profileRepo.save(this.createUserProfile("diana",
+        profileRepo.save(new UserProfile("diana",
             new Profile(35, "Director",
                 new Address("Berlin", "Germany", 10115))));
-    }
-
-    private User createUser(String name, int exp) {
-        User user = new User(name, exp);
-        user.setPath(PersistencePath.of(UUID.randomUUID()));
-        return user;
-    }
-
-    private UserProfile createUserProfile(String name, Profile profile) {
-        UserProfile userProfile = new UserProfile(name, profile);
-        userProfile.setPath(PersistencePath.of(UUID.randomUUID()));
-        return userProfile;
     }
 
     // ========== Flat Field Tests ==========

@@ -12,6 +12,7 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.util.Optional;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 @ToString(exclude = "cachedInto")
@@ -21,9 +22,24 @@ public class Document extends OkaeriConfig {
     @Exclude private static final Logger LOGGER = Logger.getLogger(Document.class.getSimpleName());
 
     @Exclude @Getter @Setter private DocumentPersistence persistence;
-    @Exclude @Getter @Setter private PersistencePath path;
+    @Exclude @Getter private PersistencePath path;
     @Exclude @Getter @Setter private PersistenceCollection collection;
     @Exclude private Document cachedInto = this;
+
+    public void setPath(PersistencePath path) {
+        this.path = path;
+    }
+
+    public void setPath(@NonNull UUID uuid) {
+        if (this.path != null) {
+            try {
+                this.path.toUUID();
+            } catch (IllegalArgumentException e) {
+                throw new IllegalStateException("Cannot use setPath(UUID) when path is already set to non-UUID value: " + this.path.getValue() + ". Use setPath(PersistencePath) for explicit conversion.", e);
+            }
+        }
+        this.path = PersistencePath.of(uuid);
+    }
 
     @Override
     public Document save() throws OkaeriException {
