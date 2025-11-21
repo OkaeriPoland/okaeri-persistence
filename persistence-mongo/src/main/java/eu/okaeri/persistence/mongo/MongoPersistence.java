@@ -152,6 +152,14 @@ public class MongoPersistence extends NativeRawPersistence {
     }
 
     @Override
+    public Stream<PersistenceEntity<String>> stream(@NonNull PersistenceCollection collection, int batchSize) {
+        return StreamSupport.stream(this.mongo(collection).find()
+            .batchSize(batchSize) // MongoDB driver cursor batch size hint
+            .map(object -> this.transformMongoObject(collection, object))
+            .spliterator(), false);
+    }
+
+    @Override
     public long count(@NonNull PersistenceCollection collection) {
         return this.mongo(collection).countDocuments();
     }

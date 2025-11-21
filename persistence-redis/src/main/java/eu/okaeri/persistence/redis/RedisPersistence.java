@@ -320,17 +320,20 @@ public class RedisPersistence extends RawPersistence {
 
     @Override
     public Stream<PersistenceEntity<String>> streamAll(@NonNull PersistenceCollection collection) {
+        // Delegate to stream() to ensure batched fetching instead of loading all at once
+        // Redis is single-threaded, so fetching large hashes all at once can cause issues
+        return this.stream(collection, 100);
+    }
+
+    @Override
+    public Stream<PersistenceEntity<String>> stream(@NonNull PersistenceCollection collection, int batchSize) {
 
         this.checkCollectionRegistered(collection);
         RedisCommands<String, String> sync = this.getConnection().sync();
         String hKey = this.getBasePath().sub(collection).getValue();
 
-        long totalKeys = sync.hlen(hKey);
-        long step = totalKeys / 100;
-        if (step < 50) step = 50;
-
-        ScanIterator<KeyValue<String, String>> iterator = ScanIterator.hscan(sync, hKey, ScanArgs.Builder.limit(step));
-        return StreamSupport.stream(Spliterators.spliterator(new Iterator<PersistenceEntity<String>>() {
+        ScanIterator<KeyValue<String, String>> iterator = ScanIterator.hscan(sync, hKey, ScanArgs.Builder.limit(batchSize));
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<PersistenceEntity<String>>() {
             @Override
             public boolean hasNext() {
                 return iterator.hasNext();
@@ -341,7 +344,7 @@ public class RedisPersistence extends RawPersistence {
                 KeyValue<String, String> next = iterator.next();
                 return new PersistenceEntity<>(PersistencePath.of(next.getKey()), next.getValue());
             }
-        }, totalKeys, Spliterator.NONNULL), false);
+        }, Spliterator.ORDERED), false);
     }
 
     @Override

@@ -38,7 +38,65 @@ public interface DocumentRepository<PATH, T extends Document> {
 
     Collection<T> findAll();
 
+    /**
+     * Stream all documents from the collection.
+     * This method loads all data and does not require explicit resource management.
+     * Safe for general use but may consume significant memory for large collections.
+     * For memory-efficient streaming of large collections, use {@link #stream(int)}.
+     *
+     * @return Stream of documents (safe to use without try-with-resources)
+     */
     Stream<T> streamAll();
+
+    /**
+     * Stream all documents with batched fetching for better memory efficiency.
+     * More memory efficient than {@link #streamAll()} for large collections by fetching data in batches.
+     * <p>
+     * <b>IMPORTANT: This stream must be closed after use to prevent resource leaks.</b>
+     * Use try-with-resources or explicitly call {@code close()} on the stream.
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Recommended: try-with-resources
+     * try (Stream<User> stream = userRepository.stream(100)) {
+     *     return stream
+     *         .filter(user -> user.isActive())
+     *         .map(User::getName)
+     *         .collect(Collectors.toList());
+     * }
+     *
+     * // Process large collection without loading all into memory
+     * try (Stream<User> stream = userRepository.stream(50)) {
+     *     stream.forEach(user -> {
+     *         // Process each user as it's fetched (e.g., send email, export data, etc.)
+     *         processUser(user);
+     *     });
+     * }
+     * }</pre>
+     *
+     * @param batchSize Preferred batch size (hint, actual behavior depends on backend)
+     * @return Stream of documents (must be closed after use)
+     */
+    Stream<T> stream(int batchSize);
+
+    /**
+     * Stream all documents with default batch size (100).
+     * Convenience method for {@link #stream(int)} with default batch size.
+     * <p>
+     * <b>IMPORTANT: This stream must be closed after use.</b> See {@link #stream(int)} for details.
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * try (Stream<User> stream = userRepository.stream()) {
+     *     return stream.map(User::getName).collect(Collectors.toList());
+     * }
+     * }</pre>
+     *
+     * @return Stream of documents (must be closed after use)
+     */
+    default Stream<T> stream() {
+        return this.stream(100);
+    }
 
     Stream<T> find(FindFilter filter);
 

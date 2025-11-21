@@ -204,12 +204,54 @@ public interface Persistence<T> extends Closeable {
 
     /**
      * Visit all entities from the specific collection.
-     * Makes use of the partial fetching when possible.
+     * This method loads all data and does not require explicit resource management.
+     * Safe for general use but may consume significant memory for large collections.
+     * For memory-efficient streaming of large collections, use {@link #stream(PersistenceCollection, int)}.
      *
      * @param collection Target collection (eg. player)
-     * @return Stream of collection entities
+     * @return Stream of collection entities (safe to use without try-with-resources)
      */
     Stream<PersistenceEntity<T>> streamAll(PersistenceCollection collection);
+
+    /**
+     * Stream all entities from the specific collection with configurable batch fetching.
+     * More memory efficient than streamAll() for large collections by fetching data in batches.
+     * <p>
+     * <b>IMPORTANT: This stream must be closed after use to prevent resource leaks.</b>
+     * Use try-with-resources or explicitly call {@code close()} on the stream.
+     * <p>
+     * Backend-specific behavior:
+     * <ul>
+     * <li>PostgreSQL: Uses JDBC cursor (requires open transaction/connection until stream closes)</li>
+     * <li>H2/MariaDB: Uses LIMIT/OFFSET pagination (fetches batches on demand)</li>
+     * <li>MongoDB: Uses driver cursor with batchSize hint</li>
+     * <li>Redis: Uses HSCAN with custom step size</li>
+     * </ul>
+     * <p>
+     * Example usage:
+     * <pre>{@code
+     * // Recommended: try-with-resources
+     * try (Stream<PersistenceEntity<String>> stream = persistence.stream(collection, 100)) {
+     *     return stream
+     *         .filter(entity -> entity.getValue().contains("active"))
+     *         .map(PersistenceEntity::getPath)
+     *         .collect(Collectors.toList());
+     * }
+     *
+     * // Process large collection without loading all into memory
+     * try (Stream<PersistenceEntity<String>> stream = persistence.stream(collection, 50)) {
+     *     stream.forEach(entity -> {
+     *         // Process each entity as it's fetched (e.g., export, transform, etc.)
+     *         processEntity(entity);
+     *     });
+     * }
+     * }</pre>
+     *
+     * @param collection Target collection (eg. player)
+     * @param batchSize  Number of records to fetch per batch (hint, actual behavior depends on backend)
+     * @return Stream of collection entities fetched in batches (must be closed after use)
+     */
+    Stream<PersistenceEntity<T>> stream(PersistenceCollection collection, int batchSize);
 
     /**
      * Write entity to specific collection and path.

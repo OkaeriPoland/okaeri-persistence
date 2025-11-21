@@ -1,7 +1,6 @@
 package eu.okaeri.persistence.document;
 
 import eu.okaeri.configs.ConfigManager;
-import eu.okaeri.configs.OkaeriConfig;
 import eu.okaeri.configs.configurer.InMemoryConfigurer;
 import eu.okaeri.configs.serdes.OkaeriSerdesPack;
 import eu.okaeri.persistence.PersistenceCollection;
@@ -9,9 +8,9 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.InMemoryIndex;
 import eu.okaeri.persistence.document.index.IndexProperty;
-import eu.okaeri.persistence.raw.RawPersistence;
 import eu.okaeri.persistence.raw.PersistenceIndexMode;
 import eu.okaeri.persistence.raw.PersistencePropertyMode;
+import eu.okaeri.persistence.raw.RawPersistence;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.SneakyThrows;
@@ -54,33 +53,32 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
 
         @Override
         public Optional<String> read(PersistenceCollection collection, PersistencePath path) {
-            return this.delegate.read(collection, path).map(OkaeriConfig::saveToString);
+            throw new UnsupportedOperationException("read() should be overridden in InMemoryDocumentPersistence");
         }
 
         @Override
         public Map<PersistencePath, String> read(PersistenceCollection collection, Collection<PersistencePath> paths) {
-            return this.delegate.read(collection, paths).entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().saveToString()));
+            throw new UnsupportedOperationException("read(paths) should be overridden in InMemoryDocumentPersistence");
         }
 
         @Override
         public Map<PersistencePath, String> readAll(PersistenceCollection collection) {
-            return this.delegate.readAll(collection).entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().saveToString()));
+            throw new UnsupportedOperationException("readAll() should be overridden in InMemoryDocumentPersistence");
         }
 
         @Override
         public Stream<PersistenceEntity<String>> streamAll(PersistenceCollection collection) {
-            return this.delegate.streamAll(collection)
-                .map(entity -> new PersistenceEntity<>(entity.getPath(), entity.getValue().saveToString()));
+            throw new UnsupportedOperationException("streamAll() should be overridden in InMemoryDocumentPersistence");
+        }
+
+        @Override
+        public Stream<PersistenceEntity<String>> stream(PersistenceCollection collection, int batchSize) {
+            throw new UnsupportedOperationException("stream() should be overridden in InMemoryDocumentPersistence");
         }
 
         @Override
         public boolean write(PersistenceCollection collection, PersistencePath path, String entity) {
-            Document doc = ConfigManager.create(Document.class);
-            doc.load(entity);
-            doc.setPath(path);
-            return this.delegate.write(collection, path, doc);
+            throw new UnsupportedOperationException("write(entity) should be overridden in InMemoryDocumentPersistence");
         }
 
         @Override
@@ -284,6 +282,13 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
         this.getRead().checkCollectionRegistered(collection);
         Collection<Document> docList = this.documents.get(collection.getValue()).values();
         return docList.stream().map(document -> new PersistenceEntity<>(document.getPath(), document));
+    }
+
+    @Override
+    public Stream<PersistenceEntity<Document>> stream(@NonNull PersistenceCollection collection, int batchSize) {
+        // In-memory implementation ignores batch size - all data already in memory
+        // Delegate to streamAll() which bypasses raw persistence layer
+        return this.streamAll(collection);
     }
 
     @Override

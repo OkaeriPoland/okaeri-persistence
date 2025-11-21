@@ -359,6 +359,16 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
+    public Stream<PersistenceEntity<Document>> stream(@NonNull PersistenceCollection collection, int batchSize) {
+        try {
+            return this.getRead().stream(collection, batchSize).map(this.entityToDocumentMapper(collection));
+        } catch (UnsupportedOperationException e) {
+            LOGGER.fine("Backend doesn't support native stream(), falling back to streamAll() for collection: " + collection.getValue());
+            return this.streamAll(collection);
+        }
+    }
+
+    @Override
     public long count(@NonNull PersistenceCollection collection) {
         return this.getRead().count(collection);
     }

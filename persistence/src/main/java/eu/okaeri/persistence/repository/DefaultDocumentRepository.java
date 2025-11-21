@@ -80,6 +80,13 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
     }
 
     @Override
+    public Stream<T> stream(int batchSize) {
+        return this.persistence.stream(this.collection, batchSize)
+            .map(document -> document.into(this.documentType))
+            .map(PersistenceEntity::getValue);
+    }
+
+    @Override
     public Collection<T> findAll() {
         return this.persistence.readAll(this.collection).values().stream()
             .map(entity -> entity.into(this.documentType))

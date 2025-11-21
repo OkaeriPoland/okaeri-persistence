@@ -16,10 +16,9 @@ import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import lombok.NonNull;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class H2Persistence extends JdbcPersistence {
 
@@ -198,6 +197,70 @@ public class H2Persistence extends JdbcPersistence {
         } catch (SQLException exception) {
             throw new RuntimeException("cannot read by filter from " + collection, exception);
         }
+    }
+
+    @Override
+    public Stream<PersistenceEntity<String>> stream(@NonNull PersistenceCollection collection, int batchSize) {
+
+        this.checkCollectionRegistered(collection);
+        String baseQuery = "select `key`, `value` from `" + this.table(collection) + "`";
+
+        // Custom iterator that fetches batches lazily (Java 8 compatible)
+        Iterator<PersistenceEntity<String>> iterator = new Iterator<PersistenceEntity<String>>() {
+            private int offset = 0;
+            private Iterator<PersistenceEntity<String>> currentBatch = null;
+            private boolean hasMore = true;
+
+            private void fetchNextBatch() {
+                if (!hasMore) return;
+
+                String sql = baseQuery + " limit " + batchSize + " offset " + offset;
+                try (Connection connection = getDataSource().getConnection()) {
+                    Statement statement = connection.createStatement();
+                    ResultSet resultSet = statement.executeQuery(debugQuery(sql));
+                    List<PersistenceEntity<String>> batch = new ArrayList<>();
+
+                    while (resultSet.next()) {
+                        String key = resultSet.getString("key");
+                        String value = resultSet.getString("value");
+                        batch.add(new PersistenceEntity<>(PersistencePath.of(key), value));
+                    }
+
+                    if (batch.isEmpty()) {
+                        hasMore = false;
+                        currentBatch = null;
+                        return;
+                    }
+
+                    currentBatch = batch.iterator();
+                    offset += batchSize;
+
+                    // If we got fewer results than requested, this is the last batch
+                    if (batch.size() < batchSize) {
+                        hasMore = false;
+                    }
+                } catch (SQLException e) {
+                    throw new RuntimeException("cannot stream from " + collection, e);
+                }
+            }
+
+            @Override
+            public boolean hasNext() {
+                if (currentBatch == null || !currentBatch.hasNext()) {
+                    if (!hasMore) return false;
+                    fetchNextBatch();
+                }
+                return currentBatch != null && currentBatch.hasNext();
+            }
+
+            @Override
+            public PersistenceEntity<String> next() {
+                if (!hasNext()) throw new NoSuchElementException();
+                return currentBatch.next();
+            }
+        };
+
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED), false);
     }
 
     @Override

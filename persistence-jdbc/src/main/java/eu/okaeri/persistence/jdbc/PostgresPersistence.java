@@ -23,6 +23,7 @@ import java.util.function.Predicate;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public class PostgresPersistence extends NativeRawPersistence {
 
@@ -217,7 +218,6 @@ public class PostgresPersistence extends NativeRawPersistence {
     }
 
     @Override
-    // TODO: implement cursor based streaming?
     public Stream<PersistenceEntity<String>> streamAll(@NonNull PersistenceCollection collection) {
 
         this.checkCollectionRegistered(collection);
@@ -238,6 +238,76 @@ public class PostgresPersistence extends NativeRawPersistence {
             return results.stream();
         } catch (SQLException exception) {
             throw new RuntimeException("cannot stream all from " + collection, exception);
+        }
+    }
+
+    @Override
+    public Stream<PersistenceEntity<String>> stream(@NonNull PersistenceCollection collection, int batchSize) {
+
+        this.checkCollectionRegistered(collection);
+        String sql = "select key, value from \"" + this.table(collection) + "\"";
+
+        try {
+            Connection connection = this.getDataSource().getConnection();
+            connection.setAutoCommit(false); // Required for cursor-based streaming in PostgreSQL
+
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
+            prepared.setFetchSize(batchSize); // Hint for batch size - PostgreSQL will fetch in batches
+            ResultSet resultSet = prepared.executeQuery();
+
+            // Create iterator that fetches batches lazily
+            Iterator<PersistenceEntity<String>> iterator = new Iterator<PersistenceEntity<String>>() {
+                private boolean hasNextCached = false;
+                private boolean nextCalled = false;
+
+                @Override
+                public boolean hasNext() {
+                    if (this.nextCalled) {
+                        return false;
+                    }
+                    if (this.hasNextCached) {
+                        return true;
+                    }
+                    try {
+                        this.hasNextCached = resultSet.next();
+                        return this.hasNextCached;
+                    } catch (SQLException e) {
+                        throw new RuntimeException("error during streaming", e);
+                    }
+                }
+
+                @Override
+                public PersistenceEntity<String> next() {
+                    if (!this.hasNext()) {
+                        throw new NoSuchElementException();
+                    }
+                    try {
+                        String key = resultSet.getString("key");
+                        String value = resultSet.getString("value");
+                        this.hasNextCached = false;
+                        return new PersistenceEntity<>(PersistencePath.of(key), value);
+                    } catch (SQLException e) {
+                        throw new RuntimeException("error reading result", e);
+                    }
+                }
+            };
+
+            return StreamSupport.stream(
+                Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED),
+                false
+            ).onClose(() -> {
+                // Clean up resources when stream is closed
+                try {
+                    resultSet.close();
+                    prepared.close();
+                    connection.close();
+                } catch (SQLException ignored) {
+                    // Log error but don't throw - we're in cleanup
+                }
+            });
+
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot stream from " + collection, exception);
         }
     }
 

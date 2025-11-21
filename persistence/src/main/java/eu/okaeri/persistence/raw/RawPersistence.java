@@ -93,6 +93,11 @@ public abstract class RawPersistence implements Persistence<String> {
     }
 
     @Override
+    public Stream<PersistenceEntity<String>> stream(@NonNull PersistenceCollection collection, int batchSize) {
+        throw new UnsupportedOperationException("stream(batchSize) not implemented for " + this.getClass().getSimpleName());
+    }
+
+    @Override
     public String readOrEmpty(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         return this.read(collection, path).orElse("");
     }

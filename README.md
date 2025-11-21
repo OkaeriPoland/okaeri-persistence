@@ -306,7 +306,9 @@ T findOrCreateByPath(PATH path)
 Collection<T> findAll()
 Collection<T> findAllByPath(Iterable<PATH> paths)
 Collection<T> findOrCreateAllByPath(Iterable<PATH> paths)
-Stream<T> streamAll()
+Stream<T> streamAll()              // Safe but loads all data
+Stream<T> stream(int batchSize)    // Memory-efficient, requires closing
+Stream<T> stream()                 // stream(100) - requires closing
 
 // Finding - with queries (all backends)
 Stream<T> find(FindFilter filter)
@@ -386,12 +388,16 @@ Declare indexes once in your `@DocumentCollection`:
 - `maxLength` only used by H2/MariaDB for emulated indexes - **NOT PostgreSQL!**
 - Indexes speed up reads but slow writes - use sparingly
 
-## Streaming Large Datasets
+## Streaming Datasets
 
-Process large datasets with automatic batching:
+Two methods for processing collections:
+
+### streamAll() - Simple with Tradeoffs
+
+Loads all data, no resource management required. Best for small collections:
 
 ```java
-// Stream all users (fetched in batches automatically)
+// Stream all users - safe, no try-with-resources needed
 userRepository.streamAll()
   .filter(u -> u.getLevel() > 50)
   .map(User::getName)
@@ -404,10 +410,37 @@ userRepository.find(q -> q.where(on("active", eq(true))))
   .toList();
 ```
 
-Backend-specific optimizations:
-- **MongoDB**: Uses cursors with configurable batch size
-- **PostgreSQL**: Streams result set without loading everything into memory
-- **Others**: Fetch and stream from storage
+### stream(batchSize) - Memory Efficient
+
+Fetches data in batches. **Must be closed** (use try-with-resources or `@Cleanup`):
+
+```java
+// Memory-efficient streaming with batches of 100
+try (Stream<User> stream = userRepository.stream(100)) {
+    return stream
+        .filter(u -> u.isActive())
+        .map(User::getName)
+        .collect(Collectors.toList());
+}
+
+// Process large collection without loading all into memory
+try (Stream<User> stream = userRepository.stream(50)) {
+    stream.forEach(user -> {
+        // Process each user as it's fetched (e.g., export, transform)
+        exportUser(user);
+    });
+}
+
+// Alternative: Lombok @Cleanup
+@Cleanup Stream<User> stream = userRepository.stream(100);
+List<String> names = stream.map(User::getName).toList();
+```
+
+**Backend-specific batching:**
+- **PostgreSQL**: JDBC cursor (requires open transaction until closed)
+- **H2/MariaDB**: LIMIT/OFFSET pagination
+- **MongoDB**: Driver cursor with batchSize hint
+- **Redis**: HSCAN with custom step size
 
 ## Advanced: Document References
 
