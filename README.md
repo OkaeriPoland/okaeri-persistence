@@ -163,7 +163,7 @@ List<User> topPlayers = users.find(q -> q
   .where(on("level", gt(10)))
   .orderBy(desc("level"), asc("name"))
   .limit(10))
-  .collect(Collectors.toList());
+  .toList();
 
 // Stream processing
 users.streamByLevel(42)
@@ -179,29 +179,29 @@ The `find()` method takes a lambda that builds a query and returns a Stream:
 // Filtering
 List<User> users = userRepo.find(q -> q
   .where(on("level", gt(10))))
-  .collect(Collectors.toList());
+  .toList();
 
 // Multiple conditions
 List<User> users = userRepo.find(q -> q
   .where(and(
     on("level", gte(10)),
     on("lastLogin", gt(yesterday)))))
-  .collect(Collectors.toList());
+  .toList();
 
 // Ordering (single or multiple)
 List<User> users = userRepo.find(q -> q
   .orderBy(desc("level")))
-  .collect(Collectors.toList());
+  .toList();
 
 List<User> users = userRepo.find(q -> q
   .orderBy(desc("score"), asc("name")))
-  .collect(Collectors.toList());
+  .toList();
 
 // Nested properties
 List<Profile> profiles = profileRepo.find(q -> q
   .where(on("address.city", eq("London")))
   .orderBy(asc("profile.age")))
-  .collect(Collectors.toList());
+  .toList();
 
 // Pagination
 List<User> users = userRepo.find(q -> q
@@ -209,7 +209,7 @@ List<User> users = userRepo.find(q -> q
   .orderBy(desc("score"))
   .skip(20)
   .limit(10))
-  .collect(Collectors.toList()); // Page 3 of results
+  .toList(); // Page 3 of results
 
 // Advanced: string predicates, case-insensitive matching, IN/NOT IN, null checks
 List<User> results = userRepo.find(q -> q
@@ -226,7 +226,7 @@ List<User> results = userRepo.find(q -> q
   .orderBy(desc("level"), asc("name"))
   .skip(0)
   .limit(25))
-  .collect(Collectors.toList());
+  .toList();
 ```
 
 **Supported Operators**:
@@ -401,7 +401,7 @@ userRepository.streamAll()
 userRepository.find(q -> q.where(on("active", eq(true))))
   .parallel() // Process in parallel
   .map(this::calculateStats)
-  .collect(Collectors.toList());
+  .toList();
 ```
 
 Backend-specific optimizations:
@@ -517,7 +517,7 @@ public interface UserAccountRepository extends DocumentRepository<UUID, UserAcco
     }
 
     default List<UserAccount> getAdmins() {
-        return streamByRole("ADMIN").collect(Collectors.toList());
+        return streamByRole("ADMIN").toList();
     }
 }
 
@@ -540,7 +540,7 @@ List<UserAccount> admins = accounts.getAdmins();
 List<UserAccount> moderators = accounts.find(q -> q
   .where(on("role", eq("MODERATOR")))
   .orderBy(asc("username")))
-  .collect(Collectors.toList());
+  .toList();
 ```
 
 ## Backend Comparison
