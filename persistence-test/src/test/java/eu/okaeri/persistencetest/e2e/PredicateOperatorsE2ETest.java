@@ -64,6 +64,44 @@ public class PredicateOperatorsE2ETest extends E2ETestBase {
         assertThat(remaining).containsExactlyInAnyOrder("alice", "bob", "charlie", "diana", "eve");
     }
 
+    // ===== CASE-INSENSITIVE EQUALS (eqi / eq().ignoreCase()) =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_eqi_fluent_api(BackendTestContext btc) {
+        // Add mixed case data
+        btc.getUserRepository().save(new User("Alice", 999)); // Note capital A
+
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", eq("ALICE").ignoreCase())));
+        assertThat(deleted).isEqualTo(2); // Both "alice" and "Alice"
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("bob", "charlie", "diana", "eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_eqi_shorthand(BackendTestContext btc) {
+        // Add mixed case data
+        btc.getUserRepository().save(new User("BOB", 999));
+
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", eqi("bob"))));
+        assertThat(deleted).isEqualTo(2); // Both "bob" and "BOB"
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("alice", "charlie", "diana", "eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_eqi_no_match(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", eqi("NONEXISTENT"))));
+        assertThat(deleted).isEqualTo(0);
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("alice", "bob", "charlie", "diana", "eve");
+    }
+
     // ===== NOT EQUALS (ne) =====
 
     @ParameterizedTest(name = "{0}")

@@ -25,7 +25,7 @@ public class StartsWithPredicate extends SimplePredicate {
     /**
      * Returns a case-insensitive version of this predicate.
      */
-    public StartsWithPredicate ignoreCase() {
+    public SimplePredicate ignoreCase() {
         return new StartsWithPredicate((String) this.getRightOperand(), true);
     }
 

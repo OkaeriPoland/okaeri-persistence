@@ -6,6 +6,7 @@ import eu.okaeri.persistence.filter.predicate.Predicate;
 import eu.okaeri.persistence.filter.predicate.SimplePredicate;
 import eu.okaeri.persistence.filter.predicate.collection.InPredicate;
 import eu.okaeri.persistence.filter.predicate.collection.NotInPredicate;
+import eu.okaeri.persistence.filter.predicate.equality.EqPredicate;
 import eu.okaeri.persistence.filter.predicate.nullity.IsNullPredicate;
 import eu.okaeri.persistence.filter.predicate.nullity.NotNullPredicate;
 import eu.okaeri.persistence.filter.predicate.string.ContainsPredicate;
@@ -47,6 +48,11 @@ public class PostgresFilterRenderer extends SqlFilterRenderer {
         // Handle other numeric comparisons
         if ((predicate instanceof SimplePredicate) && (((SimplePredicate) predicate).getRightOperand() instanceof Number)) {
             return "((" + path.toPostgresJsonPath() + ")::numeric " + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
+        }
+
+        // Handle case-insensitive equals
+        if ((predicate instanceof EqPredicate) && ((EqPredicate) predicate).isIgnoreCase()) {
+            return "(lower(" + path.toPostgresJsonPath(true) + ") = lower(" + this.renderOperand(predicate) + "))";
         }
 
         // Handle string predicates with LIKE

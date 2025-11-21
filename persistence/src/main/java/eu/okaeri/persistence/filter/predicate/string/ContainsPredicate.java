@@ -25,7 +25,7 @@ public class ContainsPredicate extends SimplePredicate {
     /**
      * Returns a case-insensitive version of this predicate.
      */
-    public ContainsPredicate ignoreCase() {
+    public SimplePredicate ignoreCase() {
         return new ContainsPredicate((String) this.getRightOperand(), true);
     }
 

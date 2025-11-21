@@ -6,6 +6,7 @@ import eu.okaeri.persistence.filter.predicate.Predicate;
 import eu.okaeri.persistence.filter.predicate.SimplePredicate;
 import eu.okaeri.persistence.filter.predicate.collection.InPredicate;
 import eu.okaeri.persistence.filter.predicate.collection.NotInPredicate;
+import eu.okaeri.persistence.filter.predicate.equality.EqPredicate;
 import eu.okaeri.persistence.filter.predicate.nullity.IsNullPredicate;
 import eu.okaeri.persistence.filter.predicate.nullity.NotNullPredicate;
 import eu.okaeri.persistence.filter.predicate.string.ContainsPredicate;
@@ -74,12 +75,18 @@ public class H2FilterRenderer extends SqlFilterRenderer {
                 + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
         }
 
-        // Handle string predicates with LIKE
         // Unescape JSON: remove outer quotes, unescape \" to ", and unescape \\ to \
         // Use SUBSTRING instead of TRIM to remove exactly first and last character (the outer quotes)
         // This prevents accidentally removing quotes that are part of escaped sequences like \"
         String castField = "cast(" + fieldReference + " as varchar)";
         String unquotedField = "replace(substring(" + castField + ", 2, length(" + castField + ") - 2), '\\\"', '\"')";
+
+        // Handle case-insensitive equals
+        if ((predicate instanceof EqPredicate) && ((EqPredicate) predicate).isIgnoreCase()) {
+            return "(lower(" + unquotedField + ") = lower(" + this.renderOperand(predicate) + "))";
+        }
+
+        // Handle string predicates with LIKE
         if (predicate instanceof StartsWithPredicate) {
             String value = (String) ((StartsWithPredicate) predicate).getRightOperand();
             String pattern = this.renderLikePattern(value, null, "%");

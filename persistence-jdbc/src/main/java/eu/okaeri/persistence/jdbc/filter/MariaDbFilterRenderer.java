@@ -6,6 +6,7 @@ import eu.okaeri.persistence.filter.predicate.Predicate;
 import eu.okaeri.persistence.filter.predicate.SimplePredicate;
 import eu.okaeri.persistence.filter.predicate.collection.InPredicate;
 import eu.okaeri.persistence.filter.predicate.collection.NotInPredicate;
+import eu.okaeri.persistence.filter.predicate.equality.EqPredicate;
 import eu.okaeri.persistence.filter.predicate.nullity.IsNullPredicate;
 import eu.okaeri.persistence.filter.predicate.nullity.NotNullPredicate;
 import eu.okaeri.persistence.filter.predicate.string.ContainsPredicate;
@@ -72,8 +73,13 @@ public class MariaDbFilterRenderer extends SqlFilterRenderer {
                 + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
         }
 
-        // Handle string predicates with LIKE
+        // Handle case-insensitive equals
         String unquotedField = "json_unquote(json_extract(`value`, " + this.renderOperand(jsonPath) + "))";
+        if ((predicate instanceof EqPredicate) && ((EqPredicate) predicate).isIgnoreCase()) {
+            return "(lower(" + unquotedField + ") = lower(" + this.renderOperand(predicate) + "))";
+        }
+
+        // Handle string predicates with LIKE
         if (predicate instanceof StartsWithPredicate) {
             String value = (String) ((StartsWithPredicate) predicate).getRightOperand();
             String pattern = this.renderLikePattern(value, null, "%");

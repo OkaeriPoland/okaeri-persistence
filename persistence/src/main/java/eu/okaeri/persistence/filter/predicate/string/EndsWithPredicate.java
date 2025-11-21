@@ -25,7 +25,7 @@ public class EndsWithPredicate extends SimplePredicate {
     /**
      * Returns a case-insensitive version of this predicate.
      */
-    public EndsWithPredicate ignoreCase() {
+    public SimplePredicate ignoreCase() {
         return new EndsWithPredicate((String) this.getRightOperand(), true);
     }
 

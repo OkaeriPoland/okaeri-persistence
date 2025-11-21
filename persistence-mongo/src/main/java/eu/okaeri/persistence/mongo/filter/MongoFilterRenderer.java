@@ -107,6 +107,12 @@ public class MongoFilterRenderer extends DefaultFilterRenderer {
             return "{ \"" + path.toMongoPath() + "\": { \"$ne\": null } }";
         }
 
+        // Handle case-insensitive equals
+        if ((predicate instanceof EqPredicate) && ((EqPredicate) predicate).isIgnoreCase()) {
+            String value = this.escapeRegex((String) ((EqPredicate) predicate).getRightOperand());
+            return "{ \"" + path.toMongoPath() + "\": { \"$regex\": \"^" + value + "$\", \"$options\": \"i\" }}";
+        }
+
         // Handle string predicates with $regex
         if (predicate instanceof StartsWithPredicate) {
             String value = this.escapeRegex((String) ((StartsWithPredicate) predicate).getRightOperand());
