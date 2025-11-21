@@ -87,8 +87,11 @@ public class MongoPersistence extends NativeRawPersistence {
     @Override
     public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
 
-        FindIterable<BasicDBObject> findIterable = this.mongo(collection).find()
-            .filter(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere()))));
+        FindIterable<BasicDBObject> findIterable = this.mongo(collection).find();
+
+        if (filter.getWhere() != null) {
+            findIterable = findIterable.filter(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere()))));
+        }
 
         if (filter.hasOrderBy()) {
             findIterable = findIterable.sort(Document.parse(this.debugQuery(FILTER_RENDERER.renderOrderBy(filter.getOrderBy()))));
@@ -235,6 +238,9 @@ public class MongoPersistence extends NativeRawPersistence {
 
     @Override
     public long deleteByFilter(@NonNull PersistenceCollection collection, @NonNull DeleteFilter filter) {
+        if (filter.getWhere() == null) {
+            throw new IllegalArgumentException("deleteByFilter requires a WHERE condition - use deleteAll() to clear collection");
+        }
         return this.mongo(collection)
             .deleteMany(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere()))))
             .getDeletedCount();

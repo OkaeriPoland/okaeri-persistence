@@ -282,4 +282,53 @@ public class FilterQueryE2ETest extends E2ETestBase {
         assertThat(profiles.get(1).getProfile().getOccupation()).isEqualTo("Manager");
         assertThat(profiles.get(1).getName()).isEqualTo("charlie");
     }
+
+    // ===== TESTS FOR QUERIES WITHOUT WHERE CLAUSE =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_find_with_orderBy_only_no_where(BackendTestContext btc) {
+        // Query with orderBy but no WHERE clause - should return all records sorted
+        List<UserProfile> profiles = btc.getProfileRepository()
+            .find(q -> q.orderBy(asc("profile.age"), asc("name")))
+            .toList();
+
+        assertThat(profiles.size()).isEqualTo(4);
+        // Sorted by age asc, then name asc: alice(25), charlie(25), bob(30), diana(35)
+        assertThat(profiles.get(0).getName()).isEqualTo("alice");
+        assertThat(profiles.get(0).getProfile().getAge()).isEqualTo(25);
+        assertThat(profiles.get(1).getName()).isEqualTo("charlie");
+        assertThat(profiles.get(1).getProfile().getAge()).isEqualTo(25);
+        assertThat(profiles.get(2).getName()).isEqualTo("bob");
+        assertThat(profiles.get(2).getProfile().getAge()).isEqualTo(30);
+        assertThat(profiles.get(3).getName()).isEqualTo("diana");
+        assertThat(profiles.get(3).getProfile().getAge()).isEqualTo(35);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_find_with_limit_only_no_where(BackendTestContext btc) {
+        // Query with limit but no WHERE clause - should return first N records
+        List<UserProfile> profiles = btc.getProfileRepository()
+            .find(q -> q.limit(2))
+            .toList();
+
+        assertThat(profiles.size()).isEqualTo(2);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_find_with_orderBy_and_limit_no_where(BackendTestContext btc) {
+        // Query with orderBy + limit but no WHERE clause - should return top N sorted records
+        List<UserProfile> profiles = btc.getProfileRepository()
+            .find(q -> q.orderBy(desc("profile.age")).limit(2))
+            .toList();
+
+        assertThat(profiles.size()).isEqualTo(2);
+        // Top 2 by age descending: diana(35), bob(30)
+        assertThat(profiles.get(0).getName()).isEqualTo("diana");
+        assertThat(profiles.get(0).getProfile().getAge()).isEqualTo(35);
+        assertThat(profiles.get(1).getName()).isEqualTo("bob");
+        assertThat(profiles.get(1).getProfile().getAge()).isEqualTo(30);
+    }
 }

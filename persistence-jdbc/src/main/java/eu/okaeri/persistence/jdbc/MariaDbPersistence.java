@@ -187,7 +187,11 @@ public class MariaDbPersistence extends JdbcPersistence {
     public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
 
         this.checkCollectionRegistered(collection);
-        String sql = "select `key`, `value` from `" + this.table(collection) + "` where " + FILTER_RENDERER.renderCondition(filter.getWhere());
+        String sql = "select `key`, `value` from `" + this.table(collection) + "`";
+
+        if (filter.getWhere() != null) {
+            sql += " where " + FILTER_RENDERER.renderCondition(filter.getWhere());
+        }
 
         if (filter.hasOrderBy()) {
             sql += " order by " + FILTER_RENDERER.renderOrderBy(filter.getOrderBy());
@@ -287,6 +291,11 @@ public class MariaDbPersistence extends JdbcPersistence {
     public long deleteByFilter(@NonNull PersistenceCollection collection, @NonNull DeleteFilter filter) {
 
         this.checkCollectionRegistered(collection);
+
+        if (filter.getWhere() == null) {
+            throw new IllegalArgumentException("deleteByFilter requires a WHERE condition - use deleteAll() to clear collection");
+        }
+
         String sql = "delete from `" + this.table(collection) + "` where " + FILTER_RENDERER.renderCondition(filter.getWhere());
 
         try (Connection connection = this.getDataSource().getConnection()) {
