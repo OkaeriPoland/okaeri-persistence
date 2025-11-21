@@ -473,7 +473,7 @@ for (Ref<Author> authorRef : loaded.getAuthors()) {
 }
 ```
 
-**How it works:** Refs serialize as `{"collection": "author", "id": "uuid"}` in the database. The field type (`EagerRef` vs `LazyRef`) controls when referenced documents are fetched during deserialization.
+**How it works:** Refs serialize as `{"_collection": "author", "_id": "uuid"}` in the database. The field type (`EagerRef` vs `LazyRef`) controls when referenced documents are fetched during deserialization.
 
 **N+1 Warning:** Each ref triggers a separate database query (EagerRef on load, LazyRef on `.get()`). For documents with many refs, fetch referenced documents in bulk using `findAllByPath()` instead.
 
