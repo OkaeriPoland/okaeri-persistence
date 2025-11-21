@@ -262,7 +262,9 @@ public class RedisPersistence extends RawPersistence {
                 for (int i = 0; i < result.size(); i += 2) {
                     String key = result.get(i);
                     String value = result.get(i + 1);
-                    out.add(new PersistenceEntity<>(PersistencePath.of(key), value));
+                    if (value != null) {
+                        out.add(new PersistenceEntity<>(PersistencePath.of(key), value));
+                    }
                 }
 
                 return out.stream();
@@ -300,7 +302,9 @@ public class RedisPersistence extends RawPersistence {
         for (int i = 0; i < result.size(); i += 2) {
             String key = result.get(i);
             String value = result.get(i + 1);
-            map.put(PersistencePath.of(key), value);
+            if (value != null) {
+                map.put(PersistencePath.of(key), value);
+            }
         }
 
         return map;
@@ -390,6 +394,10 @@ public class RedisPersistence extends RawPersistence {
 
         String hKey = this.getBasePath().sub(collection).getValue();
         String[] keysToDelete = paths.stream().map(PersistencePath::getValue).toArray(String[]::new);
+
+        if (keysToDelete.length == 0) {
+            return 0;
+        }
 
         return this.getConnection().sync().hdel(hKey, keysToDelete);
     }

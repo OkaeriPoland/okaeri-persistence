@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Getter
@@ -103,6 +104,20 @@ public class PersistencePath {
         return identifier;
     }
 
+    public String toH2FieldReference() {
+        if (this.value.contains("'") || this.value.contains("/") || this.value.contains("#") || this.value.contains("--")) {
+            throw new IllegalArgumentException("identifier '" + this.value + "' cannot be used as H2 field reference");
+        }
+        // Convert path segments to H2 field reference: "field1"."field2"."field3"
+        String[] segments = this.value.split(SEPARATOR);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < segments.length; i++) {
+            if (i > 0) sb.append(".");
+            sb.append("\"").append(segments[i]).append("\"");
+        }
+        return sb.toString();
+    }
+
     public String toPostgresJsonPath() {
         return this.toPostgresJsonPath(false);
     }
@@ -142,7 +157,10 @@ public class PersistencePath {
     }
 
     public List<String> toParts() {
-        return Arrays.asList(this.value.split(SEPARATOR));
+        if (this.value.isEmpty()) {
+            return Arrays.asList();
+        }
+        return Arrays.asList(this.value.split(Pattern.quote(SEPARATOR)));
     }
 
     public String toSafeFilePath() {

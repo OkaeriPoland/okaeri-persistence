@@ -135,12 +135,12 @@ public class PostgresPersistence extends NativeRawPersistence {
             sql += " order by " + FILTER_RENDERER.renderOrderBy(filter.getOrderBy());
         }
 
-        if (filter.hasSkip()) {
-            sql += " offset " + filter.getSkip();
-        }
-
         if (filter.hasLimit()) {
             sql += " limit " + filter.getLimit();
+        }
+
+        if (filter.hasSkip()) {
+            sql += " offset " + filter.getSkip();
         }
 
         try (Connection connection = this.getDataSource().getConnection()) {
@@ -295,9 +295,12 @@ public class PostgresPersistence extends NativeRawPersistence {
     @Override
     public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, String> entities) {
 
-        boolean first = true;
+        if (entities.isEmpty()) {
+            return 0;
+        }
+
         this.checkCollectionRegistered(collection);
-        String sql = "insert into \"" + this.table(collection) + "\" (key, value) values (?, ?::json) on conflict(key) do update set value = EXCLUDED.value";
+        String sql = "insert into \"" + this.table(collection) + "\" (key, value) values (?, ?::jsonb) on conflict(key) do update set value = EXCLUDED.value";
 
         try (Connection connection = this.getDataSource().getConnection()) {
             PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
@@ -305,17 +308,11 @@ public class PostgresPersistence extends NativeRawPersistence {
             for (Map.Entry<PersistencePath, String> entry : entities.entrySet()) {
                 prepared.setString(1, entry.getKey().getValue());
                 prepared.setString(2, entry.getValue());
-                prepared.setString(3, entry.getValue());
                 prepared.addBatch();
-                if (first) {
-                    first = false;
-                } else {
-                    this.debugQuery(sql);
-                }
             }
-            int changes = prepared.executeUpdate();
+            int[] results = prepared.executeBatch();
             connection.commit();
-            return changes;
+            return results.length;
         } catch (SQLException exception) {
             throw new RuntimeException("cannot write " + entities + " to " + collection, exception);
         }

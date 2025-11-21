@@ -36,20 +36,20 @@ Pick one (or multiple):
 
 **Native Document Support:**
 
-| Backend        | Artifact                    | Description                                                                                                                                                                                   |
-|----------------|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **MongoDB**    | `okaeri-persistence-mongo`  | Uses the official MongoDB driver. Native document store with automatic index creation and native filtering by properties. Best for pure document workloads and horizontal scaling.            |
-| **PostgreSQL** | `okaeri-persistence-jdbc`   | Uses the official PostgreSQL JDBC driver with HikariCP. Stores documents as JSONB with native GIN indexes and JSONB operators for filtering. ACID guarantees and excellent query performance. |
+| Backend        | Artifact                    | Description                                                                                                                                  |
+|----------------|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| **MongoDB**    | `okaeri-persistence-mongo`  | Uses the official MongoDB driver. Native document store with automatic index creation and native filtering by properties.                    |
+| **PostgreSQL** | `okaeri-persistence-jdbc`   | Uses the official PostgreSQL JDBC driver with HikariCP. Stores documents as JSONB with native GIN indexes and JSONB operators for filtering. |
 
 **Emulated/Workaround Storage:**
 
-| Backend           | Artifact                    | Description                                                                                                                                                                                               |
-|-------------------|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Redis**         | `okaeri-persistence-redis`  | Uses Lettuce client. Stores JSON as strings with Lua script-based filtering and hash/set secondary indexes. Blazing fast key-value access, supports TTL. Filtering is slower than native document stores. |
-| **MariaDB/MySQL** | `okaeri-persistence-jdbc`   | Uses HikariCP with MySQL/MariaDB. Stores documents using native JSON datatype with json_extract for filtering. Emulated indexes in separate table. Slower JSON queries than PostgreSQL.                   |
-| **H2**            | `okaeri-persistence-jdbc`   | Uses HikariCP with H2 in MySQL mode. Stores JSON as text with basic string filtering (instr). Emulated indexes in separate table. Good for embedded use and testing.                                      |
-| **Flat Files**    | `okaeri-persistence-flat`   | File-based storage using any okaeri-configs format (YAML/JSON/HOCON). In-memory or file-based indexes. Perfect for small servers, config files, or when you don't want a database.                        |
-| **In-Memory**     | `okaeri-persistence-core`   | Pure in-memory storage with HashMap-based indexes. Zero persistence, excellent performance. Great for testing, temporary state, or volatile data like game sessions.                                      |
+| Backend           | Artifact                    | Description                                                                                                                                                                                    |
+|-------------------|-----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **H2**            | `okaeri-persistence-jdbc`   | Uses HikariCP with H2 in `mode=mysql`. Stores documents as native JSON type with native query translation using field reference syntax `(column)."field"`. Emulated indexes in separate table. |
+| **MariaDB/MySQL** | `okaeri-persistence-jdbc`   | Uses HikariCP with MySQL/MariaDB. Stores documents using native JSON datatype with native query translation (`JSON_EXTRACT`, `JSON_UNQUOTE`). Emulated indexes in separate table.              |
+| **Redis**         | `okaeri-persistence-redis`  | Uses Lettuce client. Stores JSON as strings with Lua script-based filtering and hash/set secondary indexes. Filtering is slower than native document stores.                                   |
+| **Flat Files**    | `okaeri-persistence-flat`   | File-based storage using any okaeri-configs format (YAML/JSON/HOCON). In-memory or file-based indexes.                                                                                         |
+| **In-Memory**     | `okaeri-persistence-core`   | Pure in-memory storage with HashMap-based indexes. Zero persistence, excellent performance.                                                                                                    |
 
 ## Installation
 
@@ -226,10 +226,12 @@ List<User> results = userRepo.find(q -> q
 
 **Backend Support**:
 - **MongoDB** → Native query translation with `$gt`, `$and`, etc.
-- **PostgreSQL** → Native JSONB operators (`->`, `->>`) with GIN indexes
+- **PostgreSQL** → Native JSONB operators (`->`, `->>`, `@>`) with GIN indexes
+- **MariaDB/MySQL** → Native JSON functions (`JSON_EXTRACT`, `JSON_UNQUOTE`) with proper type casting
+- **H2** → Native JSON field reference syntax (`(column)."field"`) with type casting
 - **Redis, Flat Files, In-Memory** → In-memory filter evaluation (fetch all, filter in Java)
 
-**Performance Note**: Native backends (MongoDB/PostgreSQL) push filtering to the database for optimal performance. Other backends fetch all documents and filter in memory, so use `@DocumentPath` indexed methods when possible for better performance on large datasets.
+**Performance Note**: Native backends (MongoDB, PostgreSQL, MariaDB, H2) push filtering to the database for optimal performance. Other backends fetch all documents and filter in memory.
 
 ## Repository Methods
 
@@ -530,11 +532,15 @@ List<UserAccount> moderators = accounts.find(q -> q
 
 ## Backend Comparison
 
-| Feature       | MongoDB            | PostgreSQL             | Redis           | Flat Files               | In-Memory           |
-|---------------|--------------------|------------------------|-----------------|--------------------------|---------------------|
-| **Indexes**   | Native             | JSONB GIN              | Hash+Set        | File/Memory map          | HashMap             |
-| **Query DSL** | Native             | Native                 | In-memory       | In-memory                | In-memory           |
-| **Best For**  | Document workloads | Already using Postgres | Because you can | Config files, small apps | Testing, temp state |
+| Backend           | Indexes        | Query DSL | Best For                 |
+|-------------------|----------------|-----------|--------------------------|
+| **MongoDB**       | Native         | Native    | Document workloads       |
+| **PostgreSQL**    | JSONB GIN      | Native    | Already using Postgres   |
+| **MariaDB/MySQL** | Emulated table | Native    | Already using MySQL      |
+| **H2**            | Emulated table | Native    | Testing/Embedded         |
+| **Redis**         | Hash+Set       | In-memory | Fast key-value access    |
+| **Flat Files**    | File/Memory    | In-memory | Config files, small apps |
+| **In-Memory**     | HashMap        | In-memory | Testing, temp state      |
 
 ## Configurer Support
 

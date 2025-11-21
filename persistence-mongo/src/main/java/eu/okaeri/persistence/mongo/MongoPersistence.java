@@ -94,12 +94,12 @@ public class MongoPersistence extends NativeRawPersistence {
             findIterable = findIterable.sort(Document.parse(this.debugQuery(FILTER_RENDERER.renderOrderBy(filter.getOrderBy()))));
         }
 
-        if (filter.hasSkip()) {
-            findIterable = findIterable.skip(filter.getSkip());
-        }
-
         if (filter.hasLimit()) {
             findIterable = findIterable.limit(filter.getLimit());
+        }
+
+        if (filter.hasSkip()) {
+            findIterable = findIterable.skip(filter.getSkip());
         }
 
         Spliterator<PersistenceEntity<String>> iterator = findIterable

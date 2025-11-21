@@ -8,6 +8,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static eu.okaeri.persistence.filter.condition.Condition.on;
+import static eu.okaeri.persistence.filter.predicate.SimplePredicate.eq;
+import static eu.okaeri.persistence.filter.predicate.SimplePredicate.gt;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -150,6 +153,23 @@ public class RepositoryOperationsE2ETest extends E2ETestBase {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("allBackendsWithContext")
+    void test_find_one_by_condition(BackendTestContext btc) {
+        Optional<User> user = btc.getUserRepository().findOne(on("name", eq("bob")));
+
+        assertThat(user).isPresent();
+        assertThat(user.get().getName()).isEqualTo("bob");
+        assertThat(user.get().getExp()).isEqualTo(200);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_find_one_not_found(BackendTestContext btc) {
+        Optional<User> user = btc.getUserRepository().findOne(on("name", eq("nonexistent")));
+        assertThat(user).isEmpty();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
     void test_delete_all(BackendTestContext btc) {
         assertThat(btc.getUserRepository().count()).isEqualTo(3);
         assertThat(btc.getUserRepository().deleteAll()).isTrue();
@@ -171,6 +191,31 @@ public class RepositoryOperationsE2ETest extends E2ETestBase {
         assertThat(newUser).isNotNull();
         assertThat(newUser.getPath().getValue()).isEqualTo(newId.toString());
         assertThat(newUser.getName()).isNull(); // New empty user
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_find_or_create_all_by_path(BackendTestContext btc) {
+        UUID existingId = userIds(btc).get(0);
+        UUID newId1 = UUID.randomUUID();
+        UUID newId2 = UUID.randomUUID();
+
+        List<UUID> ids = Arrays.asList(existingId, newId1, newId2);
+        Collection<User> users = btc.getUserRepository().findOrCreateAllByPath(ids);
+
+        assertThat(users).hasSize(3);
+
+        // Existing user should retain data
+        User existing = users.stream()
+            .filter(u -> u.getPath().getValue().equals(existingId.toString()))
+            .findFirst().orElseThrow();
+        assertThat(existing.getName()).isEqualTo("alice");
+
+        // New users should be created but empty
+        long newUserCount = users.stream()
+            .filter(u -> u.getName() == null)
+            .count();
+        assertThat(newUserCount).isEqualTo(2);
     }
 
     // ========== Batch Operations Tests ==========
@@ -211,6 +256,49 @@ public class RepositoryOperationsE2ETest extends E2ETestBase {
         Collection<User> remaining = btc.getUserRepository().findAll();
         assertThat(remaining).hasSize(1);
         assertThat(remaining.iterator().next().getName()).isEqualTo("charlie");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_save_all_bulk(BackendTestContext btc) {
+        // Create multiple new users
+        List<User> newUsers = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            User user = new User();
+            user.setPath(UUID.randomUUID());
+            user.setName("bulk_user_" + i);
+            user.setExp(i * 100);
+            newUsers.add(user);
+        }
+
+        // Bulk save
+        btc.getUserRepository().saveAll(newUsers);
+
+        // Verify ALL were saved (not just the last one!)
+        assertThat(btc.getUserRepository().count()).isEqualTo(13); // 3 initial + 10 new
+
+        // Verify each user individually
+        for (User user : newUsers) {
+            Optional<User> found = btc.getUserRepository().findByPath(user.getPath().toUUID());
+            assertThat(found).isPresent();
+            assertThat(found.get().getName()).isEqualTo(user.getName());
+            assertThat(found.get().getExp()).isEqualTo(user.getExp());
+        }
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_delete_by_filter(BackendTestContext btc) {
+        // Delete users with exp > 150
+        long deleted = btc.getUserRepository().delete(filter -> filter
+            .where(on("exp", gt(150))));
+
+        assertThat(deleted).isEqualTo(2); // bob (200) and charlie (300)
+        assertThat(btc.getUserRepository().count()).isEqualTo(1);
+
+        // Only alice should remain
+        User remaining = btc.getUserRepository().findAll().iterator().next();
+        assertThat(remaining.getName()).isEqualTo("alice");
     }
 
     // ========== Edge Cases Tests ==========

@@ -6,14 +6,16 @@ import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
+import eu.okaeri.persistence.filter.DeleteFilter;
+import eu.okaeri.persistence.filter.FindFilter;
+import eu.okaeri.persistence.filter.renderer.FilterRenderer;
+import eu.okaeri.persistence.jdbc.filter.MariaDbFilterRenderer;
+import eu.okaeri.persistence.jdbc.filter.SqlStringRenderer;
 import eu.okaeri.persistence.raw.PersistenceIndexMode;
 import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import lombok.NonNull;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +23,8 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public class MariaDbPersistence extends JdbcPersistence {
+
+    private static final FilterRenderer FILTER_RENDERER = new MariaDbFilterRenderer(new SqlStringRenderer());
 
     public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
         super(basePath, hikariConfig, PersistencePropertyMode.NATIVE, PersistenceIndexMode.EMULATED);
@@ -157,6 +161,10 @@ public class MariaDbPersistence extends JdbcPersistence {
     @Override
     public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, String> entities) {
 
+        if (entities.isEmpty()) {
+            return 0;
+        }
+
         this.checkCollectionRegistered(collection);
         String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?) on duplicate key update `value` = ?";
 
@@ -169,11 +177,61 @@ public class MariaDbPersistence extends JdbcPersistence {
                 prepared.setString(3, entry.getValue());
                 prepared.addBatch();
             }
-            int changes = prepared.executeUpdate();
+            int[] results = prepared.executeBatch();
             connection.commit();
-            return changes;
+            return results.length;
         } catch (SQLException exception) {
             throw new RuntimeException("cannot write " + entities + " to " + collection, exception);
+        }
+    }
+
+    @Override
+    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
+
+        this.checkCollectionRegistered(collection);
+        String sql = "select `key`, `value` from `" + this.table(collection) + "` where " + FILTER_RENDERER.renderCondition(filter.getWhere());
+
+        if (filter.hasOrderBy()) {
+            sql += " order by " + FILTER_RENDERER.renderOrderBy(filter.getOrderBy());
+        }
+
+        if (filter.hasLimit()) {
+            sql += " limit " + filter.getLimit();
+        }
+
+        if (filter.hasSkip()) {
+            sql += " offset " + filter.getSkip();
+        }
+
+        try (Connection connection = this.getDataSource().getConnection()) {
+
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(sql);
+            List<PersistenceEntity<String>> results = new ArrayList<>();
+
+            while (resultSet.next()) {
+                String key = resultSet.getString("key");
+                String value = resultSet.getString("value");
+                results.add(new PersistenceEntity<>(PersistencePath.of(key), value));
+            }
+
+            return results.stream();
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot read by filter from " + collection, exception);
+        }
+    }
+
+    @Override
+    public long deleteByFilter(@NonNull PersistenceCollection collection, @NonNull DeleteFilter filter) {
+
+        this.checkCollectionRegistered(collection);
+        String sql = "delete from `" + this.table(collection) + "` where " + FILTER_RENDERER.renderCondition(filter.getWhere());
+
+        try (Connection connection = this.getDataSource().getConnection()) {
+            Statement statement = connection.createStatement();
+            return statement.executeUpdate(sql);
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot delete from " + collection + " with " + filter, exception);
         }
     }
 }

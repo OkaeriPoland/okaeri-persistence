@@ -1,6 +1,7 @@
 package eu.okaeri.persistence.document;
 
 import eu.okaeri.configs.ConfigManager;
+import eu.okaeri.configs.OkaeriConfig;
 import eu.okaeri.configs.configurer.InMemoryConfigurer;
 import eu.okaeri.configs.serdes.OkaeriSerdesPack;
 import eu.okaeri.persistence.PersistenceCollection;
@@ -26,71 +27,94 @@ import java.util.stream.Stream;
 
 public class InMemoryDocumentPersistence extends DocumentPersistence {
 
-    @Getter private final PersistencePath basePath = PersistencePath.of("memory");
+    private final @Getter PersistencePath basePath = PersistencePath.of("memory");
     private final Map<String, Map<String, InMemoryIndex>> indexMap = new ConcurrentHashMap<>();
     private final Map<String, Map<PersistencePath, Document>> documents = new ConcurrentHashMap<>();
 
+    private static class DelegatingRawPersistence extends RawPersistence {
+        private InMemoryDocumentPersistence delegate;
+
+        DelegatingRawPersistence() {
+            super(PersistencePath.of("memory"), PersistencePropertyMode.NATIVE, PersistenceIndexMode.EMULATED);
+        }
+
+        void setDelegate(InMemoryDocumentPersistence delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public long count(PersistenceCollection collection) {
+            return this.delegate.count(collection);
+        }
+
+        @Override
+        public boolean exists(PersistenceCollection collection, PersistencePath path) {
+            return this.delegate.exists(collection, path);
+        }
+
+        @Override
+        public Optional<String> read(PersistenceCollection collection, PersistencePath path) {
+            return this.delegate.read(collection, path).map(OkaeriConfig::saveToString);
+        }
+
+        @Override
+        public Map<PersistencePath, String> read(PersistenceCollection collection, Collection<PersistencePath> paths) {
+            return this.delegate.read(collection, paths).entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().saveToString()));
+        }
+
+        @Override
+        public Map<PersistencePath, String> readAll(PersistenceCollection collection) {
+            return this.delegate.readAll(collection).entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().saveToString()));
+        }
+
+        @Override
+        public Stream<PersistenceEntity<String>> streamAll(PersistenceCollection collection) {
+            return this.delegate.streamAll(collection)
+                .map(entity -> new PersistenceEntity<>(entity.getPath(), entity.getValue().saveToString()));
+        }
+
+        @Override
+        public boolean write(PersistenceCollection collection, PersistencePath path, String entity) {
+            Document doc = ConfigManager.create(Document.class);
+            doc.load(entity);
+            doc.setPath(path);
+            return this.delegate.write(collection, path, doc);
+        }
+
+        @Override
+        public boolean delete(PersistenceCollection collection, PersistencePath path) {
+            return this.delegate.delete(collection, path);
+        }
+
+        @Override
+        public long delete(PersistenceCollection collection, Collection<PersistencePath> paths) {
+            return this.delegate.delete(collection, paths);
+        }
+
+        @Override
+        public boolean deleteAll(PersistenceCollection collection) {
+            return this.delegate.deleteAll(collection);
+        }
+
+        @Override
+        public long deleteAll() {
+            return this.delegate.deleteAll();
+        }
+
+        @Override
+        public void close() throws IOException {
+        }
+    }
+
     public InMemoryDocumentPersistence(@NonNull OkaeriSerdesPack... serdesPacks) {
-        super(new RawPersistence(PersistencePath.of("memory"), PersistencePropertyMode.NATIVE, PersistenceIndexMode.EMULATED) {
-            @Override
-            public long count(PersistenceCollection collection) {
-                return 0;
-            }
+        super(createRawPersistence(), InMemoryConfigurer::new, serdesPacks);
+        ((DelegatingRawPersistence) this.getWrite()).setDelegate(this);
+    }
 
-            @Override
-            public boolean exists(PersistenceCollection collection, PersistencePath path) {
-                return false;
-            }
-
-            @Override
-            public Optional<String> read(PersistenceCollection collection, PersistencePath path) {
-                return Optional.empty();
-            }
-
-            @Override
-            public Map<PersistencePath, String> read(PersistenceCollection collection, Collection<PersistencePath> paths) {
-                return null;
-            }
-
-            @Override
-            public Map<PersistencePath, String> readAll(PersistenceCollection collection) {
-                return null;
-            }
-
-            @Override
-            public Stream<PersistenceEntity<String>> streamAll(PersistenceCollection collection) {
-                return null;
-            }
-
-            @Override
-            public boolean write(PersistenceCollection collection, PersistencePath path, String entity) {
-                return false;
-            }
-
-            @Override
-            public boolean delete(PersistenceCollection collection, PersistencePath path) {
-                return false;
-            }
-
-            @Override
-            public long delete(PersistenceCollection collection, Collection<PersistencePath> paths) {
-                return 0;
-            }
-
-            @Override
-            public boolean deleteAll(PersistenceCollection collection) {
-                return false;
-            }
-
-            @Override
-            public long deleteAll() {
-                return 0;
-            }
-
-            @Override
-            public void close() throws IOException {
-            }
-        }, InMemoryConfigurer::new, serdesPacks);
+    private static RawPersistence createRawPersistence() {
+        return new DelegatingRawPersistence();
     }
 
     @Override
