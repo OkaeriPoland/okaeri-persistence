@@ -54,7 +54,7 @@ public class FilterRenderingTest {
     @Test
     public void test_condition_3() {
         String condition = this.renderer.renderCondition(and("name", eq("tester")));
-        assertThat(condition).isEqualTo("(value->>'name'= 'tester')");
+        assertThat(condition).isEqualTo("(value->>'name' = 'tester')");
     }
 
     @Test

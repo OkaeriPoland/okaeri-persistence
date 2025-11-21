@@ -206,7 +206,7 @@ public class MariaDbPersistence extends JdbcPersistence {
         try (Connection connection = this.getDataSource().getConnection()) {
 
             Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery(sql);
+            ResultSet resultSet = statement.executeQuery(this.debugQuery(sql));
             List<PersistenceEntity<String>> results = new ArrayList<>();
 
             while (resultSet.next()) {
@@ -229,7 +229,7 @@ public class MariaDbPersistence extends JdbcPersistence {
 
         try (Connection connection = this.getDataSource().getConnection()) {
             Statement statement = connection.createStatement();
-            return statement.executeUpdate(sql);
+            return statement.executeUpdate(this.debugQuery(sql));
         } catch (SQLException exception) {
             throw new RuntimeException("cannot delete from " + collection + " with " + filter, exception);
         }

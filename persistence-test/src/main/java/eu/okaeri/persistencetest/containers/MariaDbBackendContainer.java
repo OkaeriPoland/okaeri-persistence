@@ -20,6 +20,7 @@ public class MariaDbBackendContainer implements BackendContainer {
             .withDatabaseName("okaeri_persistence")
             .withUsername("test")
             .withPassword("test")
+            .withCommand("--max-connections=500")
             .withReuse(true);
 
         MARIADB.start();
@@ -64,6 +65,6 @@ public class MariaDbBackendContainer implements BackendContainer {
 
     @Override
     public String toString() {
-        return getName();
+        return this.getName();
     }
 }

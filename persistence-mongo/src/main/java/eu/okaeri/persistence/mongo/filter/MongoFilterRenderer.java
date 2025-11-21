@@ -5,7 +5,20 @@ import eu.okaeri.persistence.filter.OrderBy;
 import eu.okaeri.persistence.filter.OrderDirection;
 import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.filter.condition.LogicalOperator;
-import eu.okaeri.persistence.filter.predicate.*;
+import eu.okaeri.persistence.filter.predicate.Predicate;
+import eu.okaeri.persistence.filter.predicate.collection.InPredicate;
+import eu.okaeri.persistence.filter.predicate.collection.NotInPredicate;
+import eu.okaeri.persistence.filter.predicate.equality.EqPredicate;
+import eu.okaeri.persistence.filter.predicate.equality.NePredicate;
+import eu.okaeri.persistence.filter.predicate.nullity.IsNullPredicate;
+import eu.okaeri.persistence.filter.predicate.nullity.NotNullPredicate;
+import eu.okaeri.persistence.filter.predicate.numeric.GtPredicate;
+import eu.okaeri.persistence.filter.predicate.numeric.GtePredicate;
+import eu.okaeri.persistence.filter.predicate.numeric.LtPredicate;
+import eu.okaeri.persistence.filter.predicate.numeric.LtePredicate;
+import eu.okaeri.persistence.filter.predicate.string.ContainsPredicate;
+import eu.okaeri.persistence.filter.predicate.string.EndsWithPredicate;
+import eu.okaeri.persistence.filter.predicate.string.StartsWithPredicate;
 import eu.okaeri.persistence.filter.renderer.DefaultFilterRenderer;
 import lombok.NonNull;
 
@@ -17,6 +30,18 @@ public class MongoFilterRenderer extends DefaultFilterRenderer {
 
     public MongoFilterRenderer() {
         super(new MongoStringRenderer());
+    }
+
+    /**
+     * Escapes special regex characters for literal string matching in MongoDB $regex.
+     * Regex special characters: . * + ? [ ] ( ) { } ^ $ | \
+     * Also escapes for JSON context (backslashes and quotes).
+     */
+    protected String escapeRegex(@NonNull String value) {
+        // First escape regex metacharacters with backslash
+        String regexEscaped = value.replaceAll("([.\\\\+*?\\[\\](){}^$|])", "\\\\$1");
+        // Then escape for JSON context (backslash and quotes must be doubled)
+        return regexEscaped.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     @Override
@@ -45,6 +70,10 @@ public class MongoFilterRenderer extends DefaultFilterRenderer {
             return "$lt";
         } else if (predicate instanceof NePredicate) {
             return "$ne";
+        } else if (predicate instanceof InPredicate) {
+            return "$in";
+        } else if (predicate instanceof NotInPredicate) {
+            return "$nin";
         }
 
         throw new IllegalArgumentException("cannot render operator " + predicate + " [" + predicate.getClass() + "]");
@@ -69,6 +98,32 @@ public class MongoFilterRenderer extends DefaultFilterRenderer {
 
     @Override
     public String renderPredicate(@NonNull PersistencePath path, @NonNull Predicate predicate) {
+
+        // Special handling for null predicates
+        if (predicate instanceof IsNullPredicate) {
+            return "{ \"" + path.toMongoPath() + "\": null }";
+        }
+        if (predicate instanceof NotNullPredicate) {
+            return "{ \"" + path.toMongoPath() + "\": { \"$ne\": null } }";
+        }
+
+        // Handle string predicates with $regex
+        if (predicate instanceof StartsWithPredicate) {
+            String value = this.escapeRegex((String) ((StartsWithPredicate) predicate).getRightOperand());
+            String options = ((StartsWithPredicate) predicate).isIgnoreCase() ? ", \"$options\": \"i\"" : "";
+            return "{ \"" + path.toMongoPath() + "\": { \"$regex\": \"^" + value + "\"" + options + " }}";
+        }
+        if (predicate instanceof EndsWithPredicate) {
+            String value = this.escapeRegex((String) ((EndsWithPredicate) predicate).getRightOperand());
+            String options = ((EndsWithPredicate) predicate).isIgnoreCase() ? ", \"$options\": \"i\"" : "";
+            return "{ \"" + path.toMongoPath() + "\": { \"$regex\": \"" + value + "$\"" + options + " }}";
+        }
+        if (predicate instanceof ContainsPredicate) {
+            String value = this.escapeRegex((String) ((ContainsPredicate) predicate).getRightOperand());
+            String options = ((ContainsPredicate) predicate).isIgnoreCase() ? ", \"$options\": \"i\"" : "";
+            return "{ \"" + path.toMongoPath() + "\": { \"$regex\": \"" + value + "\"" + options + " }}";
+        }
+
         return "{ \"" + path.toMongoPath() + "\": { \"" + this.renderOperator(predicate) + "\": " + this.renderOperand(predicate) + " }}";
     }
 

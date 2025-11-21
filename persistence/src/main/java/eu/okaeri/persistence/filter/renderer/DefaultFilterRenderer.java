@@ -5,11 +5,18 @@ import eu.okaeri.persistence.filter.OrderBy;
 import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.filter.condition.LogicalOperator;
 import eu.okaeri.persistence.filter.predicate.*;
+import eu.okaeri.persistence.filter.predicate.equality.EqPredicate;
+import eu.okaeri.persistence.filter.predicate.equality.NePredicate;
+import eu.okaeri.persistence.filter.predicate.numeric.GtPredicate;
+import eu.okaeri.persistence.filter.predicate.numeric.GtePredicate;
+import eu.okaeri.persistence.filter.predicate.numeric.LtPredicate;
+import eu.okaeri.persistence.filter.predicate.numeric.LtePredicate;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -115,6 +122,13 @@ public class DefaultFilterRenderer implements FilterRenderer {
 
         if (operand instanceof CharSequence) {
             return this.stringRenderer.render(String.valueOf(operand));
+        }
+
+        if (operand instanceof Collection) {
+            Collection<?> collection = (Collection<?>) operand;
+            return "[" + collection.stream()
+                .map(this::renderOperand)
+                .collect(Collectors.joining(", ")) + "]";
         }
 
         throw new IllegalArgumentException("cannot render operand " + operand + " [" + operand.getClass() + "]");

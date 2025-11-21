@@ -9,6 +9,9 @@ import lombok.NonNull;
 
 import java.util.Arrays;
 
+import static eu.okaeri.persistence.filter.predicate.SimplePredicate.gte;
+import static eu.okaeri.persistence.filter.predicate.SimplePredicate.lte;
+
 @Data
 @SuppressWarnings("unchecked")
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -46,6 +49,14 @@ public class Condition implements Predicate {
     public static Condition or(@NonNull PersistencePath path, @NonNull Predicate... predicates) {
         if (predicates.length <= 0) throw new IllegalArgumentException("one or more predicate is required");
         return new Condition(LogicalOperator.OR, path, predicates);
+    }
+
+    public static Condition between(@NonNull String path, double min, double max) {
+        return and(path, gte(min), lte(max));
+    }
+
+    public static Condition between(@NonNull PersistencePath path, double min, double max) {
+        return and(path, gte(min), lte(max));
     }
 
     @Override

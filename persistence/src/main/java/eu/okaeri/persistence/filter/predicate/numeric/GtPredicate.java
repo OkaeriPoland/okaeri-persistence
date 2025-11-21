@@ -1,5 +1,6 @@
-package eu.okaeri.persistence.filter.predicate;
+package eu.okaeri.persistence.filter.predicate.numeric;
 
+import eu.okaeri.persistence.filter.predicate.PredicateNumeric;
 import lombok.NonNull;
 
 /**

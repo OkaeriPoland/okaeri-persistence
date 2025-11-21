@@ -1,5 +1,6 @@
-package eu.okaeri.persistence.filter.predicate;
+package eu.okaeri.persistence.filter.predicate.equality;
 
+import eu.okaeri.persistence.filter.predicate.SimplePredicate;
 import lombok.NonNull;
 
 import static eu.okaeri.persistence.document.DocumentValueUtils.compareEquals;

@@ -6,6 +6,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.stream.Stream;
 
+import static eu.okaeri.persistence.filter.condition.Condition.between;
 import static eu.okaeri.persistence.filter.condition.Condition.on;
 import static eu.okaeri.persistence.filter.predicate.SimplePredicate.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -266,5 +267,325 @@ public class PredicateOperatorsE2ETest extends E2ETestBase {
 
         var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
         assertThat(remaining).containsExactlyInAnyOrder("alice", "bob", "charlie", "diana", "eve");
+    }
+
+    // ===== BETWEEN (convenience method) =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_between_basic(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(between("exp", 150, 200)));
+        assertThat(deleted).isEqualTo(3); // eve (150), bob (200), diana (200)
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getExp).toList();
+        assertThat(remaining).containsExactlyInAnyOrder(100, 300); // alice and charlie
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_between_exclusive_boundaries(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(between("exp", 101, 299)));
+        assertThat(deleted).isEqualTo(3); // eve (150), bob (200), diana (200)
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getExp).toList();
+        assertThat(remaining).containsExactlyInAnyOrder(100, 300); // alice and charlie
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_between_single_value(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(between("exp", 200, 200)));
+        assertThat(deleted).isEqualTo(2); // bob and diana exactly 200
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("alice", "charlie", "eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_between_no_match(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(between("exp", 400, 500)));
+        assertThat(deleted).isEqualTo(0);
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("alice", "bob", "charlie", "diana", "eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_between_all(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(between("exp", 0, 1000)));
+        assertThat(deleted).isEqualTo(5); // all users
+
+        assertThat(btc.getUserRepository().count()).isEqualTo(0);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_between_negative_range(BackendTestContext btc) {
+        btc.getUserRepository().save(new User("negative", -50));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        long deleted = btc.getUserRepository().delete(q -> q.where(between("exp", -100, 100)));
+        assertThat(deleted).isEqualTo(2); // negative (-50) and alice (100)
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("bob", "charlie", "diana", "eve");
+    }
+
+    // ===== IS NULL / NOT NULL =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_isNull_no_null_values(BackendTestContext btc) {
+        // None of the users have null names
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", isNull())));
+        assertThat(deleted).isEqualTo(0);
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("alice", "bob", "charlie", "diana", "eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_notNull_all_have_values(BackendTestContext btc) {
+        // All users have non-null names
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", notNull())));
+        assertThat(deleted).isEqualTo(5); // all users
+
+        assertThat(btc.getUserRepository().count()).isEqualTo(0);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_notNull_all_have_exp_values(BackendTestContext btc) {
+        // All users have non-null exp values
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("exp", notNull())));
+        assertThat(deleted).isEqualTo(5); // all users
+
+        assertThat(btc.getUserRepository().count()).isEqualTo(0);
+    }
+
+    // ===== IN =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_in_string_single_match(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", in("alice", "zoe", "frank"))));
+        assertThat(deleted).isEqualTo(1); // only alice matches
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("bob", "charlie", "diana", "eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_in_string_multiple_matches(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", in("alice", "bob", "charlie"))));
+        assertThat(deleted).isEqualTo(3); // alice, bob, charlie
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("diana", "eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_in_number_single_match(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("exp", in(100, 500, 1000))));
+        assertThat(deleted).isEqualTo(1); // alice (100)
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("bob", "charlie", "diana", "eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_in_number_multiple_matches(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("exp", in(100, 200, 300))));
+        assertThat(deleted).isEqualTo(4); // alice (100), bob (200), diana (200), charlie (300)
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactly("eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_in_no_match(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", in("zoe", "frank", "grace"))));
+        assertThat(deleted).isEqualTo(0);
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("alice", "bob", "charlie", "diana", "eve");
+    }
+
+    // ===== NOT IN =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_notIn_string_excludes_one(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", notIn("alice"))));
+        assertThat(deleted).isEqualTo(4); // everyone except alice
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactly("alice");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_notIn_string_excludes_multiple(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", notIn("alice", "bob", "charlie"))));
+        assertThat(deleted).isEqualTo(2); // diana and eve
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("alice", "bob", "charlie");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_notIn_number_excludes_one(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("exp", notIn(100))));
+        assertThat(deleted).isEqualTo(4); // everyone except alice (100)
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getExp).toList();
+        assertThat(remaining).containsExactly(100); // just alice
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_notIn_number_excludes_multiple(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("exp", notIn(100, 200))));
+        assertThat(deleted).isEqualTo(2); // charlie (300), eve (150)
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getExp).toList();
+        assertThat(remaining).containsExactlyInAnyOrder(100, 200, 200); // alice, bob, diana
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_notIn_all_match(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", notIn("zoe", "frank"))));
+        assertThat(deleted).isEqualTo(5); // all users (none match the exclusion list)
+
+        assertThat(btc.getUserRepository().count()).isEqualTo(0);
+    }
+
+    // ===== STRING PREDICATES - Setup =====
+
+    protected static Stream<BackendTestContext> stringTestContext() {
+        return allBackends().map(backend -> {
+            BackendTestContext btc = BackendTestContext.create(backend);
+
+            // Test data for string predicates
+            btc.getUserRepository().save(new User("admin@example.com", 100));
+            btc.getUserRepository().save(new User("user@example.com", 200));
+            btc.getUserRepository().save(new User("support@test.org", 300));
+            btc.getUserRepository().save(new User("Admin@Company.COM", 400));  // Mixed case
+            btc.getUserRepository().save(new User("temporary_user", 500));
+
+            return btc;
+        });
+    }
+
+    // ===== STARTS WITH (startsWith) =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stringTestContext")
+    void test_startsWith_basic(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", startsWith("admin"))));
+        assertThat(deleted).isEqualTo(1); // admin@example.com
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("user@example.com", "support@test.org", "Admin@Company.COM", "temporary_user");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stringTestContext")
+    void test_startsWith_ignoreCase(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", startsWith("admin").ignoreCase())));
+        assertThat(deleted).isEqualTo(2); // admin@example.com and Admin@Company.COM
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("user@example.com", "support@test.org", "temporary_user");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stringTestContext")
+    void test_startsWith_no_match(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", startsWith("xyz"))));
+        assertThat(deleted).isEqualTo(0);
+
+        assertThat(btc.getUserRepository().count()).isEqualTo(5);
+    }
+
+    // ===== ENDS WITH (endsWith) =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stringTestContext")
+    void test_endsWith_basic(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", endsWith(".com"))));
+        assertThat(deleted).isEqualTo(2); // admin@example.com, user@example.com
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("support@test.org", "Admin@Company.COM", "temporary_user");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stringTestContext")
+    void test_endsWith_ignoreCase(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", endsWith(".com").ignoreCase())));
+        assertThat(deleted).isEqualTo(3); // admin@example.com, user@example.com, Admin@Company.COM
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("support@test.org", "temporary_user");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stringTestContext")
+    void test_endsWith_no_match(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", endsWith(".net"))));
+        assertThat(deleted).isEqualTo(0);
+
+        assertThat(btc.getUserRepository().count()).isEqualTo(5);
+    }
+
+    // ===== CONTAINS (contains) =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stringTestContext")
+    void test_contains_basic(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", contains("@example"))));
+        assertThat(deleted).isEqualTo(2); // admin@example.com, user@example.com
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("support@test.org", "Admin@Company.COM", "temporary_user");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stringTestContext")
+    void test_contains_ignoreCase(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", contains("admin").ignoreCase())));
+        assertThat(deleted).isEqualTo(2); // admin@example.com, Admin@Company.COM
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("user@example.com", "support@test.org", "temporary_user");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stringTestContext")
+    void test_contains_underscore(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", contains("_user"))));
+        assertThat(deleted).isEqualTo(1); // temporary_user
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("admin@example.com", "user@example.com", "support@test.org", "Admin@Company.COM");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("stringTestContext")
+    void test_contains_no_match(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", contains("xyz"))));
+        assertThat(deleted).isEqualTo(0);
+
+        assertThat(btc.getUserRepository().count()).isEqualTo(5);
     }
 }

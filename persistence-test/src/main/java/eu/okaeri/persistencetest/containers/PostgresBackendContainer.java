@@ -20,6 +20,7 @@ public class PostgresBackendContainer implements BackendContainer {
             .withDatabaseName("okaeri_persistence")
             .withUsername("postgres")
             .withPassword("test")
+            .withCommand("postgres -c max_connections=500")
             .withReuse(true);
 
         POSTGRES.start();
@@ -64,6 +65,6 @@ public class PostgresBackendContainer implements BackendContainer {
 
     @Override
     public String toString() {
-        return getName();
+        return this.getName();
     }
 }
