@@ -11,6 +11,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
 public class User extends Document {
+
     private String name;
     private int exp;
+    private boolean verified;
+
+    public User(String name, int exp) {
+        this.name = name;
+        this.exp = exp;
+    }
 }

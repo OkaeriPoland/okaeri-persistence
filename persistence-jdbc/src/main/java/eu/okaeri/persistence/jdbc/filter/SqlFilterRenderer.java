@@ -72,6 +72,11 @@ public class SqlFilterRenderer extends DefaultFilterRenderer {
         if (operand instanceof SimplePredicate) {
             operand = ((SimplePredicate) operand).getRightOperand();
         }
+        // For SQL, booleans in JSON are stored as string literals 'true'/'false'
+        // so we need to render them as strings for comparison
+        if (operand instanceof Boolean) {
+            return this.stringRenderer.render(String.valueOf(operand));
+        }
         // For SQL, collections should use parentheses instead of brackets
         if (operand instanceof Collection) {
             Collection<?> collection = (Collection<?>) operand;

@@ -51,14 +51,6 @@ public class Condition implements Predicate {
         return new Condition(LogicalOperator.OR, path, predicates);
     }
 
-    public static Condition between(@NonNull String path, double min, double max) {
-        return and(path, gte(min), lte(max));
-    }
-
-    public static Condition between(@NonNull PersistencePath path, double min, double max) {
-        return and(path, gte(min), lte(max));
-    }
-
     @Override
     public boolean check(Object leftOperand) {
         if (this.operator == LogicalOperator.AND) {

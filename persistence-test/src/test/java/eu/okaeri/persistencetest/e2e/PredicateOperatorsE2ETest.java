@@ -6,7 +6,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.stream.Stream;
 
-import static eu.okaeri.persistence.filter.condition.Condition.between;
 import static eu.okaeri.persistence.filter.condition.Condition.on;
 import static eu.okaeri.persistence.filter.predicate.SimplePredicate.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -100,6 +99,63 @@ public class PredicateOperatorsE2ETest extends E2ETestBase {
 
         var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
         assertThat(remaining).containsExactlyInAnyOrder("alice", "bob", "charlie", "diana", "eve");
+    }
+
+    // ===== BOOLEAN EQUALS (eq) =====
+
+    protected static Stream<BackendTestContext> booleanTestContext() {
+        return allBackends().map(backend -> {
+            BackendTestContext btc = BackendTestContext.create(backend);
+
+            // Test data with boolean values
+            btc.getUserRepository().save(new User("alice", 100, true));
+            btc.getUserRepository().save(new User("bob", 200, false));
+            btc.getUserRepository().save(new User("charlie", 300, true));
+            btc.getUserRepository().save(new User("diana", 400, false));
+            btc.getUserRepository().save(new User("eve", 500, true));
+
+            return btc;
+        });
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("booleanTestContext")
+    void test_eq_boolean_true(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("verified", eq(true))));
+        assertThat(deleted).isEqualTo(3); // alice, charlie, eve
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("bob", "diana");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("booleanTestContext")
+    void test_eq_boolean_false(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("verified", eq(false))));
+        assertThat(deleted).isEqualTo(2); // bob, diana
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("alice", "charlie", "eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("booleanTestContext")
+    void test_ne_boolean_true(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("verified", ne(true))));
+        assertThat(deleted).isEqualTo(2); // bob, diana (false values)
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("alice", "charlie", "eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("booleanTestContext")
+    void test_ne_boolean_false(BackendTestContext btc) {
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("verified", ne(false))));
+        assertThat(deleted).isEqualTo(3); // alice, charlie, eve (true values)
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("bob", "diana");
     }
 
     // ===== NOT EQUALS (ne) =====
@@ -312,7 +368,7 @@ public class PredicateOperatorsE2ETest extends E2ETestBase {
     @ParameterizedTest(name = "{0}")
     @MethodSource("allBackendsWithContext")
     void test_between_basic(BackendTestContext btc) {
-        long deleted = btc.getUserRepository().delete(q -> q.where(between("exp", 150, 200)));
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("exp", between(150, 200))));
         assertThat(deleted).isEqualTo(3); // eve (150), bob (200), diana (200)
 
         var remaining = btc.getUserRepository().streamAll().map(User::getExp).toList();
@@ -322,7 +378,7 @@ public class PredicateOperatorsE2ETest extends E2ETestBase {
     @ParameterizedTest(name = "{0}")
     @MethodSource("allBackendsWithContext")
     void test_between_exclusive_boundaries(BackendTestContext btc) {
-        long deleted = btc.getUserRepository().delete(q -> q.where(between("exp", 101, 299)));
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("exp", between(101, 299))));
         assertThat(deleted).isEqualTo(3); // eve (150), bob (200), diana (200)
 
         var remaining = btc.getUserRepository().streamAll().map(User::getExp).toList();
@@ -332,7 +388,7 @@ public class PredicateOperatorsE2ETest extends E2ETestBase {
     @ParameterizedTest(name = "{0}")
     @MethodSource("allBackendsWithContext")
     void test_between_single_value(BackendTestContext btc) {
-        long deleted = btc.getUserRepository().delete(q -> q.where(between("exp", 200, 200)));
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("exp", between(200, 200))));
         assertThat(deleted).isEqualTo(2); // bob and diana exactly 200
 
         var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
@@ -342,7 +398,7 @@ public class PredicateOperatorsE2ETest extends E2ETestBase {
     @ParameterizedTest(name = "{0}")
     @MethodSource("allBackendsWithContext")
     void test_between_no_match(BackendTestContext btc) {
-        long deleted = btc.getUserRepository().delete(q -> q.where(between("exp", 400, 500)));
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("exp", between(400, 500))));
         assertThat(deleted).isEqualTo(0);
 
         var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
@@ -352,7 +408,7 @@ public class PredicateOperatorsE2ETest extends E2ETestBase {
     @ParameterizedTest(name = "{0}")
     @MethodSource("allBackendsWithContext")
     void test_between_all(BackendTestContext btc) {
-        long deleted = btc.getUserRepository().delete(q -> q.where(between("exp", 0, 1000)));
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("exp", between(0, 1000))));
         assertThat(deleted).isEqualTo(5); // all users
 
         assertThat(btc.getUserRepository().count()).isEqualTo(0);
@@ -364,7 +420,7 @@ public class PredicateOperatorsE2ETest extends E2ETestBase {
         btc.getUserRepository().save(new User("negative", -50));
         assertThat(btc.getUserRepository().count()).isEqualTo(6);
 
-        long deleted = btc.getUserRepository().delete(q -> q.where(between("exp", -100, 100)));
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("exp", between(-100, 100))));
         assertThat(deleted).isEqualTo(2); // negative (-50) and alice (100)
 
         var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();

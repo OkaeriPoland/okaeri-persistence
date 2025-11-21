@@ -211,18 +211,31 @@ List<User> users = userRepo.find(q -> q
   .limit(10))
   .collect(Collectors.toList()); // Page 3 of results
 
-// All together
+// Advanced: string predicates, case-insensitive matching, IN/NOT IN, null checks
 List<User> results = userRepo.find(q -> q
   .where(and(
-    on("level", between(10, 50)),
-    on("banned", eq(false))))
+    on("name", contains("smith").ignoreCase()),      // .ignoreCase() works with startsWith/endsWith/contains
+    on("username", eqi("alice")),                    // eqi() or eq().ignoreCase() for case-insensitive equals
+    on("role", in("ADMIN", "MODERATOR")),            // in() and notIn() for collections
+    on("level", between(10, 50)),                    // between() is sugar for gte + lte
+    on("deletedAt", notNull()),                      // isNull()/notNull() for null checks
+    or(
+      on("verified", eq(true)),
+      on("email", endsWith("@trusted.com"))
+    )))
   .orderBy(desc("level"), asc("name"))
   .skip(0)
   .limit(25))
   .collect(Collectors.toList());
 ```
 
-**Supported Operators**: `eq`, `gt`, `gte`, `lt`, `lte`, `between`, `in`, `and`, `or`
+**Supported Operators**:
+- **Comparison**: `eq`, `eqi` (case-insensitive), `ne`, `gt`, `gte`, `lt`, `lte`
+- **Range**: `between(min, max)`
+- **Collection**: `in(...)`, `notIn(...)`
+- **String**: `startsWith`, `endsWith`, `contains` (all support `.ignoreCase()`)
+- **Null checks**: `isNull()`, `notNull()`
+- **Logical**: `and`, `or`, `not`
 
 **Backend Support**:
 - **MongoDB** → Native query translation with `$gt`, `$and`, etc.

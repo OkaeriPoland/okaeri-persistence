@@ -84,6 +84,17 @@ public abstract class SimplePredicate implements Predicate {
     }
 
     /**
+     * Creates an equals predicate for boolean values.
+     * {@code field == value}
+     *
+     * @param rightOperand the value to compare against
+     * @return equals predicate
+     */
+    public static SimplePredicate eq(boolean rightOperand) {
+        return new EqPredicate(rightOperand);
+    }
+
+    /**
      * Creates a case-insensitive equals predicate for string values.
      * Shorthand for {@code eq(value).ignoreCase()}.
      * {@code lower(field) == lower(value)}
@@ -158,6 +169,17 @@ public abstract class SimplePredicate implements Predicate {
      * @return not-equals predicate
      */
     public static SimplePredicate ne(@NonNull CharSequence rightOperand) {
+        return new NePredicate(rightOperand);
+    }
+
+    /**
+     * Creates a not-equals predicate for boolean values.
+     * {@code field != value}
+     *
+     * @param rightOperand the value to compare against
+     * @return not-equals predicate
+     */
+    public static SimplePredicate ne(boolean rightOperand) {
         return new NePredicate(rightOperand);
     }
 
@@ -246,5 +268,20 @@ public abstract class SimplePredicate implements Predicate {
      */
     public static ContainsPredicate contains(@NonNull String substring) {
         return new ContainsPredicate(substring);
+    }
+
+    /**
+     * Creates a between predicate for range matching.
+     * Sugar for {@code gte(min), lte(max)}.
+     * {@code field >= min AND field <= max}
+     * <p>
+     * Usage: {@code on("level", between(10, 50))}
+     *
+     * @param min the minimum value (inclusive)
+     * @param max the maximum value (inclusive)
+     * @return array of predicates (gte and lte)
+     */
+    public static Predicate[] between(double min, double max) {
+        return new Predicate[]{gte(min), lte(max)};
     }
 }

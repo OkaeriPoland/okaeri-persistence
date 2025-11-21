@@ -120,6 +120,10 @@ public class DefaultFilterRenderer implements FilterRenderer {
             return String.valueOf(operand);
         }
 
+        if (operand instanceof Boolean) {
+            return String.valueOf(operand);
+        }
+
         if (operand instanceof CharSequence) {
             return this.stringRenderer.render(String.valueOf(operand));
         }

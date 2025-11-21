@@ -75,6 +75,14 @@ public class H2FilterRenderer extends SqlFilterRenderer {
                 + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
         }
 
+        // Handle boolean comparisons - JSON booleans don't have quotes, just cast to varchar
+        if ((predicate instanceof SimplePredicate) && (((SimplePredicate) predicate).getRightOperand() instanceof Boolean)) {
+            // H2 JSON boolean values (true/false) are stored without quotes in JSON
+            // Cast to varchar gives us "true" or "false" as strings
+            return "(cast(" + fieldReference + " as varchar) "
+                + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
+        }
+
         // Unescape JSON: remove outer quotes, unescape \" to ", and unescape \\ to \
         // Use SUBSTRING instead of TRIM to remove exactly first and last character (the outer quotes)
         // This prevents accidentally removing quotes that are part of escaped sequences like \"
