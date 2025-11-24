@@ -43,13 +43,13 @@ Pick one (or multiple):
 
 **Emulated/Workaround Storage:**
 
-| Backend           | Artifact                    | Description                                                                                                                                                                                    |
-|-------------------|-----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **H2**            | `okaeri-persistence-jdbc`   | Uses HikariCP with H2 in `mode=mysql`. Stores documents as native JSON type with native query translation using field reference syntax `(column)."field"`. Emulated indexes in separate table. |
-| **MariaDB/MySQL** | `okaeri-persistence-jdbc`   | Uses HikariCP with MySQL/MariaDB. Stores documents using native JSON datatype with native query translation (`JSON_EXTRACT`, `JSON_UNQUOTE`). Emulated indexes in separate table.              |
-| **Redis**         | `okaeri-persistence-redis`  | Uses Lettuce client. Stores JSON as strings with Lua script-based filtering and hash/set secondary indexes. Filtering is slower than native document stores.                                   |
-| **Flat Files**    | `okaeri-persistence-flat`   | File-based storage using any okaeri-configs format (YAML/JSON/HOCON). In-memory or file-based indexes.                                                                                         |
-| **In-Memory**     | `okaeri-persistence-core`   | Pure in-memory storage with HashMap-based indexes. Zero persistence, excellent performance.                                                                                                    |
+| Backend        | Artifact                    | Description                                                                                                                                                                                    |
+|----------------|-----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **H2**         | `okaeri-persistence-jdbc`   | Uses HikariCP with H2 in `mode=mysql`. Stores documents as native JSON type with native query translation using field reference syntax `(column)."field"`. Emulated indexes in separate table. |
+| **MariaDB**    | `okaeri-persistence-jdbc`   | Uses HikariCP with MariaDB. Stores documents using native JSON datatype with native query translation (`JSON_EXTRACT`, `JSON_UNQUOTE`). Emulated indexes in separate table.              |
+| **Redis**      | `okaeri-persistence-redis`  | Uses Lettuce client. Stores JSON as strings with Lua script-based filtering and hash/set secondary indexes. Filtering is slower than native document stores.                                   |
+| **Flat Files** | `okaeri-persistence-flat`   | File-based storage using any okaeri-configs format (YAML/JSON/HOCON). In-memory or file-based indexes.                                                                                         |
+| **In-Memory**  | `okaeri-persistence-core`   | Pure in-memory storage with HashMap-based indexes. Zero persistence, excellent performance.                                                                                                    |
 
 ## Installation
 
@@ -171,7 +171,7 @@ users.streamByLevel(42)
   .forEach(u -> System.out.println(u.getName()));
 ```
 
-## Query API
+## Query DSL
 
 The `find()` method takes a lambda that builds a query and returns a Stream:
 
@@ -229,22 +229,77 @@ List<User> results = userRepo.find(q -> q
   .toList();
 ```
 
-**Supported Operators**:
-- **Comparison**: `eq`, `eqi` (case-insensitive), `ne`, `gt`, `gte`, `lt`, `lte`
-- **Range**: `between(min, max)`
-- **Collection**: `in(...)`, `notIn(...)`
-- **String**: `startsWith`, `endsWith`, `contains` (all support `.ignoreCase()`)
-- **Null checks**: `isNull()`, `notNull()`
-- **Logical**: `and`, `or`, `not`
-
 **Backend Support**:
-- **MongoDB** → Native query translation with `$gt`, `$and`, etc.
-- **PostgreSQL** → Native JSONB operators (`->`, `->>`, `@>`) with GIN indexes
-- **MariaDB/MySQL** → Native JSON functions (`JSON_EXTRACT`, `JSON_UNQUOTE`) with proper type casting
-- **H2** → Native JSON field reference syntax (`(column)."field"`) with type casting
-- **Redis, Flat Files, In-Memory** → In-memory filter evaluation (fetch all, filter in Java)
+- **MongoDB**: Native query translation with `$gt`, `$and`, etc.
+- **PostgreSQL**: Native JSONB operators (`->`, `->>`, `@>`) with GIN indexes
+- **MariaDB**: Native JSON functions (`JSON_EXTRACT`, `JSON_UNQUOTE`) with proper type casting
+- **H2**: Native JSON field reference syntax (`(column)."field"`) with type casting
+- **Redis, Flat Files, In-Memory**:In-memory filter evaluation (fetch all, filter in Java)
 
 **Performance Note**: Native backends (MongoDB, PostgreSQL, MariaDB, H2) push filtering to the database for optimal performance. Other backends fetch all documents and filter in memory.
+
+## Update DSL
+
+Modify documents with field and array operations:
+
+```java
+import static eu.okaeri.persistence.filter.UpdateBuilder.*;
+
+// Update by ID - returns boolean (true if modified)
+boolean updated = users.updateOne(userId, u -> u
+  .set("level", 43)
+  .increment("exp", 100));
+
+// Update by entity - returns boolean
+boolean updated = users.updateOne(alice, u -> u
+  .push("achievements", "speedrun"));
+
+// Update multiple with WHERE - returns count
+long count = users.update(u -> u
+  .where(on("level", gte(10)))
+  .increment("exp", 50));
+
+// Update and return NEW version
+Optional<User> newVersion = users.updateOneAndGet(userId, u -> u
+  .set("verified", true));
+
+// Update and return OLD version
+Optional<User> oldVersion = users.getAndUpdateOne(userId, u -> u
+  .unset("tempToken"));
+```
+
+**Operations**:
+
+```java
+// Field operations
+.set("name", "bob")              // Set field value
+.set("profile.age", 25)          // Nested fields supported
+.unset("token")                  // Remove field (set to null)
+.increment("score", 10)          // Add to number (use negative to subtract)
+.multiply("damage", 1.5)         // Multiply number
+.min("bestTime", 42.5)           // Update only if new value is smaller
+.max("highScore", 1000)          // Update only if new value is larger
+.currentDate("updatedAt")        // Set to current timestamp (ISO-8601)
+
+// Array operations
+.push("tags", "a")               // Append value(s) to array
+.push("tags", "a", "b", "c")     // Varargs for multiple values
+.popFirst("queue")               // Remove first element
+.popLast("history")              // Remove last element
+.pull("tags", "old")             // Remove all occurrences of value
+.pull("flags", null)             // Supports null
+.pullAll("roles", "A", "B")      // Remove multiple values (varargs)
+.addToSet("badges", "new")       // Add if not present (varargs, supports null)
+```
+
+**Important**: Each field can only appear once per update. Use multiple `.set()` calls for different fields, or chain separate `updateOne()` calls for complex scenarios.
+
+**Backend Support**:
+- **MongoDB/PostgreSQL**: Native atomic operations
+- **MariaDB**: Native atomic* operations
+  - *Non-atomic in-memory fallback for `pull`/`pullAll`/`addToSet`
+- **In-Memory**: Synchronized operations with per-document locking
+- **H2/Redis/Flat Files**: In-memory evaluation (non-atomic)
 
 ## Repository Methods
 
@@ -578,15 +633,15 @@ List<UserAccount> moderators = accounts.find(q -> q
 
 ## Backend Comparison
 
-| Backend           | Indexes        | Query DSL | Best For                 |
-|-------------------|----------------|-----------|--------------------------|
-| **MongoDB**       | Native         | Native    | Document workloads       |
-| **PostgreSQL**    | JSONB GIN      | Native    | Already using Postgres   |
-| **MariaDB/MySQL** | Emulated table | Native    | Already using MySQL      |
-| **H2**            | Emulated table | Native    | Testing/Embedded         |
-| **Redis**         | Hash+Set       | In-memory | Fast key-value access    |
-| **Flat Files**    | File/Memory    | In-memory | Config files, small apps |
-| **In-Memory**     | HashMap        | In-memory | Testing, temp state      |
+| Backend        | Indexes        | Query DSL | Update DSL               | Best For                 |
+|----------------|----------------|-----------|--------------------------|--------------------------|
+| **MongoDB**    | Native         | Native    | Native (atomic)          | Document workloads       |
+| **PostgreSQL** | JSONB GIN      | Native    | Native (atomic)          | Already using Postgres   |
+| **MariaDB**    | Emulated table | Native    | Native (atomic)*         | Already using MariaDB    |
+| **H2**         | Emulated table | Native    | In-memory                | Testing/Embedded         |
+| **Redis**      | Hash+Set       | In-memory | In-memory                | Fast key-value access    |
+| **Flat Files** | File/Memory    | In-memory | In-memory                | Config files, small apps |
+| **In-Memory**  | HashMap        | In-memory | In-memory (synchronized) | Testing, temp state      |
 
 ## Configurer Support
 

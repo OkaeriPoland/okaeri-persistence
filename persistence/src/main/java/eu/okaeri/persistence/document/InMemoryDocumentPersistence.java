@@ -8,6 +8,7 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.InMemoryIndex;
 import eu.okaeri.persistence.document.index.IndexProperty;
+import eu.okaeri.persistence.filter.operation.UpdateOperation;
 import eu.okaeri.persistence.raw.PersistenceIndexMode;
 import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import eu.okaeri.persistence.raw.RawPersistence;
@@ -29,6 +30,7 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     private final @Getter PersistencePath basePath = PersistencePath.of("memory");
     private final Map<String, Map<String, InMemoryIndex>> indexMap = new ConcurrentHashMap<>();
     private final Map<String, Map<PersistencePath, Document>> documents = new ConcurrentHashMap<>();
+    private final Map<String, Map<PersistencePath, Object>> documentLocks = new ConcurrentHashMap<>();
 
     private static class DelegatingRawPersistence extends RawPersistence {
         private InMemoryDocumentPersistence delegate;
@@ -123,6 +125,19 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     public void flush() {
     }
 
+    /**
+     * Get a lock object for a specific document (collection + path).
+     * Uses per-document locking to ensure atomicity without blocking the entire collection.
+     * Locks are stored per-collection to match the documents structure.
+     */
+    private Object getLockFor(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
+        Map<PersistencePath, Object> collectionLocks = this.documentLocks.get(collection.getValue());
+        if (collectionLocks == null) {
+            throw new IllegalStateException("Collection not registered: " + collection.getValue());
+        }
+        return collectionLocks.computeIfAbsent(path, k -> new Object());
+    }
+
     @Override
     public void registerCollection(@NonNull PersistenceCollection collection) {
 
@@ -131,6 +146,7 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
         this.getWrite().getKnownCollections().put(collection.getValue(), collection);
         this.getWrite().getKnownIndexes().put(collection.getValue(), collection.getIndexes());
         this.documents.put(collection.getValue(), new ConcurrentHashMap<>());
+        this.documentLocks.put(collection.getValue(), new ConcurrentHashMap<>());
 
         Map<String, InMemoryIndex> indexes = this.indexMap.computeIfAbsent(collection.getValue(), col -> new ConcurrentHashMap<>());
         collection.getIndexes().forEach(index -> indexes.put(index.getValue(), ConfigManager.create(InMemoryIndex.class)));
@@ -220,8 +236,10 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
 
     @Override
     public Optional<Document> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-        this.getRead().checkCollectionRegistered(collection);
-        return Optional.ofNullable(this.documents.get(collection.getValue()).get(path));
+        synchronized (this.getLockFor(collection, path)) {
+            this.getRead().checkCollectionRegistered(collection);
+            return Optional.ofNullable(this.documents.get(collection.getValue()).get(path));
+        }
     }
 
     @Override
@@ -242,8 +260,9 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     public Map<PersistencePath, Document> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
         this.getRead().checkCollectionRegistered(collection);
         return paths.stream()
-            .map(path -> this.documents.get(collection.getValue()).get(path))
-            .filter(Objects::nonNull)
+            .map(path -> this.read(collection, path))
+            .filter(Optional::isPresent)
+            .map(Optional::get)
             .collect(Collectors.toMap(Document::getPath, Function.identity()));
     }
 
@@ -305,9 +324,12 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
 
     @Override
     public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
-        this.getWrite().checkCollectionRegistered(collection);
-        this.updateIndex(collection, path, document);
-        return this.documents.get(collection.getValue()).put(path, document) != null;
+        synchronized (this.getLockFor(collection, path)) {
+            this.getWrite().checkCollectionRegistered(collection);
+            Document updated = this.update(document, collection);
+            this.updateIndex(collection, path, updated);
+            return this.documents.get(collection.getValue()).put(path, updated) != null;
+        }
     }
 
     @Override
@@ -320,8 +342,14 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
 
     @Override
     public boolean delete(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-        this.getWrite().checkCollectionRegistered(collection);
-        return this.documents.get(collection.getValue()).remove(path) != null;
+        synchronized (this.getLockFor(collection, path)) {
+            this.getWrite().checkCollectionRegistered(collection);
+            boolean removed = this.documents.get(collection.getValue()).remove(path) != null;
+            if (removed) {
+                this.documentLocks.get(collection.getValue()).remove(path);
+            }
+            return removed;
+        }
     }
 
     @Override
@@ -333,15 +361,45 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     public boolean deleteAll(@NonNull PersistenceCollection collection) {
         this.getWrite().checkCollectionRegistered(collection);
         Map<PersistencePath, Document> data = this.documents.get(collection.getValue());
-        boolean changed = !data.isEmpty();
-        data.clear();
-        return changed;
+        Map<PersistencePath, Object> locks = this.documentLocks.get(collection.getValue());
+
+        synchronized (data) {
+            boolean changed = !data.isEmpty();
+            data.clear();
+            if (locks != null) {
+                locks.clear();
+            }
+            return changed;
+        }
     }
 
     @Override
     public long deleteAll() {
-        return this.documents.values().stream()
+        long count = this.documents.values().stream()
             .peek(Map::clear)
             .count();
+        this.documentLocks.values().forEach(Map::clear);
+        return count;
+    }
+
+    @Override
+    protected boolean updateOneInMemory(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        synchronized (this.getLockFor(collection, path)) {
+            return super.updateOneInMemory(collection, path, operations);
+        }
+    }
+
+    @Override
+    protected Optional<Document> updateOneAndGetInMemory(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        synchronized (this.getLockFor(collection, path)) {
+            return super.updateOneAndGetInMemory(collection, path, operations);
+        }
+    }
+
+    @Override
+    protected Optional<Document> getAndUpdateOneInMemory(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        synchronized (this.getLockFor(collection, path)) {
+            return super.getAndUpdateOneInMemory(collection, path, operations);
+        }
     }
 }

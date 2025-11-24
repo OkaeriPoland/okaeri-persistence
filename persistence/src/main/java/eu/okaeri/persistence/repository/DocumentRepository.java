@@ -7,6 +7,9 @@ import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.DeleteFilterBuilder;
 import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.filter.FindFilterBuilder;
+import eu.okaeri.persistence.filter.UpdateBuilder;
+import eu.okaeri.persistence.filter.UpdateFilter;
+import eu.okaeri.persistence.filter.UpdateFilterBuilder;
 import eu.okaeri.persistence.filter.condition.Condition;
 
 import java.util.Collection;
@@ -117,4 +120,55 @@ public interface DocumentRepository<PATH, T extends Document> {
     T save(T document);
 
     Iterable<T> saveAll(Iterable<T> documents);
+
+    // ===== UPDATE OPERATIONS =====
+
+    /**
+     * Update multiple documents matching the WHERE clause.
+     * Applies atomic update operations to all documents that match the filter condition.
+     *
+     * @param updater Function that builds the update filter with WHERE clause and operations
+     * @return Number of documents modified
+     */
+    long update(Function<UpdateFilterBuilder, UpdateFilterBuilder> updater);
+
+    /**
+     * Update a single document by its path.
+     * Applies atomic update operations to the document identified by the path.
+     *
+     * @param path The document path (ID)
+     * @param operations Function that builds the update operations
+     * @return true if the document was modified, false if not found
+     */
+    boolean updateOne(PATH path, Function<UpdateBuilder, UpdateBuilder> operations);
+
+    /**
+     * Update a single document using the entity's path.
+     * Convenience method that extracts the path from the entity.
+     *
+     * @param entity The document entity (must have a path set)
+     * @param operations Function that builds the update operations
+     * @return true if the document was modified, false if not found
+     */
+    boolean updateOne(T entity, Function<UpdateBuilder, UpdateBuilder> operations);
+
+    /**
+     * Update a single document and return the updated version.
+     * Performs an atomic update and returns the document after modifications.
+     *
+     * @param path The document path (ID)
+     * @param operations Function that builds the update operations
+     * @return Optional containing the updated document, or empty if not found
+     */
+    Optional<T> updateOneAndGet(PATH path, Function<UpdateBuilder, UpdateBuilder> operations);
+
+    /**
+     * Update a single document and return the original version.
+     * Performs an atomic update and returns the document before modifications.
+     *
+     * @param path The document path (ID)
+     * @param operations Function that builds the update operations
+     * @return Optional containing the original document, or empty if not found
+     */
+    Optional<T> getAndUpdateOne(PATH path, Function<UpdateBuilder, UpdateBuilder> operations);
 }

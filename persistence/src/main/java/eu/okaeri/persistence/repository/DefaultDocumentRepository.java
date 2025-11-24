@@ -5,11 +5,9 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentPersistence;
-import eu.okaeri.persistence.filter.DeleteFilter;
-import eu.okaeri.persistence.filter.DeleteFilterBuilder;
-import eu.okaeri.persistence.filter.FindFilter;
-import eu.okaeri.persistence.filter.FindFilterBuilder;
+import eu.okaeri.persistence.filter.*;
 import eu.okaeri.persistence.filter.condition.Condition;
+import eu.okaeri.persistence.filter.operation.UpdateOperation;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -171,5 +169,44 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
             .collect(Collectors.toMap(Document::getPath, Function.identity()));
         this.persistence.write(this.collection, documentMap);
         return documents;
+    }
+
+    // ===== UPDATE OPERATIONS =====
+
+    @Override
+    public long update(@NonNull Function<UpdateFilterBuilder, UpdateFilterBuilder> updater) {
+        UpdateFilter filter = updater.apply(UpdateFilter.builder()).build();
+        return this.persistence.update(this.collection, filter);
+    }
+
+    @Override
+    public boolean updateOne(@NonNull Object path, @NonNull Function<UpdateBuilder, UpdateBuilder> operations) {
+        UpdateBuilder builder = new UpdateBuilder();
+        List<UpdateOperation> ops = operations.apply(builder).getOperations();
+        return this.persistence.updateOne(this.collection, toPath(path), ops);
+    }
+
+    @Override
+    public boolean updateOne(@NonNull T entity, @NonNull Function<UpdateBuilder, UpdateBuilder> operations) {
+        if (entity.getPath() == null) {
+            throw new IllegalArgumentException("Entity must have a path set");
+        }
+        return this.updateOne(entity.getPath(), operations);
+    }
+
+    @Override
+    public Optional<T> updateOneAndGet(@NonNull Object path, @NonNull Function<UpdateBuilder, UpdateBuilder> operations) {
+        UpdateBuilder builder = new UpdateBuilder();
+        List<UpdateOperation> ops = operations.apply(builder).getOperations();
+        return this.persistence.updateOneAndGet(this.collection, toPath(path), ops)
+            .map(document -> document.into(this.documentType));
+    }
+
+    @Override
+    public Optional<T> getAndUpdateOne(@NonNull Object path, @NonNull Function<UpdateBuilder, UpdateBuilder> operations) {
+        UpdateBuilder builder = new UpdateBuilder();
+        List<UpdateOperation> ops = operations.apply(builder).getOperations();
+        return this.persistence.getAndUpdateOne(this.collection, toPath(path), ops)
+            .map(document -> document.into(this.documentType));
     }
 }

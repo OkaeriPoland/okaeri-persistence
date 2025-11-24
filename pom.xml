@@ -26,7 +26,7 @@
         <lombok.version>1.18.42</lombok.version>
         <junit.version>5.10.2</junit.version>
         <testcontainers.version>2.0.2</testcontainers.version>
-        <okaeri-configs.version>6.0.0-beta.3</okaeri-configs.version>
+        <okaeri-configs.version>6.0.0-beta.6</okaeri-configs.version>
         <hikaricp.version>7.0.2</hikaricp.version>
         <h2.version>2.4.240</h2.version>
         <postgresql.version>42.7.8</postgresql.version>

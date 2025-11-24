@@ -8,8 +8,11 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
+import eu.okaeri.persistence.filter.UpdateFilter;
+import eu.okaeri.persistence.filter.operation.UpdateOperation;
 import eu.okaeri.persistence.filter.renderer.FilterRenderer;
 import eu.okaeri.persistence.jdbc.filter.MariaDbFilterRenderer;
+import eu.okaeri.persistence.jdbc.filter.MariaDbUpdateRenderer;
 import eu.okaeri.persistence.jdbc.filter.SqlStringRenderer;
 import eu.okaeri.persistence.raw.PersistenceIndexMode;
 import eu.okaeri.persistence.raw.PersistencePropertyMode;
@@ -22,7 +25,9 @@ import java.util.stream.StreamSupport;
 
 public class MariaDbPersistence extends JdbcPersistence {
 
-    private static final FilterRenderer FILTER_RENDERER = new MariaDbFilterRenderer(new SqlStringRenderer());
+    private static final SqlStringRenderer STRING_RENDERER = new SqlStringRenderer();
+    private static final FilterRenderer FILTER_RENDERER = new MariaDbFilterRenderer(STRING_RENDERER);
+    private static final MariaDbUpdateRenderer UPDATE_RENDERER = new MariaDbUpdateRenderer(STRING_RENDERER);
 
     public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
         super(basePath, hikariConfig, PersistencePropertyMode.NATIVE, PersistenceIndexMode.EMULATED);
@@ -303,6 +308,139 @@ public class MariaDbPersistence extends JdbcPersistence {
             return statement.executeUpdate(this.debugQuery(sql));
         } catch (SQLException exception) {
             throw new RuntimeException("cannot delete from " + collection + " with " + filter, exception);
+        }
+    }
+
+    @Override
+    public boolean updateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        this.checkCollectionRegistered(collection);
+
+        String updateExpr = UPDATE_RENDERER.render(operations);
+        String sql = "update `" + this.table(collection) + "` set `value` = " + updateExpr + " where `key` = ?";
+
+        try (Connection connection = this.getDataSource().getConnection()) {
+            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
+            prepared.setString(1, path.getValue());
+            int rowsAffected = prepared.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot update " + path + " in " + collection, exception);
+        }
+    }
+
+    @Override
+    public Optional<String> updateOneAndGet(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        this.checkCollectionRegistered(collection);
+
+        String lockSql = "select `value` from `" + this.table(collection) + "` where `key` = ? for update";
+        String updateExpr = UPDATE_RENDERER.render(operations);
+        String updateSql = "update `" + this.table(collection) + "` set `value` = " + updateExpr + " where `key` = ?";
+        String selectSql = "select `value` from `" + this.table(collection) + "` where `key` = ?";
+
+        try (Connection connection = this.getDataSource().getConnection()) {
+            connection.setAutoCommit(false);
+
+            try {
+                // Lock the row first to ensure atomicity
+                PreparedStatement lockStmt = connection.prepareStatement(lockSql);
+                lockStmt.setString(1, path.getValue());
+                ResultSet lockResult = lockStmt.executeQuery();
+
+                if (!lockResult.next()) {
+                    connection.rollback();
+                    return Optional.empty();
+                }
+                lockStmt.close();
+
+                // Perform the update on the locked row
+                PreparedStatement updateStmt = connection.prepareStatement(this.debugQuery(updateSql));
+                updateStmt.setString(1, path.getValue());
+                updateStmt.executeUpdate();
+                updateStmt.close();
+
+                // Read the updated value
+                PreparedStatement selectStmt = connection.prepareStatement(selectSql);
+                selectStmt.setString(1, path.getValue());
+                ResultSet resultSet = selectStmt.executeQuery();
+
+                if (resultSet.next()) {
+                    String value = resultSet.getString("value");
+                    selectStmt.close();
+                    connection.commit();
+                    return Optional.ofNullable(value);
+                }
+
+                selectStmt.close();
+                connection.commit();
+                return Optional.empty();
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
+            }
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot update and get " + path + " in " + collection, exception);
+        }
+    }
+
+    @Override
+    public Optional<String> getAndUpdateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        this.checkCollectionRegistered(collection);
+
+        String selectSql = "select `value` from `" + this.table(collection) + "` where `key` = ? for update";
+        String updateExpr = UPDATE_RENDERER.render(operations);
+        String updateSql = "update `" + this.table(collection) + "` set `value` = " + updateExpr + " where `key` = ?";
+
+        try (Connection connection = this.getDataSource().getConnection()) {
+            connection.setAutoCommit(false);
+
+            try {
+                // Lock and read the current value
+                PreparedStatement selectStmt = connection.prepareStatement(selectSql);
+                selectStmt.setString(1, path.getValue());
+                ResultSet resultSet = selectStmt.executeQuery();
+
+                if (!resultSet.next()) {
+                    connection.rollback();
+                    return Optional.empty();
+                }
+
+                String currentValue = resultSet.getString("value");
+                selectStmt.close();
+
+                // Perform the update
+                PreparedStatement updateStmt = connection.prepareStatement(this.debugQuery(updateSql));
+                updateStmt.setString(1, path.getValue());
+                updateStmt.executeUpdate();
+                updateStmt.close();
+
+                connection.commit();
+                return Optional.of(currentValue);
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
+            }
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot get and update " + path + " in " + collection, exception);
+        }
+    }
+
+    @Override
+    public long update(@NonNull PersistenceCollection collection, @NonNull UpdateFilter filter) {
+        this.checkCollectionRegistered(collection);
+
+        if (filter.getWhere() == null) {
+            throw new IllegalArgumentException("update requires a WHERE condition - use updateOne() for single document updates");
+        }
+
+        String updateExpr = UPDATE_RENDERER.render(filter.getOperations());
+        String sql = "update `" + this.table(collection) + "` set `value` = " + updateExpr +
+                     " where " + FILTER_RENDERER.renderCondition(filter.getWhere());
+
+        try (Connection connection = this.getDataSource().getConnection()) {
+            Statement statement = connection.createStatement();
+            return statement.executeUpdate(this.debugQuery(sql));
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot update " + collection + " with " + filter, exception);
         }
     }
 }

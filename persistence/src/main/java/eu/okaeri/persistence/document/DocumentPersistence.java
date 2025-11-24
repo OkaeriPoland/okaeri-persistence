@@ -14,9 +14,9 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.document.ref.EagerRefSerializer;
 import eu.okaeri.persistence.document.ref.LazyRefSerializer;
-import eu.okaeri.persistence.filter.DeleteFilter;
-import eu.okaeri.persistence.filter.FindFilter;
-import eu.okaeri.persistence.filter.InMemoryFilterEvaluator;
+import eu.okaeri.persistence.filter.*;
+import eu.okaeri.persistence.filter.operation.UpdateOperation;
+import eu.okaeri.persistence.filter.operation.UpdateOperationType;
 import eu.okaeri.persistence.raw.PersistenceIndexMode;
 import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import eu.okaeri.persistence.raw.RawPersistence;
@@ -28,6 +28,7 @@ import lombok.NonNull;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
@@ -50,6 +51,10 @@ public class DocumentPersistence implements Persistence<Document> {
     protected SerdesRegistry serdesRegistry;
     protected Configurer simplifier;
     protected InMemoryFilterEvaluator filterEvaluator;
+    protected InMemoryUpdateEvaluator updateEvaluator;
+
+    // Per-document locks for atomic in-memory update fallbacks (H2, Redis, Flat Files)
+    private final Map<String, Map<String, Object>> fallbackLocks = new ConcurrentHashMap<>();
 
     /**
      * @param configurerProvider Okaeri Config's provider (mostly json)
@@ -76,6 +81,8 @@ public class DocumentPersistence implements Persistence<Document> {
         this.simplifier.setRegistry(this.serdesRegistry);
         // in-memory filter evaluator for backends without native query support
         this.filterEvaluator = new InMemoryFilterEvaluator(this.simplifier);
+        // in-memory update evaluator for backends without native update support
+        this.updateEvaluator = new InMemoryUpdateEvaluator(this.configurerProvider, this.serdesRegistry);
     }
 
     /**
@@ -218,10 +225,22 @@ public class DocumentPersistence implements Persistence<Document> {
 
         for (IndexProperty index : collectionIndexes) {
             Object value = extractValue(documentMap, index.toParts());
-            if ((value != null) && !this.getWrite().canUseToString(value)) {
-                throw new RuntimeException("cannot transform " + value + " to index as string");
+
+            // If field is null (unset), drop the index entry instead of updating with null
+            if (value == null) {
+                boolean changed = this.dropIndex(collection, path, index);
+                if (changed) changes++;
+                continue;
             }
-            boolean changed = this.updateIndex(collection, path, index, (value == null) ? null : String.valueOf(value));
+
+            // Skip emulated index update for non-string values (numbers, etc.)
+            // Emulated indexes only support string-based equality checks
+            // Other backends (Postgres, MariaDB, MongoDB) handle numeric indexes natively
+            if (!this.getWrite().canUseToString(value)) {
+                continue;
+            }
+
+            boolean changed = this.updateIndex(collection, path, index, String.valueOf(value));
             if (changed) changes++;
         }
 
@@ -488,6 +507,185 @@ public class DocumentPersistence implements Persistence<Document> {
         this.registerCollection(collection);
         return RepositoryDeclaration.of(repositoryClass)
             .newProxy(this, collection, repositoryClass.getClassLoader());
+    }
+
+    // ===== UPDATE OPERATIONS =====
+
+    @Override
+    public boolean updateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        // Validate: detect field conflicts (same field with different operation types)
+        this.validateNoFieldConflicts(operations);
+
+        // Try to use native update if available (MongoDB, MariaDB, PostgreSQL, etc.)
+        try {
+            return this.getWrite().updateOne(collection, path, operations);
+        } catch (UnsupportedOperationException e) {
+            LOGGER.fine("Backend doesn't support native updateOne(), using in-memory update for path: " + path.getValue());
+            return this.updateOneInMemory(collection, path, operations);
+        }
+    }
+
+    protected boolean updateOneInMemory(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        Optional<Document> docOpt = this.read(collection, path);
+        if (!docOpt.isPresent()) {
+            return false; // Document not found
+        }
+
+        Document document = docOpt.get();
+        boolean modified = this.updateEvaluator.applyUpdate(document, operations);
+
+        if (modified) {
+            this.write(collection, path, document);
+        }
+
+        return true; // Document found and operations applied
+    }
+
+    /**
+     * Validates that no field has multiple operations.
+     * Each field can only appear once in an update operation, even with the same operation type.
+     * This ensures consistent behavior across all backends (MongoDB, MariaDB, PostgreSQL, etc.)
+     *
+     * @param operations List of update operations to validate
+     * @throws IllegalArgumentException if conflicts are detected
+     */
+    private void validateNoFieldConflicts(@NonNull List<UpdateOperation> operations) {
+        Map<String, UpdateOperationType> fieldToFirstOp = new HashMap<>();
+        Map<String, Integer> fieldCounts = new HashMap<>();
+
+        for (UpdateOperation op : operations) {
+            String field = op.getField();
+            fieldCounts.put(field, fieldCounts.getOrDefault(field, 0) + 1);
+            fieldToFirstOp.putIfAbsent(field, op.getType());
+        }
+
+        List<String> conflicts = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : fieldCounts.entrySet()) {
+            if (entry.getValue() > 1) {
+                String field = entry.getKey();
+                UpdateOperationType opType = fieldToFirstOp.get(field);
+                conflicts.add(String.format("Field '%s' appears %d times (operation: %s)",
+                    field, entry.getValue(), opType));
+            }
+        }
+
+        if (!conflicts.isEmpty()) {
+            throw new IllegalArgumentException(
+                "Cannot execute update: multiple operations on the same field(s) in a single update. " +
+                    "Each field can only be modified once per update. " +
+                    "Conflicts: " + String.join(", ", conflicts) + ". " +
+                    "Split into multiple sequential update calls if you need to apply the same operation multiple times."
+            );
+        }
+    }
+
+    @Override
+    public Optional<Document> updateOneAndGet(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        this.validateNoFieldConflicts(operations);
+
+        try {
+            Optional<String> result = this.getWrite().updateOneAndGet(collection, path, operations);
+            return result.map(json -> {
+                Document document = this.createDocument(collection, path);
+                document.load(json);
+                return document;
+            });
+        } catch (UnsupportedOperationException e) {
+            LOGGER.fine("Backend doesn't support native updateOneAndGet(), using in-memory update for path: " + path.getValue());
+            return this.updateOneAndGetInMemory(collection, path, operations);
+        }
+    }
+
+    protected Optional<Document> updateOneAndGetInMemory(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        Optional<Document> docOpt = this.read(collection, path);
+        if (!docOpt.isPresent()) {
+            return Optional.empty();
+        }
+
+        Document document = docOpt.get();
+        boolean modified = this.updateEvaluator.applyUpdate(document, operations);
+
+        if (modified) {
+            this.write(collection, path, document);
+        }
+
+        return Optional.of(document);
+    }
+
+    @Override
+    public Optional<Document> getAndUpdateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        this.validateNoFieldConflicts(operations);
+
+        try {
+            Optional<String> result = this.getWrite().getAndUpdateOne(collection, path, operations);
+            return result.map(json -> {
+                Document document = this.createDocument(collection, path);
+                document.load(json);
+                return document;
+            });
+        } catch (UnsupportedOperationException e) {
+            LOGGER.fine("Backend doesn't support native getAndUpdateOne(), using in-memory update for path: " + path.getValue());
+            return this.getAndUpdateOneInMemory(collection, path, operations);
+        }
+    }
+
+    protected Optional<Document> getAndUpdateOneInMemory(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        Optional<Document> docOpt = this.read(collection, path);
+        if (!docOpt.isPresent()) {
+            return Optional.empty();
+        }
+
+        Document document = docOpt.get();
+        Configurer oldConfigurer = this.configurerProvider.get();
+        oldConfigurer.setRegistry(this.serdesRegistry);
+        Document oldVersion = ConfigManager.deepCopy(document, oldConfigurer, Document.class);
+        oldVersion.setPath(document.getPath());
+        oldVersion.setCollection(document.getCollection());
+        oldVersion.setPersistence(document.getPersistence());
+
+        boolean modified = this.updateEvaluator.applyUpdate(document, operations);
+        if (modified) {
+            this.write(collection, path, document);
+        }
+
+        return Optional.of(oldVersion);
+    }
+
+    @Override
+    public long update(@NonNull PersistenceCollection collection, @NonNull UpdateFilter filter) {
+        this.validateNoFieldConflicts(filter.getOperations());
+
+        try {
+            return this.getWrite().update(collection, filter);
+        } catch (UnsupportedOperationException e) {
+            LOGGER.fine("Backend doesn't support native update(), using in-memory update");
+            return this.updateInMemory(collection, filter);
+        }
+    }
+
+    protected long updateInMemory(@NonNull PersistenceCollection collection, @NonNull UpdateFilter filter) {
+        // Stream all documents, filter by WHERE clause, apply updates
+        Stream<PersistenceEntity<Document>> stream = this.streamAll(collection);
+
+        // Apply WHERE filter if present
+        if (filter.getWhere() != null) {
+            stream = stream.filter(entity -> this.filterEvaluator.evaluateCondition(filter.getWhere(), entity.getValue()));
+        }
+
+        // Collect paths to update (need to materialize to avoid concurrent modification)
+        List<PersistencePath> pathsToUpdate = stream
+            .map(PersistenceEntity::getPath)
+            .collect(Collectors.toList());
+
+        // Apply updates to each document
+        long count = 0;
+        for (PersistencePath path : pathsToUpdate) {
+            if (this.updateOneInMemory(collection, path, filter.getOperations())) {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     @Override

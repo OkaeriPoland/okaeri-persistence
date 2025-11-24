@@ -7,6 +7,8 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
+import eu.okaeri.persistence.filter.UpdateFilter;
+import eu.okaeri.persistence.filter.operation.UpdateOperation;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -126,6 +128,28 @@ public abstract class RawPersistence implements Persistence<String> {
 
     @Override
     public long deleteByFilter(PersistenceCollection collection, DeleteFilter filter) {
+        throw new UnsupportedOperationException();
+    }
+
+    // ===== UPDATE OPERATIONS =====
+
+    @Override
+    public boolean updateOne(PersistenceCollection collection, PersistencePath path, List<UpdateOperation> operations) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<String> updateOneAndGet(PersistenceCollection collection, PersistencePath path, List<UpdateOperation> operations) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Optional<String> getAndUpdateOne(PersistenceCollection collection, PersistencePath path, List<UpdateOperation> operations) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public long update(PersistenceCollection collection, UpdateFilter filter) {
         throw new UnsupportedOperationException();
     }
 

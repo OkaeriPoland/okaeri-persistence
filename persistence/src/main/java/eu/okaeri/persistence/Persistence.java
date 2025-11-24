@@ -3,12 +3,11 @@ package eu.okaeri.persistence;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
+import eu.okaeri.persistence.filter.UpdateFilter;
+import eu.okaeri.persistence.filter.operation.UpdateOperation;
 
 import java.io.Closeable;
-import java.util.Collection;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Stream;
 
 public interface Persistence<T> extends Closeable {
@@ -311,4 +310,43 @@ public interface Persistence<T> extends Closeable {
      * @return Count of changes
      */
     long deleteAll();
+
+    /**
+     * Update a single entity using atomic update operations.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path       Target entity path (eg. uuid)
+     * @param operations List of update operations to apply
+     * @return True if entity was updated, false if not found
+     */
+    boolean updateOne(PersistenceCollection collection, PersistencePath path, List<UpdateOperation> operations);
+
+    /**
+     * Update a single entity and return the updated version.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path       Target entity path (eg. uuid)
+     * @param operations List of update operations to apply
+     * @return Updated entity, or empty if not found
+     */
+    Optional<T> updateOneAndGet(PersistenceCollection collection, PersistencePath path, List<UpdateOperation> operations);
+
+    /**
+     * Get the current entity and then update it, returning the old version.
+     *
+     * @param collection Target collection (eg. player)
+     * @param path       Target entity path (eg. uuid)
+     * @param operations List of update operations to apply
+     * @return Old entity before update, or empty if not found
+     */
+    Optional<T> getAndUpdateOne(PersistenceCollection collection, PersistencePath path, List<UpdateOperation> operations);
+
+    /**
+     * Update multiple entities matching a filter.
+     *
+     * @param collection Target collection (eg. player)
+     * @param filter     Update filter with WHERE clause and operations
+     * @return Count of entities updated
+     */
+    long update(PersistenceCollection collection, UpdateFilter filter);
 }

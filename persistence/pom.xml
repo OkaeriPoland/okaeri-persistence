@@ -15,12 +15,12 @@
         <dependency>
             <groupId>eu.okaeri</groupId>
             <artifactId>okaeri-configs-core</artifactId>
-            <version>6.0.0-beta.2</version>
+            <version>${okaeri-configs.version}</version>
         </dependency>
         <dependency>
             <groupId>eu.okaeri</groupId>
             <artifactId>okaeri-configs-serdes-commons</artifactId>
-            <version>6.0.0-beta.2</version>
+            <version>${okaeri-configs.version}</version>
         </dependency>
         <dependency>
             <groupId>org.assertj</groupId>

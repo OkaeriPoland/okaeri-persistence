@@ -11,8 +11,11 @@ import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
+import eu.okaeri.persistence.filter.UpdateFilter;
+import eu.okaeri.persistence.filter.operation.UpdateOperation;
 import eu.okaeri.persistence.filter.renderer.FilterRenderer;
 import eu.okaeri.persistence.mongo.filter.MongoFilterRenderer;
+import eu.okaeri.persistence.mongo.filter.MongoUpdateRenderer;
 import eu.okaeri.persistence.raw.NativeRawPersistence;
 import lombok.Getter;
 import lombok.NonNull;
@@ -32,6 +35,7 @@ public class MongoPersistence extends NativeRawPersistence {
     private static final Logger LOGGER = Logger.getLogger(MongoPersistence.class.getSimpleName());
     private static final ReplaceOptions REPLACE_OPTIONS = new ReplaceOptions().upsert(true);
     private static final FilterRenderer FILTER_RENDERER = new MongoFilterRenderer(); // TODO: allow customization
+    private static final MongoUpdateRenderer UPDATE_RENDERER = new MongoUpdateRenderer();
 
     @Getter private MongoClient client;
     @Getter private MongoDatabase database;
@@ -244,6 +248,66 @@ public class MongoPersistence extends NativeRawPersistence {
         return this.mongo(collection)
             .deleteMany(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere()))))
             .getDeletedCount();
+    }
+
+    // ===== UPDATE OPERATIONS =====
+
+    @Override
+    public boolean updateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        Document updateDoc = UPDATE_RENDERER.render(operations);
+        // Use getMatchedCount() - returns true if document exists, even if no fields changed
+        // This is correct for operations like $min/$max where the value might not change
+        return this.mongo(collection)
+            .updateOne(Filters.eq("_id", path.getValue()), updateDoc)
+            .getMatchedCount() > 0;
+    }
+
+    @Override
+    public Optional<String> updateOneAndGet(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        Document updateDoc = UPDATE_RENDERER.render(operations);
+        BasicDBObject result = this.mongo(collection)
+            .findOneAndUpdate(
+                Filters.eq("_id", path.getValue()),
+                updateDoc,
+                new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER)
+            );
+
+        if (result == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(this.transformMongoObject(collection, result).getValue());
+    }
+
+    @Override
+    public Optional<String> getAndUpdateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        Document updateDoc = UPDATE_RENDERER.render(operations);
+        BasicDBObject result = this.mongo(collection)
+            .findOneAndUpdate(
+                Filters.eq("_id", path.getValue()),
+                updateDoc,
+                new FindOneAndUpdateOptions().returnDocument(ReturnDocument.BEFORE)
+            );
+
+        if (result == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(this.transformMongoObject(collection, result).getValue());
+    }
+
+    @Override
+    public long update(@NonNull PersistenceCollection collection, @NonNull UpdateFilter filter) {
+        if (filter.getWhere() == null) {
+            throw new IllegalArgumentException("update requires a WHERE condition - use updateOne() for single document updates");
+        }
+
+        Document updateDoc = UPDATE_RENDERER.render(filter.getOperations());
+        Document whereDoc = Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere())));
+
+        return this.mongo(collection)
+            .updateMany(whereDoc, updateDoc)
+            .getModifiedCount();
     }
 
     @Override
