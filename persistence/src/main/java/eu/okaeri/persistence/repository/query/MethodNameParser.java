@@ -208,7 +208,8 @@ public final class MethodNameParser {
 
     /**
      * Parse field conditions from the "By" clause.
-     * Handles AND/OR logical operators (case-insensitive for underscore support).
+     * Handles AND/OR logical operators at word boundaries.
+     * Word boundary = followed by uppercase (camelCase) or preceded by underscore.
      * Ignores underscores for readability.
      * Converts $ to dot notation for nested fields.
      * Validates and resolves field paths against entity type.
@@ -224,12 +225,11 @@ public final class MethodNameParser {
         LogicalOperator pendingOperator = null; // Operator to attach to NEXT field
 
         while (pos < conditionsPart.length()) {
-            // Find next And/Or keyword (case-insensitive for underscore support)
             String remaining = conditionsPart.substring(pos);
-            String remainingUpper = remaining.toUpperCase();
 
-            int andPos = remainingUpper.indexOf(AND_KEYWORD.toUpperCase());
-            int orPos = remainingUpper.indexOf(OR_KEYWORD.toUpperCase());
+            // Find next And/Or keyword at a valid word boundary
+            int andPos = findKeywordAtWordBoundary(remaining, AND_KEYWORD);
+            int orPos = findKeywordAtWordBoundary(remaining, OR_KEYWORD);
 
             int nextOperatorPos = -1;
             LogicalOperator nextOperator = null;
@@ -277,6 +277,55 @@ public final class MethodNameParser {
         }
 
         return parts;
+    }
+
+    /**
+     * Find a keyword (And/Or) at a valid word boundary.
+     * Valid boundary means:
+     * - Followed by uppercase letter (camelCase: CategoryAndLevel)
+     * - OR preceded by underscore (underscore style: category_and_level)
+     *
+     * @param text    the text to search in
+     * @param keyword the keyword to find (And or Or)
+     * @return position of keyword, or -1 if not found at valid boundary
+     */
+    private static int findKeywordAtWordBoundary(String text, String keyword) {
+        int searchPos = 0;
+        while (searchPos < text.length()) {
+            // Find next occurrence (case-insensitive)
+            int pos = indexOfIgnoreCase(text, keyword, searchPos);
+            if (pos < 0) {
+                return -1;
+            }
+
+            int afterKeyword = pos + keyword.length();
+
+            // Check if this is a valid word boundary:
+            // 1. Preceded by underscore: _And, _Or
+            boolean precededByUnderscore = (pos > 0) && (text.charAt(pos - 1) == '_');
+
+            // 2. Followed by uppercase letter (camelCase boundary) or underscore or end of string
+            boolean validFollowing = (afterKeyword >= text.length()) ||
+                Character.isUpperCase(text.charAt(afterKeyword)) ||
+                (text.charAt(afterKeyword) == '_');
+
+            if (precededByUnderscore || validFollowing) {
+                return pos;
+            }
+
+            // Not a valid boundary, continue searching after this position
+            searchPos = pos + 1;
+        }
+        return -1;
+    }
+
+    /**
+     * Case-insensitive indexOf.
+     */
+    private static int indexOfIgnoreCase(String text, String keyword, int fromIndex) {
+        String textUpper = text.toUpperCase();
+        String keywordUpper = keyword.toUpperCase();
+        return textUpper.indexOf(keywordUpper, fromIndex);
     }
 
     /**

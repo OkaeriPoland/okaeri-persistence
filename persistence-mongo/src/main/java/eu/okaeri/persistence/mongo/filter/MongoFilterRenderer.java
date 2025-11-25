@@ -82,8 +82,20 @@ public class MongoFilterRenderer extends DefaultFilterRenderer {
     @Override
     public String renderCondition(@NonNull Condition condition) {
 
+        Predicate[] predicates = condition.getPredicates();
+
+        // Optimize: single predicate doesn't need $and/$or wrapper
+        if (predicates.length == 1) {
+            Predicate single = predicates[0];
+            if (single instanceof Condition) {
+                return this.renderCondition((Condition) single);
+            } else {
+                return this.renderPredicate(condition.getPath(), single);
+            }
+        }
+
         String operator = this.renderOperator(condition.getOperator());
-        String conditions = Arrays.stream(condition.getPredicates())
+        String conditions = Arrays.stream(predicates)
             .map(predicate -> {
                 if (predicate instanceof Condition) {
                     return this.renderCondition((Condition) predicate);

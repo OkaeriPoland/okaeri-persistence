@@ -72,9 +72,10 @@ public class MongoPersistence extends NativeRawPersistence {
     public void registerCollection(@NonNull PersistenceCollection collection) {
 
         if (!collection.getIndexes().isEmpty()) {
-            this.mongo(collection).createIndexes(collection.getIndexes().stream()
+            List<IndexModel> indexModels = collection.getIndexes().stream()
                 .map(index -> new IndexModel(Indexes.ascending(index.getValue())))
-                .collect(Collectors.toList()));
+                .collect(Collectors.toList());
+            this.mongo(collection).createIndexes(indexModels);
         }
 
         super.registerCollection(collection);
@@ -228,8 +229,8 @@ public class MongoPersistence extends NativeRawPersistence {
 
     @Override
     public boolean deleteAll(@NonNull PersistenceCollection collection) {
-        this.mongo(collection).drop();
-        return true;
+        // Use deleteMany instead of drop() to preserve indexes
+        return this.mongo(collection).deleteMany(new Document()).getDeletedCount() >= 0;
     }
 
     @Override

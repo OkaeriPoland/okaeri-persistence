@@ -92,11 +92,48 @@ public class PostgresPersistence extends NativeRawPersistence {
         collection.getIndexes().forEach(index -> {
 
             String indexName = this.getBasePath().sub(collection).sub(index).sub("idx").toSqlIdentifier();
-            String jsonPath = PersistencePath.of("value").sub(index).toPostgresJsonPath();
-            String indexSql = "create index if not exists " + indexName + " on " + collectionTable + " ((" + jsonPath + "));";
+            PersistencePath indexPath = PersistencePath.of("value").sub(index);
+
+            // Apply type cast based on field type for proper index usage
+            // Must match expression used in queries (see PostgresFilterRenderer)
+            String indexExpression;
+            if (index.isNumeric()) {
+                indexExpression = "((" + indexPath.toPostgresJsonPath() + ")::numeric)";
+            } else if (index.isBoolean()) {
+                indexExpression = "((" + indexPath.toPostgresJsonPath() + ")::boolean)";
+            } else {
+                // String fields: use ->> (text extraction) to match query expressions
+                indexExpression = "(" + indexPath.toPostgresJsonPath(true) + ")";
+            }
 
             try (Connection connection = this.getDataSource().getConnection()) {
-                connection.createStatement().execute(this.debugQuery(indexSql));
+                // Check if index exists and if it needs migration
+                String checkSql = "select indexdef from pg_indexes where indexname = ?";
+                PreparedStatement checkStmt = connection.prepareStatement(checkSql);
+                checkStmt.setString(1, indexName);
+                ResultSet rs = checkStmt.executeQuery();
+
+                boolean needsCreate = true;
+                if (rs.next()) {
+                    String existingDef = rs.getString("indexdef");
+                    // Check if existing index has the correct expression
+                    // Normalize for comparison (PostgreSQL may format differently)
+                    if (existingDef != null && existingDef.contains(indexExpression)) {
+                        needsCreate = false; // Index already has correct expression
+                    } else {
+                        // Index exists but with different expression - drop it for migration
+                        String dropSql = "drop index if exists " + indexName;
+                        connection.createStatement().execute(this.debugQuery(dropSql));
+                        LOGGER.info("Migrating index " + indexName + " to new expression: " + indexExpression);
+                    }
+                }
+                rs.close();
+                checkStmt.close();
+
+                if (needsCreate) {
+                    String indexSql = "create index " + indexName + " on " + collectionTable + " (" + indexExpression + ")";
+                    connection.createStatement().execute(this.debugQuery(indexSql));
+                }
             } catch (SQLException exception) {
                 throw new RuntimeException("cannot register collection index " + indexName, exception);
             }

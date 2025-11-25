@@ -54,6 +54,15 @@ public abstract class RawPersistence implements Persistence<String> {
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * Update index with typed value (enables range queries on numeric values).
+     * Default implementation delegates to string version for backward compatibility.
+     */
+    public boolean updateIndexTyped(PersistenceCollection collection, PersistencePath path, IndexProperty property, Object value) {
+        // Default: convert to string (old behavior)
+        return this.updateIndex(collection, path, property, String.valueOf(value));
+    }
+
     @Override
     public boolean updateIndex(PersistenceCollection collection, PersistencePath path, String entity) {
         throw new UnsupportedOperationException();

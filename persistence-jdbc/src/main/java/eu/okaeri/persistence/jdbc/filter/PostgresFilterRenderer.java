@@ -73,6 +73,12 @@ public class PostgresFilterRenderer extends SqlFilterRenderer {
             return "((" + path.toPostgresJsonPath() + ")::numeric " + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
         }
 
+        // Handle boolean comparisons with proper cast for index usage
+        if ((predicate instanceof SimplePredicate) && (((SimplePredicate) predicate).getRightOperand() instanceof Boolean)) {
+            Boolean value = (Boolean) ((SimplePredicate) predicate).getRightOperand();
+            return "((" + path.toPostgresJsonPath() + ")::boolean " + this.renderOperator(predicate) + " " + value + ")";
+        }
+
         // Handle case-insensitive equals
         if ((predicate instanceof EqPredicate) && ((EqPredicate) predicate).isIgnoreCase()) {
             return "(lower(" + path.toPostgresJsonPath(true) + ") = lower(" + this.renderOperand(predicate) + "))";

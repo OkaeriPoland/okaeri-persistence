@@ -233,14 +233,8 @@ public class DocumentPersistence implements Persistence<Document> {
                 continue;
             }
 
-            // Skip emulated index update for non-string values (numbers, etc.)
-            // Emulated indexes only support string-based equality checks
-            // Other backends (Postgres, MariaDB, MongoDB) handle numeric indexes natively
-            if (!this.getWrite().canUseToString(value)) {
-                continue;
-            }
-
-            boolean changed = this.updateIndex(collection, path, index, String.valueOf(value));
+            // Use typed index update to preserve value types (enables range queries)
+            boolean changed = this.getWrite().updateIndexTyped(collection, path, index, value);
             if (changed) changes++;
         }
 
@@ -366,6 +360,13 @@ public class DocumentPersistence implements Persistence<Document> {
     public Stream<PersistenceEntity<Document>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
         try {
             return this.getRead().readByFilter(collection, filter).map(this.entityToDocumentMapper(collection));
+        } catch (PartialIndexResultException e) {
+            // Index narrowed down candidates, but remaining filter needed
+            LOGGER.fine("Partial index coverage, applying remaining filter for collection: " + collection.getValue());
+            return this.filterEvaluator.applyFilter(
+                e.getPartialResults().map(this.entityToDocumentMapper(collection)),
+                filter
+            );
         } catch (UnsupportedOperationException e) {
             LOGGER.fine("Backend doesn't support native find(), using in-memory filtering for collection: " + collection.getValue());
             return this.filterEvaluator.applyFilter(this.streamAll(collection), filter);

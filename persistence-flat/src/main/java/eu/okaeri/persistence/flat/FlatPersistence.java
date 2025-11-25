@@ -1,17 +1,22 @@
 package eu.okaeri.persistence.flat;
 
-import eu.okaeri.configs.ConfigManager;
-import eu.okaeri.configs.configurer.InMemoryConfigurer;
 import eu.okaeri.persistence.PersistenceCollection;
 import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.ConfigurerProvider;
-import eu.okaeri.persistence.document.index.InMemoryIndex;
 import eu.okaeri.persistence.document.index.IndexProperty;
-import eu.okaeri.persistence.raw.RawPersistence;
+import eu.okaeri.persistence.document.index.PropertyIndex;
+import eu.okaeri.persistence.filter.FindFilter;
+import eu.okaeri.persistence.filter.IndexQueryOptimizer;
+import eu.okaeri.persistence.filter.PartialIndexResultException;
+import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.raw.PersistenceIndexMode;
 import eu.okaeri.persistence.raw.PersistencePropertyMode;
-import lombok.*;
+import eu.okaeri.persistence.raw.RawPersistence;
+import lombok.Cleanup;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.SneakyThrows;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -39,91 +44,77 @@ public class FlatPersistence extends RawPersistence {
         return name.substring(0, name.length() - FlatPersistence.this.getFileSuffix().length());
     };
 
-    private final Map<String, Map<String, InMemoryIndex>> indexMap = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, PropertyIndex>> indexMap = new ConcurrentHashMap<>();
+    private final IndexQueryOptimizer queryOptimizer = new IndexQueryOptimizer();
     private @Getter final PersistencePath basePath;
     private @Getter final String fileSuffix;
-    private @Getter final ConfigurerProvider indexProvider;
-    private @Getter @Setter boolean saveIndex;
 
     public FlatPersistence(@NonNull File basePath, @NonNull String fileSuffix) {
-        this(basePath, fileSuffix, InMemoryConfigurer::new, false);
-    }
-
-    public FlatPersistence(@NonNull File basePath, @NonNull String fileSuffix, @NonNull ConfigurerProvider indexProvider) {
-        this(basePath, fileSuffix, indexProvider, true);
-    }
-
-    public FlatPersistence(@NonNull File basePath, @NonNull String fileSuffix, @NonNull ConfigurerProvider indexProvider, boolean saveIndex) {
         super(PersistencePath.of(basePath), PersistencePropertyMode.TOSTRING, PersistenceIndexMode.EMULATED);
         this.basePath = PersistencePath.of(basePath);
         this.fileSuffix = fileSuffix;
-        this.indexProvider = indexProvider;
-        this.saveIndex = saveIndex;
+    }
+
+    /**
+     * @deprecated The indexProvider parameter is no longer used. Indexes are now in-memory only.
+     */
+    @Deprecated
+    public FlatPersistence(@NonNull File basePath, @NonNull String fileSuffix, @NonNull ConfigurerProvider indexProvider) {
+        this(basePath, fileSuffix);
+    }
+
+    /**
+     * @deprecated The indexProvider and saveIndex parameters are no longer used. Indexes are now in-memory only.
+     */
+    @Deprecated
+    public FlatPersistence(@NonNull File basePath, @NonNull String fileSuffix, @NonNull ConfigurerProvider indexProvider, boolean saveIndex) {
+        this(basePath, fileSuffix);
+    }
+
+    /**
+     * Get the indexes for a collection.
+     * Exposed for testing and advanced use cases.
+     */
+    public Map<String, PropertyIndex> getIndexes(@NonNull PersistenceCollection collection) {
+        return this.indexMap.get(collection.getValue());
     }
 
     @Override
     public void flush() {
-        if (!this.isSaveIndex()) return;
-        this.indexMap.forEach((collection, indexes) -> indexes.values().forEach(InMemoryIndex::save));
+        // PropertyIndex doesn't persist to disk - indexes are rebuilt on startup
     }
 
     @Override
     public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
-
-        // get index - return false if not registered (FlatFile uses in-memory filtering, indexes optional)
-        Map<String, InMemoryIndex> indexes = this.indexMap.get(collection.getValue());
+        Map<String, PropertyIndex> indexes = this.indexMap.get(collection.getValue());
         if (indexes == null) return false;
 
-        InMemoryIndex flatIndex = indexes.get(property.getValue());
-        if (flatIndex == null) return false;
+        PropertyIndex index = indexes.get(property.getValue());
+        return index != null && index.put(path.getValue(), identity);
 
-        // get current value by key and remove from mapping
-        String currentValue = flatIndex.getKeyToValue().remove(path.getValue());
+    }
 
-        // remove from old set value_to_keys
-        if (currentValue != null) {
-            flatIndex.getValueToKeys().get(currentValue).remove(path.getValue());
-        }
+    /**
+     * Update index with typed value (enables range queries).
+     */
+    @Override
+    public boolean updateIndexTyped(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, Object value) {
+        Map<String, PropertyIndex> indexes = this.indexMap.get(collection.getValue());
+        if (indexes == null) return false;
 
-        // add to new value_to_keys
-        Set<String> keys = flatIndex.getValueToKeys().computeIfAbsent(identity, s -> new HashSet<>());
-        boolean changed = keys.add(path.getValue());
+        PropertyIndex index = indexes.get(property.getValue());
+        return index != null && index.put(path.getValue(), value);
 
-        // update key to value
-        changed = (flatIndex.getKeyToValue().put(path.getValue(), identity) != null) || changed;
-
-        // save index
-        if (this.isSaveIndex() && this.isFlushOnWrite()) {
-            flatIndex.save();
-        }
-
-        // return changes
-        return changed;
     }
 
     @Override
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property) {
-
-        // get index - return false if not registered (FlatFile uses in-memory filtering, indexes optional)
-        Map<String, InMemoryIndex> indexes = this.indexMap.get(collection.getValue());
+        Map<String, PropertyIndex> indexes = this.indexMap.get(collection.getValue());
         if (indexes == null) return false;
 
-        InMemoryIndex flatIndex = indexes.get(property.getValue());
-        if (flatIndex == null) return false;
+        PropertyIndex index = indexes.get(property.getValue());
+        return index != null && index.remove(path.getValue());
 
-        // get current value by key and remove from mapping
-        String currentValue = flatIndex.getKeyToValue().remove(path.getValue());
-
-        // delete from value to set
-        boolean changed = (currentValue != null) && flatIndex.getValueToKeys().get(currentValue).remove(path.getValue());
-
-        // save index
-        if (this.isSaveIndex() && this.isFlushOnWrite()) {
-            flatIndex.save();
-        }
-
-        // return changes
-        return changed;
     }
 
     @Override
@@ -134,22 +125,18 @@ public class FlatPersistence extends RawPersistence {
     }
 
     @Override
-    @SneakyThrows
     public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property) {
+        Map<String, PropertyIndex> indexes = this.indexMap.get(collection.getValue());
+        if (indexes == null) return false;
 
-        // remove from list and get index
-        InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).remove(property.getValue());
-
-        // delete index file
-        return (flatIndex != null) && Files.deleteIfExists(flatIndex.getBindFile());
+        PropertyIndex removed = indexes.remove(property.getValue());
+        return removed != null;
     }
 
     @Override
-    @SneakyThrows
     public Set<PersistencePath> findMissingIndexes(@NonNull PersistenceCollection collection, @NonNull Set<IndexProperty> indexProperties) {
-
-        Map<String, InMemoryIndex> collectionIndexes = this.indexMap.get(collection.getValue());
-        if (collectionIndexes.isEmpty()) {
+        Map<String, PropertyIndex> collectionIndexes = this.indexMap.get(collection.getValue());
+        if ((collectionIndexes == null) || collectionIndexes.isEmpty()) {
             return Collections.emptySet();
         }
 
@@ -157,7 +144,7 @@ public class FlatPersistence extends RawPersistence {
         return this.scanCollection(collectionFile)
             .map(this.fileToKeyMapper)
             .map(key -> collectionIndexes.values().stream()
-                .allMatch(flatIndex -> flatIndex.getKeyToValue().containsKey(key))
+                .allMatch(index -> index.containsDoc(key))
                 ? null : PersistencePath.of(key))
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
@@ -165,20 +152,23 @@ public class FlatPersistence extends RawPersistence {
 
     @Override
     public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, @NonNull Object propertyValue) {
-
-        if (!this.canUseToString(propertyValue)) {
+        Map<String, PropertyIndex> indexes = this.indexMap.get(collection.getValue());
+        if (indexes == null) {
             return this.streamAll(collection);
         }
 
-        InMemoryIndex flatIndex = this.indexMap.get(collection.getValue()).get(property.getValue());
-        if (flatIndex == null) return this.streamAll(collection);
-
-        Set<String> keys = flatIndex.getValueToKeys().get(String.valueOf(propertyValue));
-        if ((keys == null) || keys.isEmpty()) {
-            return Stream.of();
+        PropertyIndex index = indexes.get(property.getValue());
+        if (index == null) {
+            return this.streamAll(collection);
         }
 
-        return new ArrayList<>(keys).stream()
+        // Use index for equality lookup
+        Set<String> keys = index.findEquals(propertyValue);
+        if (keys.isEmpty()) {
+            return Stream.empty();
+        }
+
+        return keys.stream()
             .map(key -> {
                 PersistencePath path = PersistencePath.of(key);
                 return this.read(collection, path)
@@ -191,30 +181,64 @@ public class FlatPersistence extends RawPersistence {
             .filter(Objects::nonNull);
     }
 
+    /**
+     * Use indexes to optimize WHERE-only queries.
+     * Throws UnsupportedOperationException for queries with ORDER BY/SKIP/LIMIT
+     * (those fall back to DocumentPersistence full filtering which can handle them).
+     */
+    @Override
+    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
+        // Can't handle ORDER BY/SKIP/LIMIT at raw string level - need Document parsing
+        if (filter.hasOrderBy() || filter.hasSkip() || filter.hasLimit()) {
+            throw new UnsupportedOperationException("FlatPersistence can't handle ORDER BY/SKIP/LIMIT");
+        }
+
+        Condition where = filter.getWhere();
+        if (where == null) {
+            // No WHERE clause, no ORDER BY/SKIP/LIMIT - return all
+            return this.streamAll(collection);
+        }
+
+        Map<String, PropertyIndex> indexes = this.indexMap.get(collection.getValue());
+        IndexQueryOptimizer.IndexResult optimized = this.queryOptimizer.optimize(where, indexes);
+
+        if (!optimized.requiresFullScan()) {
+            // Index provides at least partial coverage - load only indexed candidates
+            Stream<PersistenceEntity<String>> candidates = optimized.getDocIds().stream()
+                .map(docId -> {
+                    PersistencePath path = PersistencePath.of(docId);
+                    return this.read(collection, path)
+                        .map(data -> new PersistenceEntity<>(path, data))
+                        .orElseGet(() -> {
+                            this.dropIndex(collection, path);
+                            return null;
+                        });
+                })
+                .filter(Objects::nonNull);
+
+            if (!optimized.hasRemainingCondition()) {
+                // Index fully covers WHERE - return as-is
+                return candidates;
+            }
+
+            // Partial coverage - signal DocumentPersistence to apply remaining filter
+            throw new PartialIndexResultException(candidates);
+        }
+
+        // Index can't help at all - full scan needed
+        throw new UnsupportedOperationException("Query requires full scan");
+    }
+
     @Override
     @SuppressWarnings("ResultOfMethodCallIgnored")
     public void registerCollection(@NonNull PersistenceCollection collection) {
-
         PersistencePath collectionPath = this.getBasePath().sub(collection);
         File collectionFile = collectionPath.toFile();
         collectionFile.mkdirs();
 
-        Map<String, InMemoryIndex> indexes = this.indexMap.computeIfAbsent(collection.getValue(), col -> new ConcurrentHashMap<>());
-
-        for (IndexProperty index : collection.getIndexes()) {
-
-            InMemoryIndex flatIndex = ConfigManager.create(InMemoryIndex.class);
-            flatIndex.setConfigurer(this.indexProvider.get());
-
-            Path path = collectionPath.append("_").append(index.toSafeFileName()).append(".index").toPath();
-            flatIndex.withBindFile(path);
-
-            if (this.isSaveIndex() && Files.exists(path)) {
-                flatIndex.load(path);
-            }
-
-            indexes.put(index.getValue(), flatIndex);
-        }
+        // Create PropertyIndex for each indexed property
+        Map<String, PropertyIndex> indexes = this.indexMap.computeIfAbsent(collection.getValue(), col -> new ConcurrentHashMap<>());
+        collection.getIndexes().forEach(index -> indexes.put(index.getValue(), new PropertyIndex()));
 
         super.registerCollection(collection);
     }
@@ -250,7 +274,6 @@ public class FlatPersistence extends RawPersistence {
     @Override
     @SneakyThrows
     public Stream<PersistenceEntity<String>> streamAll(@NonNull PersistenceCollection collection) {
-
         this.checkCollectionRegistered(collection);
         Path collectionFile = this.getBasePath().sub(collection).toPath();
 
@@ -264,7 +287,6 @@ public class FlatPersistence extends RawPersistence {
     @Override
     @SneakyThrows
     public long count(@NonNull PersistenceCollection collection) {
-
         this.checkCollectionRegistered(collection);
         Path collectionFile = this.getBasePath().sub(collection).toPath();
 
@@ -296,14 +318,8 @@ public class FlatPersistence extends RawPersistence {
 
     @Override
     public boolean delete(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-
         this.checkCollectionRegistered(collection);
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
-
-        if (collectionIndexes != null) {
-            collectionIndexes.forEach(index -> this.dropIndex(collection, path));
-        }
-
+        this.dropIndex(collection, path);
         return this.toFullPath(collection, path).toFile().delete();
     }
 
@@ -318,14 +334,13 @@ public class FlatPersistence extends RawPersistence {
     @Override
     @SneakyThrows
     public boolean deleteAll(@NonNull PersistenceCollection collection) {
-
         this.checkCollectionRegistered(collection);
         File collectionFile = this.getBasePath().sub(collection).toFile();
-        this.checkCollectionRegistered(collection);
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
 
-        if (collectionIndexes != null) {
-            collectionIndexes.forEach(index -> this.dropIndex(collection, index));
+        // Clear indexes
+        Map<String, PropertyIndex> indexes = this.indexMap.get(collection.getValue());
+        if (indexes != null) {
+            indexes.values().forEach(PropertyIndex::clear);
         }
 
         return collectionFile.exists() && (this.delete(collectionFile) > 0);
@@ -333,11 +348,13 @@ public class FlatPersistence extends RawPersistence {
 
     @Override
     public long deleteAll() {
-
         File[] files = this.getBasePath().toFile().listFiles();
         if (files == null) {
             return 0;
         }
+
+        // Clear all indexes
+        this.indexMap.values().forEach(indexes -> indexes.values().forEach(PropertyIndex::clear));
 
         return Arrays.stream(files)
             .filter(file -> this.getKnownCollections().keySet().contains(file.getName()))
@@ -392,12 +409,5 @@ public class FlatPersistence extends RawPersistence {
     private void writeToFile(File file, String text) {
         @Cleanup BufferedWriter writer = new BufferedWriter(new FileWriter(file));
         writer.write(text);
-    }
-
-    @Data
-    @AllArgsConstructor
-    private class Pair<L, R> {
-        private L left;
-        private R right;
     }
 }

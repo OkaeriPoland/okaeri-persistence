@@ -45,6 +45,11 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
                 continue;
             }
 
+            // Skip synthetic methods (e.g., lambda implementations in default methods)
+            if (method.isSynthetic()) {
+                continue;
+            }
+
             // Skip methods that exist in DefaultDocumentRepository (like save, findAll, etc.)
             if (isDefaultRepositoryMethod(method)) {
                 continue;
