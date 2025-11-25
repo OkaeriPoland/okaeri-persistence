@@ -417,7 +417,7 @@ Stream<T> streamAll()              // Safe but loads all data
 Stream<T> stream(int batchSize)    // Memory-efficient, requires closing
 Stream<T> stream()                 // stream(100) - requires closing
 
-// Finding - with queries (all backends)
+// Finding - with queries
 Stream<T> find(FindFilter filter)
 Stream<T> find(Function<FindFilterBuilder, FindFilterBuilder> function)
 Stream<T> find(Condition condition)
@@ -432,9 +432,18 @@ boolean deleteByPath(PATH path)
 long deleteAllByPath(Iterable<PATH> paths)
 boolean deleteAll()
 
-// Deleting - with queries (all backends)
+// Deleting - with queries
 long delete(DeleteFilter filter)
 long delete(Function<DeleteFilterBuilder, DeleteFilterBuilder> function)
+
+// Updating - by path
+boolean updateOne(PATH path, Function<UpdateBuilder, UpdateBuilder> operations)
+boolean updateOne(T entity, Function<UpdateBuilder, UpdateBuilder> operations)
+Optional<T> updateOneAndGet(PATH path, Function<UpdateBuilder, UpdateBuilder> operations)
+Optional<T> getAndUpdateOne(PATH path, Function<UpdateBuilder, UpdateBuilder> operations)
+
+// Updating - with queries
+long update(Function<UpdateFilterBuilder, UpdateFilterBuilder> updater)
 
 // Existence
 boolean existsByPath(PATH path)
