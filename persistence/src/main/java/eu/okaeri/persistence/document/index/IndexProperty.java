@@ -66,6 +66,18 @@ public class IndexProperty extends PersistencePath {
     }
 
     /**
+     * Check if this index is for a floating-point field type (double, float, BigDecimal).
+     */
+    public boolean isFloatingPoint() {
+        if (this.fieldType == null) return false;
+        return this.fieldType == double.class
+            || this.fieldType == Double.class
+            || this.fieldType == float.class
+            || this.fieldType == Float.class
+            || this.fieldType == BigDecimal.class;
+    }
+
+    /**
      * Check if this index is for a boolean field type.
      */
     public boolean isBoolean() {

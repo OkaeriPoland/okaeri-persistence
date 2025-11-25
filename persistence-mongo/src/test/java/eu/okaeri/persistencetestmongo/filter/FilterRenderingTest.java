@@ -35,7 +35,8 @@ public class FilterRenderingTest {
     public void test_condition_0() {
         String condition = this.renderer.renderCondition(and("age", eq(55))); // age equal to 55
         assertThatCode(() -> Document.parse(condition)).doesNotThrowAnyException();
-        assertThat(condition).isEqualTo("{\"$and\": [{ \"age\": { \"$eq\": 55 }}]}");
+        // Single condition doesn't need $and wrapper
+        assertThat(condition).isEqualTo("{ \"age\": { \"$eq\": 55 }}");
     }
 
     @Test
@@ -52,14 +53,16 @@ public class FilterRenderingTest {
             and("age", eq(55))
         ));
         assertThatCode(() -> Document.parse(condition)).doesNotThrowAnyException();
-        assertThat(condition).isEqualTo("{\"$or\": [{\"$and\": [{ \"distance\": { \"$gte\": 100 }}, { \"distance\": { \"$lte\": 1000 }}]}, {\"$and\": [{ \"age\": { \"$eq\": 55 }}]}]}");
+        // Single condition in second branch doesn't need $and wrapper
+        assertThat(condition).isEqualTo("{\"$or\": [{\"$and\": [{ \"distance\": { \"$gte\": 100 }}, { \"distance\": { \"$lte\": 1000 }}]}, { \"age\": { \"$eq\": 55 }}]}");
     }
 
     @Test
     public void test_condition_3() {
         String condition = this.renderer.renderCondition(and("name", eq("tester")));
         assertThatCode(() -> Document.parse(condition)).doesNotThrowAnyException();
-        assertThat(condition).isEqualTo("{\"$and\": [{ \"name\": { \"$eq\": \"tester\" }}]}");
+        // Single condition doesn't need $and wrapper
+        assertThat(condition).isEqualTo("{ \"name\": { \"$eq\": \"tester\" }}");
     }
 
     @Test

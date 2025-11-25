@@ -222,56 +222,6 @@ public class RedisPersistence extends RawPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
-
-        if (!this.canUseToString(propertyValue) || !this.isIndexed(collection, property)) {
-            return this.streamAll(collection);
-        }
-
-        String hashKeyString = this.getBasePath().sub(collection).getValue();
-        PersistencePath indexSet = this.toIndexValueToKeys(collection, property, String.valueOf(propertyValue));
-
-        RedisCommands<String, String> sync = this.getConnection().sync();
-        Set<String> members = sync.smembers(indexSet.getValue());
-
-        if (members.isEmpty()) {
-            return Stream.of();
-        }
-
-        int totalKeys = members.size();
-        long step = totalKeys / 100;
-        if (step < 50) step = 50;
-
-        String script = sync.scriptLoad("local collection = ARGV[1]\n" +
-            "local result = {}\n" +
-            "\n" +
-            "for _, key in ipairs(KEYS) do\n" +
-            "    result[#result+1] = key\n" +
-            "    result[#result+1] = redis.call('hget', collection, key)\n" +
-            "end\n" +
-            "\n" +
-            "return result\n");
-
-        return partition(members, Math.toIntExact(step)).stream()
-            .flatMap(part -> {
-
-                String[] keys = part.toArray(new String[part.size()]);
-                List<String> result = sync.evalsha(script, ScriptOutputType.MULTI, keys, hashKeyString);
-                List<PersistenceEntity<String>> out = new ArrayList<>();
-
-                for (int i = 0; i < result.size(); i += 2) {
-                    String key = result.get(i);
-                    String value = result.get(i + 1);
-                    if (value != null) {
-                        out.add(new PersistenceEntity<>(PersistencePath.of(key), value));
-                    }
-                }
-
-                return out.stream();
-            });
-    }
-
-    @Override
     public Optional<String> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         this.checkCollectionRegistered(collection);
         String hKey = this.getBasePath().sub(collection).getValue();

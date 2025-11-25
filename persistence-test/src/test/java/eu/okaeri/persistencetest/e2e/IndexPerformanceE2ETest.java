@@ -107,7 +107,7 @@ public class IndexPerformanceE2ETest extends E2ETestBase {
 
         private static boolean isNativeDbBackend(BackendContainer backend) {
             String name = backend.getName().toLowerCase();
-            return name.contains("mongo") || name.contains("postgres") || name.contains("mysql") || name.contains("maria");
+            return name.contains("mongo") || name.contains("postgres") || name.contains("maria") || name.contains("h2");
         }
 
         void populateData() {
@@ -127,6 +127,7 @@ public class IndexPerformanceE2ETest extends E2ETestBase {
                 boolean active = (i == 15) || (i == 85); // only levels 15 and 85 are active (2%)
                 String description = "desc_" + i;
                 int score = i * 10;
+                double rating = i * 1.5; // 0.0, 1.5, 3.0, ..., 148.5
 
                 for (int seq = 0; seq < this.factor; seq++) {
                     IndexTestEntity indexed = new IndexTestEntity();
@@ -135,6 +136,7 @@ public class IndexPerformanceE2ETest extends E2ETestBase {
                     indexed.setActive(active);
                     indexed.setDescription(description);
                     indexed.setScore(score);
+                    indexed.setRating(rating);
                     indexed.setSequence(seq);
                     indexedEntities.add(indexed);
 
@@ -144,6 +146,7 @@ public class IndexPerformanceE2ETest extends E2ETestBase {
                     nonIndexed.setActive(active);
                     nonIndexed.setDescription(description);
                     nonIndexed.setScore(score);
+                    nonIndexed.setRating(rating);
                     nonIndexed.setSequence(seq);
                     nonIndexedEntities.add(nonIndexed);
                 }
@@ -184,12 +187,12 @@ public class IndexPerformanceE2ETest extends E2ETestBase {
             cachedContexts = new ArrayList<>();
             for (BackendContainer backend : List.of(
                 new InMemoryBackendContainer(),
-//                new H2BackendContainer(),
+                new H2BackendContainer(),
                 new PostgresBackendContainer(),
-//                new MariaDbBackendContainer(),
-                new MongoBackendContainer(),
+                new MariaDbBackendContainer()
+//                new MongoBackendContainer(),
 //                new RedisBackendContainer(),
-                new FlatFileBackendContainer()
+//                new FlatFileBackendContainer()
             )) {
                 IndexPerfContext ctx = new IndexPerfContext(backend);
                 ctx.populateData();
@@ -358,6 +361,59 @@ public class IndexPerformanceE2ETest extends E2ETestBase {
         );
 
         this.assertSpeedup(result, ctx.getSpeedupRatio(), "findByLevelBetween");
+    }
+
+    // ========================================================================
+    // DOUBLE FIELD TESTS: Verify floating-point indexing works correctly
+    // ========================================================================
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("indexableBackends")
+    @DisplayName("IDEAL: Simple equality on indexed double field (rating)")
+    void test_ideal_findByRating(IndexPerfContext ctx) {
+        double rating = 15.0; // level 10 has rating 10 * 1.5 = 15.0
+        int expectedCount = ctx.getFactor();
+
+        TimingResult result = this.timeQueries(
+            () -> ctx.indexed().findByRating(rating),
+            () -> ctx.nonIndexed().findByRating(rating),
+            expectedCount
+        );
+
+        this.assertSpeedup(result, ctx.getSpeedupRatio(), "findByRating (double)");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("indexableBackends")
+    @DisplayName("IDEAL: Range query on double - greater than")
+    void test_ideal_findByRatingGreaterThan(IndexPerfContext ctx) {
+        double rating = 145.5; // levels 98-99 have ratings 147.0, 148.5 (2% selectivity)
+        int expectedCount = 2 * ctx.getFactor();
+
+        TimingResult result = this.timeQueries(
+            () -> ctx.indexed().findByRatingGreaterThan(rating),
+            () -> ctx.nonIndexed().findByRatingGreaterThan(rating),
+            expectedCount
+        );
+
+        this.assertSpeedup(result, ctx.getSpeedupRatio(), "findByRatingGreaterThan (double)");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("indexableBackends")
+    @DisplayName("IDEAL: Range query on double - between")
+    void test_ideal_findByRatingBetween(IndexPerfContext ctx) {
+        double minRating = 72.0; // level 48 = 72.0
+        double maxRating = 73.5; // level 49 = 73.5 (2% selectivity)
+        int expectedCount = 2 * ctx.getFactor();
+
+        TimingResult result = this.timeQueries(
+            () -> ctx.indexed().findByRatingBetween(minRating, maxRating),
+            () -> ctx.nonIndexed().findByRatingBetween(minRating, maxRating),
+            expectedCount
+        );
+
+        this.assertSpeedup(result, ctx.getSpeedupRatio(), "findByRatingBetween (double)");
     }
 
     @ParameterizedTest(name = "{0}")

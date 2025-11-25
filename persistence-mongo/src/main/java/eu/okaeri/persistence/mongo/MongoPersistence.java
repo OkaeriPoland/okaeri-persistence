@@ -82,14 +82,6 @@ public class MongoPersistence extends NativeRawPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
-        return StreamSupport.stream(this.mongo(collection).find()
-            .filter(Filters.in(property.toMongoPath(), propertyValue))
-            .map(object -> this.transformMongoObject(collection, object))
-            .spliterator(), false);
-    }
-
-    @Override
     public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
 
         FindIterable<BasicDBObject> findIterable = this.mongo(collection).find();

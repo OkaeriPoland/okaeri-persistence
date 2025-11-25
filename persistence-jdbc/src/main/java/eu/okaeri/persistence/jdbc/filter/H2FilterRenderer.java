@@ -1,6 +1,7 @@
 package eu.okaeri.persistence.jdbc.filter;
 
 import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.filter.OrderBy;
 import eu.okaeri.persistence.filter.predicate.Predicate;
 import eu.okaeri.persistence.filter.predicate.SimplePredicate;
@@ -14,20 +15,50 @@ import eu.okaeri.persistence.filter.predicate.string.ContainsPredicate;
 import eu.okaeri.persistence.filter.predicate.string.EndsWithPredicate;
 import eu.okaeri.persistence.filter.predicate.string.StartsWithPredicate;
 import eu.okaeri.persistence.filter.renderer.StringRenderer;
+import eu.okaeri.persistence.jdbc.H2Persistence;
 import lombok.NonNull;
+import lombok.Setter;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class H2FilterRenderer extends SqlFilterRenderer {
+
+    /**
+     * Set of indexed properties for the current query context.
+     * When set, the renderer will use generated column names instead of JSON expressions
+     * for indexed fields, allowing the database to use indexes.
+     */
+    @Setter
+    private Set<IndexProperty> indexedProperties;
 
     public H2FilterRenderer(@NonNull StringRenderer stringRenderer) {
         super(stringRenderer);
     }
 
+    /**
+     * Check if a field path is indexed and return the IndexProperty if so.
+     */
+    private IndexProperty getIndexProperty(@NonNull String fieldPath) {
+        if (this.indexedProperties == null) return null;
+        for (IndexProperty index : this.indexedProperties) {
+            if (index.getValue().equals(fieldPath)) {
+                return index;
+            }
+        }
+        return null;
+    }
+
     @Override
     public String renderPredicate(@NonNull PersistencePath path, @NonNull Predicate predicate) {
+
+        // Check if this field is indexed - if so, use the generated column
+        IndexProperty indexProperty = this.getIndexProperty(path.getValue());
+        if (indexProperty != null) {
+            return this.renderIndexedPredicate(path, predicate, indexProperty);
+        }
 
         // Build H2 field reference syntax: (`value`)."field1"."field2"
         String fieldReference = "(`value`)." + path.toH2FieldReference();
@@ -160,10 +191,97 @@ public class H2FilterRenderer extends SqlFilterRenderer {
             + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
     }
 
+    /**
+     * Render a predicate for an indexed field using the generated column name directly.
+     * This allows the database to use the index instead of scanning JSON.
+     */
+    private String renderIndexedPredicate(@NonNull PersistencePath path, @NonNull Predicate predicate,
+                                          @NonNull IndexProperty indexProperty) {
+        String columnName = "`" + H2Persistence.getIndexColumnName(indexProperty) + "`";
+
+        // Null predicates
+        if (predicate instanceof IsNullPredicate) {
+            return "(" + columnName + " is null)";
+        }
+        if (predicate instanceof NotNullPredicate) {
+            return "(" + columnName + " is not null)";
+        }
+
+        // Ne predicate with null inclusion
+        if (predicate instanceof NePredicate) {
+            String operand = this.renderIndexedOperand(predicate, indexProperty);
+            String baseCondition = columnName + " " + this.renderOperator(predicate) + " " + operand;
+            return "((" + baseCondition + ") or (" + columnName + " is null))";
+        }
+
+        // NotIn predicate with null inclusion
+        if (predicate instanceof NotInPredicate) {
+            String operand = this.renderIndexedOperand(predicate, indexProperty);
+            String baseCondition = columnName + " " + this.renderOperator(predicate) + " " + operand;
+            return "((" + baseCondition + ") or (" + columnName + " is null))";
+        }
+
+        // Case-insensitive equals for strings
+        if ((predicate instanceof EqPredicate) && ((EqPredicate) predicate).isIgnoreCase()) {
+            String operand = this.renderIndexedOperand(predicate, indexProperty);
+            return "(lower(" + columnName + ") = lower(" + operand + "))";
+        }
+
+        // String LIKE predicates
+        if (predicate instanceof StartsWithPredicate) {
+            String value = (String) ((StartsWithPredicate) predicate).getRightOperand();
+            String pattern = this.renderLikePattern(value, null, "%");
+            String comparison = ((StartsWithPredicate) predicate).isIgnoreCase()
+                ? ("lower(" + columnName + ") like lower(" + pattern + ")")
+                : (columnName + " like " + pattern);
+            return "(" + comparison + " escape '|')";
+        }
+        if (predicate instanceof EndsWithPredicate) {
+            String value = (String) ((EndsWithPredicate) predicate).getRightOperand();
+            String pattern = this.renderLikePattern(value, "%", null);
+            String comparison = ((EndsWithPredicate) predicate).isIgnoreCase()
+                ? ("lower(" + columnName + ") like lower(" + pattern + ")")
+                : (columnName + " like " + pattern);
+            return "(" + comparison + " escape '|')";
+        }
+        if (predicate instanceof ContainsPredicate) {
+            String value = (String) ((ContainsPredicate) predicate).getRightOperand();
+            String pattern = this.renderLikePattern(value, "%", "%");
+            String comparison = ((ContainsPredicate) predicate).isIgnoreCase()
+                ? ("lower(" + columnName + ") like lower(" + pattern + ")")
+                : (columnName + " like " + pattern);
+            return "(" + comparison + " escape '|')";
+        }
+
+        // Standard comparison: column op value
+        String operand = this.renderIndexedOperand(predicate, indexProperty);
+        return "(" + columnName + " " + this.renderOperator(predicate) + " " + operand + ")";
+    }
+
+    /**
+     * Render the operand for an indexed column predicate.
+     * For boolean columns, render as true/false instead of 'true'/'false'.
+     */
+    private String renderIndexedOperand(@NonNull Predicate predicate, @NonNull IndexProperty indexProperty) {
+        if (indexProperty.isBoolean() && (predicate instanceof SimplePredicate)) {
+            Object value = ((SimplePredicate) predicate).getRightOperand();
+            if (value instanceof Boolean) {
+                return value.toString(); // true or false without quotes
+            }
+        }
+        return this.renderOperand(predicate);
+    }
+
     @Override
     public String renderOrderBy(@NonNull List<OrderBy> orderBy) {
         return orderBy.stream()
             .map(order -> {
+                // Check if this field is indexed - if so, use the generated column for ORDER BY
+                IndexProperty indexProperty = this.getIndexProperty(order.getPath().getValue());
+                if (indexProperty != null) {
+                    String columnName = "`" + H2Persistence.getIndexColumnName(indexProperty) + "`";
+                    return columnName + " " + order.getDirection().name().toLowerCase();
+                }
                 String fieldReference = "(`value`)." + order.getPath().toH2FieldReference();
                 return fieldReference + " " + order.getDirection().name().toLowerCase();
             })

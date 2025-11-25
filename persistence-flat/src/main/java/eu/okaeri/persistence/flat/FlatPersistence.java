@@ -150,37 +150,6 @@ public class FlatPersistence extends RawPersistence {
             .collect(Collectors.toSet());
     }
 
-    @Override
-    public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, @NonNull Object propertyValue) {
-        Map<String, PropertyIndex> indexes = this.indexMap.get(collection.getValue());
-        if (indexes == null) {
-            return this.streamAll(collection);
-        }
-
-        PropertyIndex index = indexes.get(property.getValue());
-        if (index == null) {
-            return this.streamAll(collection);
-        }
-
-        // Use index for equality lookup
-        Set<String> keys = index.findEquals(propertyValue);
-        if (keys.isEmpty()) {
-            return Stream.empty();
-        }
-
-        return keys.stream()
-            .map(key -> {
-                PersistencePath path = PersistencePath.of(key);
-                return this.read(collection, path)
-                    .map(data -> new PersistenceEntity<>(path, data))
-                    .orElseGet(() -> {
-                        this.dropIndex(collection, path);
-                        return null;
-                    });
-            })
-            .filter(Objects::nonNull);
-    }
-
     /**
      * Use indexes to optimize WHERE-only queries.
      * Throws UnsupportedOperationException for queries with ORDER BY/SKIP/LIMIT

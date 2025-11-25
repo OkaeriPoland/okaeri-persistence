@@ -20,7 +20,12 @@ public class MariaDbBackendContainer implements BackendContainer {
             .withDatabaseName("okaeri_persistence")
             .withUsername("test")
             .withPassword("test")
-            .withCommand("--max-connections=500")
+            .withCommand(
+                "--max-connections=500",
+                "--max-allowed-packet=64M",
+                "--wait-timeout=28800",
+                "--interactive-timeout=28800"
+            )
             .withReuse(true);
 
         MARIADB.start();
@@ -40,7 +45,10 @@ public class MariaDbBackendContainer implements BackendContainer {
         hikariConfig.setDriverClassName("org.mariadb.jdbc.Driver");
         hikariConfig.setMaximumPoolSize(5);
         hikariConfig.setMinimumIdle(1);
-        hikariConfig.setConnectionTimeout(30000);
+        hikariConfig.setConnectionTimeout(60000);
+        hikariConfig.setIdleTimeout(300000);
+        hikariConfig.setMaxLifetime(600000);
+        hikariConfig.setKeepaliveTime(60000);
 
         return new DocumentPersistence(
             new MariaDbPersistence(PersistencePath.of(""), hikariConfig),

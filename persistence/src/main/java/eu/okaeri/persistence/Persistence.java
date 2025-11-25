@@ -185,16 +185,6 @@ public interface Persistence<T> extends Closeable {
     Map<PersistencePath, T> readAll(PersistenceCollection collection);
 
     /**
-     * Filter document based persistence entities.
-     *
-     * @param collection    Target collection (eg. player)
-     * @param property      Property to filter on (eg. name)
-     * @param propertyValue Searched property value (eg. SomePlayer)
-     * @return Stream of entities matching the query
-     */
-    Stream<PersistenceEntity<T>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue);
-
-    /**
      * @param collection Target collection (eg. player)
      * @param filter     Search filter
      * @return Stream of entities matching the query

@@ -94,11 +94,6 @@ public abstract class RawPersistence implements Persistence<String> {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByProperty(PersistenceCollection collection, PersistencePath property, Object propertyValue) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
         throw new UnsupportedOperationException();
     }

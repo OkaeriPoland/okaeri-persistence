@@ -123,11 +123,6 @@ public class ReadOnlyDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<Document>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
-        return this.parentPersistence.readByProperty(collection, property, propertyValue);
-    }
-
-    @Override
     public Stream<PersistenceEntity<Document>> streamAll(@NonNull PersistenceCollection collection) {
         return this.parentPersistence.streamAll(collection);
     }

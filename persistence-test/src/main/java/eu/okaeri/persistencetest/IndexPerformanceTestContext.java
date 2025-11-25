@@ -20,12 +20,13 @@ public class IndexPerformanceTestContext {
 
     /**
      * Repository WITH indexes for performance comparison.
-     * Indexes on: category, level, active
+     * Indexes on: category, level, active, rating
      */
     @DocumentCollection(path = "indexed_entities", keyLength = 36, indexes = {
         @DocumentIndex(path = "category", maxLength = 255),
         @DocumentIndex(path = "level"),
-        @DocumentIndex(path = "active")
+        @DocumentIndex(path = "active"),
+        @DocumentIndex(path = "rating")
     })
     public interface IndexedRepository extends DocumentRepository<UUID, IndexTestEntity> {
 
@@ -37,6 +38,8 @@ public class IndexPerformanceTestContext {
         List<IndexTestEntity> findByLevel(int level);
 
         List<IndexTestEntity> findByActive(boolean active);
+
+        List<IndexTestEntity> findByRating(double rating);
 
         // AND of indexed fields
         List<IndexTestEntity> findByLevelAndActive(int level, boolean active);
@@ -61,6 +64,19 @@ public class IndexPerformanceTestContext {
 
         default List<IndexTestEntity> findByLevelBetween(int minLevel, int maxLevel) {
             return this.find(q -> q.where(on("level", between(minLevel, maxLevel)))).toList();
+        }
+
+        // Range queries for double field (rating)
+        default List<IndexTestEntity> findByRatingGreaterThan(double rating) {
+            return this.find(q -> q.where(on("rating", gt(rating)))).toList();
+        }
+
+        default List<IndexTestEntity> findByRatingLessThan(double rating) {
+            return this.find(q -> q.where(on("rating", lt(rating)))).toList();
+        }
+
+        default List<IndexTestEntity> findByRatingBetween(double minRating, double maxRating) {
+            return this.find(q -> q.where(on("rating", between(minRating, maxRating)))).toList();
         }
 
         // ===== MIXED CASE: Partially indexed =====
@@ -113,6 +129,8 @@ public class IndexPerformanceTestContext {
 
         List<IndexTestEntity> findByActive(boolean active);
 
+        List<IndexTestEntity> findByRating(double rating);
+
         // AND combinations
         List<IndexTestEntity> findByLevelAndActive(int level, boolean active);
 
@@ -136,6 +154,19 @@ public class IndexPerformanceTestContext {
 
         default List<IndexTestEntity> findByLevelBetween(int minLevel, int maxLevel) {
             return this.find(q -> q.where(on("level", between(minLevel, maxLevel)))).toList();
+        }
+
+        // Range queries for double field (rating)
+        default List<IndexTestEntity> findByRatingGreaterThan(double rating) {
+            return this.find(q -> q.where(on("rating", gt(rating)))).toList();
+        }
+
+        default List<IndexTestEntity> findByRatingLessThan(double rating) {
+            return this.find(q -> q.where(on("rating", lt(rating)))).toList();
+        }
+
+        default List<IndexTestEntity> findByRatingBetween(double minRating, double maxRating) {
+            return this.find(q -> q.where(on("rating", between(minRating, maxRating)))).toList();
         }
 
         // Mixed (indexed field + non-indexed field)

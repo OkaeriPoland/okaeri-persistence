@@ -143,32 +143,6 @@ public class PostgresPersistence extends NativeRawPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
-
-        this.checkCollectionRegistered(collection);
-        String sql = "select key, value from \"" + this.table(collection) + "\" where ? = ?";
-
-        try (Connection connection = this.getDataSource().getConnection()) {
-
-            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
-            prepared.setString(1, PersistencePath.of("value").sub(property).toPostgresJsonPath(true));
-            prepared.setObject(2, propertyValue);
-            ResultSet resultSet = prepared.executeQuery();
-            List<PersistenceEntity<String>> results = new ArrayList<>();
-
-            while (resultSet.next()) {
-                String key = resultSet.getString("key");
-                String value = resultSet.getString("value");
-                results.add(new PersistenceEntity<>(PersistencePath.of(key), value));
-            }
-
-            return results.stream();
-        } catch (SQLException exception) {
-            throw new RuntimeException("cannot ready by property from " + collection, exception);
-        }
-    }
-
-    @Override
     public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
 
         this.checkCollectionRegistered(collection);

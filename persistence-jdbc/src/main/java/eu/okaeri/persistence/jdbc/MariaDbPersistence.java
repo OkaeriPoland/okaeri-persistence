@@ -10,7 +10,6 @@ import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.filter.UpdateFilter;
 import eu.okaeri.persistence.filter.operation.UpdateOperation;
-import eu.okaeri.persistence.filter.renderer.FilterRenderer;
 import eu.okaeri.persistence.jdbc.filter.MariaDbFilterRenderer;
 import eu.okaeri.persistence.jdbc.filter.MariaDbStringRenderer;
 import eu.okaeri.persistence.jdbc.filter.MariaDbUpdateRenderer;
@@ -20,41 +19,33 @@ import lombok.NonNull;
 
 import java.sql.*;
 import java.util.*;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 public class MariaDbPersistence extends JdbcPersistence {
 
+    private static final Logger LOGGER = Logger.getLogger(MariaDbPersistence.class.getSimpleName());
+    private static final String INDEX_COLUMN_PREFIX = "_idx_";
     private static final MariaDbStringRenderer STRING_RENDERER = new MariaDbStringRenderer();
-    private static final FilterRenderer FILTER_RENDERER = new MariaDbFilterRenderer(STRING_RENDERER);
     private static final MariaDbUpdateRenderer UPDATE_RENDERER = new MariaDbUpdateRenderer(STRING_RENDERER);
+    private final MariaDbFilterRenderer filterRenderer;
 
     public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
-        super(basePath, hikariConfig, PersistencePropertyMode.NATIVE, PersistenceIndexMode.EMULATED);
+        super(basePath, hikariConfig, PersistencePropertyMode.NATIVE, PersistenceIndexMode.NATIVE);
+        this.filterRenderer = new MariaDbFilterRenderer(STRING_RENDERER);
     }
 
     public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource) {
-        super(basePath, dataSource, PersistencePropertyMode.NATIVE, PersistenceIndexMode.EMULATED);
+        super(basePath, dataSource, PersistencePropertyMode.NATIVE, PersistenceIndexMode.NATIVE);
+        this.filterRenderer = new MariaDbFilterRenderer(STRING_RENDERER);
     }
 
-    @Override
-    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
-
-        this.checkCollectionRegistered(collection);
-        String indexTable = this.indexTable(collection);
-        String sql = "insert into `" + indexTable + "` (`key`, `property`, `identity`) values (?, ?, ?) on duplicate key update `identity` = ?";
-        String key = path.getValue();
-
-        try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(sql);
-            prepared.setString(1, key);
-            prepared.setString(2, property.getValue());
-            prepared.setString(3, identity);
-            prepared.setString(4, identity);
-            return prepared.executeUpdate() > 0;
-        } catch (SQLException exception) {
-            throw new RuntimeException("cannot update index " + indexTable + " -> " + key + " = " + identity, exception);
-        }
+    /**
+     * Get the generated column name for an index property.
+     */
+    public static String getIndexColumnName(@NonNull IndexProperty index) {
+        return INDEX_COLUMN_PREFIX + index.toSqlIdentifier();
     }
 
     @Override
@@ -76,71 +67,151 @@ public class MariaDbPersistence extends JdbcPersistence {
             throw new RuntimeException("cannot register collection", exception);
         }
 
-        Set<IndexProperty> indexes = collection.getIndexes();
-        int identityLength = collection.getMaxIndexIdentityLength();
-        int propertyLength = collection.getMaxIndexPropertyLength();
-        indexes.forEach(index -> this.registerIndex(collection, index, identityLength, propertyLength));
+        // Drop legacy emulated index table if exists
+        this.dropLegacyIndexTable(collection);
 
-        super.registerCollection(collection);
+        // Manage generated columns for native indexing (like H2)
+        this.manageGeneratedColumns(collection);
+
+        // Register in known collections (from RawPersistence)
+        this.getKnownCollections().put(collection.getValue(), collection);
+        this.getKnownIndexes().put(collection.getValue(), collection.getIndexes());
     }
 
-    private void registerIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property, int identityLength, int propertyLength) {
-
-        int keyLength = collection.getKeyLength();
+    private void dropLegacyIndexTable(@NonNull PersistenceCollection collection) {
         String indexTable = this.indexTable(collection);
-
-        String tableSql = "create table if not exists `" + indexTable + "` (" +
-            "`key` varchar(" + keyLength + ") not null," +
-            "`property` varchar(" + propertyLength + ") not null," +
-            "`identity` varchar(" + identityLength + ") not null," +
-            "primary key(`key`, `property`)," +
-            "index (`identity`)," +
-            "index (`property`, `identity`))" +
-            "engine = InnoDB character set = utf8mb4;";
-
-        String alterKeySql = "alter table `" + indexTable + "` MODIFY COLUMN `key` varchar(" + keyLength + ") not null";
-        String alterPropertySql = "alter table `" + indexTable + "` MODIFY COLUMN `property` varchar(" + propertyLength + ") not null";
-        String alterIdentitySql = "alter table `" + indexTable + "` MODIFY COLUMN `identity` varchar(" + identityLength + ") not null";
-
         try (Connection connection = this.getDataSource().getConnection()) {
-            connection.createStatement().execute(tableSql);
-            connection.createStatement().execute(alterKeySql);
-            connection.createStatement().execute(alterPropertySql);
-            connection.createStatement().execute(alterIdentitySql);
+            DatabaseMetaData metaData = connection.getMetaData();
+            ResultSet tables = metaData.getTables(null, null, indexTable, new String[]{"TABLE"});
+            if (tables.next()) {
+                String dropSql = "drop table `" + indexTable + "`";
+                connection.createStatement().execute(dropSql);
+            }
+            tables.close();
         } catch (SQLException exception) {
-            throw new RuntimeException("cannot register collection", exception);
+            throw new RuntimeException("cannot drop legacy index table " + indexTable, exception);
         }
     }
 
-    @Override
-    public Stream<PersistenceEntity<String>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
-        return this.isIndexed(collection, property)
-            ? this.readByPropertyIndexed(collection, IndexProperty.of(property.getValue()), propertyValue)
-            : this.readByPropertyJsonExtract(collection, property, propertyValue);
-    }
-
-    private Stream<PersistenceEntity<String>> readByPropertyJsonExtract(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
-
-        this.checkCollectionRegistered(collection);
-        String sql = "select `key`, `value` from `" + this.table(collection) + "` where json_extract(`value`, ?) = ?";
+    private void manageGeneratedColumns(@NonNull PersistenceCollection collection) {
+        String tableName = this.table(collection);
+        Set<IndexProperty> desiredIndexes = collection.getIndexes();
 
         try (Connection connection = this.getDataSource().getConnection()) {
+            // Get existing index columns
+            Set<String> existingIndexColumns = this.getExistingIndexColumns(connection, tableName);
 
-            PreparedStatement prepared = connection.prepareStatement(sql);
-            prepared.setString(1, property.toMariaDbJsonPath());
-            prepared.setObject(2, propertyValue);
-            ResultSet resultSet = prepared.executeQuery();
-            List<PersistenceEntity<String>> results = new ArrayList<>();
-
-            while (resultSet.next()) {
-                String key = resultSet.getString("key");
-                String value = resultSet.getString("value");
-                results.add(new PersistenceEntity<>(PersistencePath.of(key), value));
+            // Get desired column names
+            Set<String> desiredColumnNames = new HashSet<>();
+            for (IndexProperty index : desiredIndexes) {
+                desiredColumnNames.add(getIndexColumnName(index));
             }
 
-            return results.stream();
+            // Remove columns that are no longer needed
+            for (String existingCol : existingIndexColumns) {
+                if (!desiredColumnNames.contains(existingCol)) {
+                    this.dropGeneratedColumn(connection, tableName, existingCol);
+                }
+            }
+
+            // Add columns for desired indexes
+            for (IndexProperty index : desiredIndexes) {
+                String columnName = getIndexColumnName(index);
+                if (!existingIndexColumns.contains(columnName)) {
+                    this.createGeneratedColumn(connection, tableName, index, columnName);
+                }
+            }
         } catch (SQLException exception) {
-            throw new RuntimeException("cannot ready by property from " + collection, exception);
+            throw new RuntimeException("cannot manage generated columns for " + tableName, exception);
+        }
+    }
+
+    private Set<String> getExistingIndexColumns(@NonNull Connection connection, @NonNull String tableName) throws SQLException {
+        Set<String> columns = new HashSet<>();
+        DatabaseMetaData metaData = connection.getMetaData();
+        ResultSet rs = metaData.getColumns(null, null, tableName, null);
+        while (rs.next()) {
+            String columnName = rs.getString("COLUMN_NAME");
+            if (columnName.startsWith(INDEX_COLUMN_PREFIX)) {
+                columns.add(columnName);
+            }
+        }
+        rs.close();
+        return columns;
+    }
+
+    private void createGeneratedColumn(@NonNull Connection connection, @NonNull String tableName,
+                                       @NonNull IndexProperty index, @NonNull String columnName) throws SQLException {
+        String expression = this.buildGeneratedColumnExpression(index);
+        String columnType = this.getColumnType(index);
+
+        // MariaDB requires STORED (not VIRTUAL) for indexed generated columns
+        String addColumnSql = "alter table `" + tableName + "` add column `" + columnName + "` " +
+            columnType + " as (" + expression + ") stored";
+
+        try {
+            connection.createStatement().execute(this.debugQuery(addColumnSql));
+
+            // Create index on the generated column
+            String indexName = tableName + "_" + columnName + "_idx";
+            String createIndexSql = "create index `" + indexName + "` on `" + tableName + "` (`" + columnName + "`)";
+            connection.createStatement().execute(this.debugQuery(createIndexSql));
+
+        } catch (SQLException e) {
+            LOGGER.warning("Could not create generated column " + columnName + ": " + e.getMessage());
+        }
+    }
+
+    private void dropGeneratedColumn(@NonNull Connection connection, @NonNull String tableName,
+                                     @NonNull String columnName) throws SQLException {
+        // Drop index first
+        String indexName = tableName + "_" + columnName + "_idx";
+        String dropIndexSql = "drop index if exists `" + indexName + "` on `" + tableName + "`";
+        try {
+            connection.createStatement().execute(dropIndexSql);
+        } catch (SQLException e) {
+            // Index might not exist - that's okay
+        }
+
+        // Drop column
+        String dropColumnSql = "alter table `" + tableName + "` drop column if exists `" + columnName + "`";
+        connection.createStatement().execute(dropColumnSql);
+    }
+
+    /**
+     * Build expression that matches what MariaDbFilterRenderer generates.
+     * This ensures the query optimizer can use the index.
+     */
+    private String buildGeneratedColumnExpression(@NonNull IndexProperty index) {
+        String jsonPath = index.toMariaDbJsonPath();
+
+        if (index.isFloatingPoint()) {
+            // Match: cast(json_extract(`value`, '$.field') as decimal(20,10))
+            return "cast(json_extract(`value`, '" + jsonPath + "') as decimal(20,10))";
+        } else if (index.isNumeric()) {
+            // Match: cast(json_extract(`value`, '$.field') as signed)
+            return "cast(json_extract(`value`, '" + jsonPath + "') as signed)";
+        } else if (index.isBoolean()) {
+            // Boolean in MariaDB JSON: true/false literals
+            // json_unquote returns 'true'/'false' strings for boolean JSON values
+            // Match the string comparison approach used by filter renderer
+            return "json_unquote(json_extract(`value`, '" + jsonPath + "'))";
+        } else {
+            // Match: json_unquote(json_extract(`value`, '$.field'))
+            return "json_unquote(json_extract(`value`, '" + jsonPath + "'))";
+        }
+    }
+
+    private String getColumnType(@NonNull IndexProperty index) {
+        if (index.isFloatingPoint()) {
+            return "decimal(20,10)";
+        } else if (index.isNumeric()) {
+            return "bigint";
+        } else if (index.isBoolean()) {
+            // Booleans stored as 'true'/'false' strings via json_unquote
+            return "varchar(5)";
+        } else {
+            return "varchar(" + index.getMaxLength() + ")";
         }
     }
 
@@ -192,14 +263,19 @@ public class MariaDbPersistence extends JdbcPersistence {
     public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
 
         this.checkCollectionRegistered(collection);
+
+        // Set indexed properties context for the renderer to use generated columns
+        Set<IndexProperty> indexes = this.getKnownIndexes().get(collection.getValue());
+        this.filterRenderer.setIndexedProperties(indexes);
+
         String sql = "select `key`, `value` from `" + this.table(collection) + "`";
 
         if (filter.getWhere() != null) {
-            sql += " where " + FILTER_RENDERER.renderCondition(filter.getWhere());
+            sql += " where " + this.filterRenderer.renderCondition(filter.getWhere());
         }
 
         if (filter.hasOrderBy()) {
-            sql += " order by " + FILTER_RENDERER.renderOrderBy(filter.getOrderBy());
+            sql += " order by " + this.filterRenderer.renderOrderBy(filter.getOrderBy());
         }
 
         if (filter.hasLimit()) {
@@ -301,7 +377,11 @@ public class MariaDbPersistence extends JdbcPersistence {
             throw new IllegalArgumentException("deleteByFilter requires a WHERE condition - use deleteAll() to clear collection");
         }
 
-        String sql = "delete from `" + this.table(collection) + "` where " + FILTER_RENDERER.renderCondition(filter.getWhere());
+        // Set indexed properties context for the renderer to use generated columns
+        Set<IndexProperty> indexes = this.getKnownIndexes().get(collection.getValue());
+        this.filterRenderer.setIndexedProperties(indexes);
+
+        String sql = "delete from `" + this.table(collection) + "` where " + this.filterRenderer.renderCondition(filter.getWhere());
 
         try (Connection connection = this.getDataSource().getConnection()) {
             Statement statement = connection.createStatement();
@@ -432,9 +512,13 @@ public class MariaDbPersistence extends JdbcPersistence {
             throw new IllegalArgumentException("update requires a WHERE condition - use updateOne() for single document updates");
         }
 
+        // Set indexed properties context for the renderer to use generated columns
+        Set<IndexProperty> indexes = this.getKnownIndexes().get(collection.getValue());
+        this.filterRenderer.setIndexedProperties(indexes);
+
         String updateExpr = UPDATE_RENDERER.render(filter.getOperations());
         String sql = "update `" + this.table(collection) + "` set `value` = " + updateExpr +
-                     " where " + FILTER_RENDERER.renderCondition(filter.getWhere());
+                     " where " + this.filterRenderer.renderCondition(filter.getWhere());
 
         try (Connection connection = this.getDataSource().getConnection()) {
             Statement statement = connection.createStatement();

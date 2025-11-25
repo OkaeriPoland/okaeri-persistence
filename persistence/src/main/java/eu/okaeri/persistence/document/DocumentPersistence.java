@@ -326,37 +326,6 @@ public class DocumentPersistence implements Persistence<Document> {
     }
 
     @Override
-    public Stream<PersistenceEntity<Document>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
-
-        List<String> pathParts = property.toParts();
-        Predicate<PersistenceEntity<Document>> documentFilter = entity -> {
-            if (pathParts.size() == 1) {
-                return compareEquals(propertyValue, entity.getValue().get(pathParts.get(0)));
-            }
-            Map<String, Object> document = entity.getValue().asMap(this.simplifier, true);
-            return compareEquals(propertyValue, extractValue(document, pathParts));
-        };
-
-        // native read implementation may or may not filter entries
-        // for every query, depending on the backend supported features
-        // the goal is to allow extensibility - i trust but i verify
-        // with the exception for non-emulated indexes (native)
-        if (this.getRead().getPropertyMode() == PersistencePropertyMode.NATIVE) {
-            return this.getRead().readByProperty(collection, property, propertyValue)
-                .map(this.entityToDocumentMapper(collection))
-                .filter(entity -> (this.getRead().getIndexMode() == PersistenceIndexMode.NATIVE) || documentFilter.test(entity));
-        }
-
-        // streaming search optimized with string search can
-        // greatly reduce search time removing parsing overhead
-        boolean stringSearch = (this.getRead().getPropertyMode() == PersistencePropertyMode.TOSTRING) && this.getWrite().canUseToString(propertyValue);
-        return this.getRead().streamAll(collection)
-            .filter(entity -> !stringSearch || entity.getValue().contains(String.valueOf(propertyValue)))
-            .map(this.entityToDocumentMapper(collection))
-            .filter(documentFilter);
-    }
-
-    @Override
     public Stream<PersistenceEntity<Document>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
         try {
             return this.getRead().readByFilter(collection, filter).map(this.entityToDocumentMapper(collection));

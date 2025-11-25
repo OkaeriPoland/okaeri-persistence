@@ -47,6 +47,12 @@ public class IndexTestEntity extends Document {
     private int score;
 
     /**
+     * Double field - will be indexed in indexed repository.
+     * Values: level * 1.5 (e.g., 0.0, 1.5, 3.0, ..., 148.5)
+     */
+    private double rating;
+
+    /**
      * Sequence number within category (0 to FACTOR-1).
      */
     private int sequence;

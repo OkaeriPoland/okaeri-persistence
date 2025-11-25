@@ -317,42 +317,6 @@ public class InMemoryDocumentPersistence extends DocumentPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<Document>> readByProperty(@NonNull PersistenceCollection collection, @NonNull PersistencePath property, Object propertyValue) {
-
-        this.getRead().checkCollectionRegistered(collection);
-        Map<String, PropertyIndex> indexes = this.indexMap.get(collection.getValue());
-        if (indexes == null) {
-            return this.streamAll(collection);
-        }
-
-        PropertyIndex index = indexes.get(property.getValue());
-        if (index == null) {
-            return this.streamAll(collection);
-        }
-
-        // Use index for equality lookup
-        Set<String> keys = index.findEquals(propertyValue);
-        if (keys.isEmpty()) {
-            return Stream.empty();
-        }
-
-        // Direct map access - no lock overhead per document
-        Map<PersistencePath, Document> collectionDocs = this.documents.get(collection.getValue());
-        return keys.stream()
-            .map(key -> {
-                PersistencePath path = PersistencePath.of(key);
-                Document doc = collectionDocs.get(path);
-                if (doc == null) {
-                    // Stale index entry - clean up
-                    this.dropIndex(collection, path);
-                    return null;
-                }
-                return new PersistenceEntity<>(path, doc);
-            })
-            .filter(Objects::nonNull);
-    }
-
-    @Override
     public Stream<PersistenceEntity<Document>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
         this.getRead().checkCollectionRegistered(collection);
 
