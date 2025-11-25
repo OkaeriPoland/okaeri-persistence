@@ -187,10 +187,10 @@ public class IndexPerformanceE2ETest extends E2ETestBase {
             cachedContexts = new ArrayList<>();
             for (BackendContainer backend : List.of(
                 new InMemoryBackendContainer(),
-                new H2BackendContainer(),
+                //new H2BackendContainer() // no performance benefit
                 new PostgresBackendContainer(),
-                new MariaDbBackendContainer()
-//                new MongoBackendContainer(),
+                new MariaDbBackendContainer(),
+                new MongoBackendContainer()
 //                new RedisBackendContainer(),
 //                new FlatFileBackendContainer()
             )) {
