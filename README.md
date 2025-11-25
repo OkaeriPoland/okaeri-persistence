@@ -114,11 +114,10 @@ public class User extends Document {
 )
 public interface UserRepository extends DocumentRepository<UUID, User> {
 
-    @DocumentPath("name")
+    // Method names are parsed automatically - no annotations needed!
     Optional<User> findByName(String name);
-
-    @DocumentPath("level")
     Stream<User> streamByLevel(int level);
+    List<User> findByLevelAndName(int level, String name);
 }
 ```
 
@@ -155,7 +154,7 @@ users.save(alice);
 // Find by ID
 User found = users.findByPath(alice.getPath()).orElseThrow();
 
-// Find by indexed field (auto-implemented @DocumentPath method)
+// Find by indexed field (auto-implemented from method name)
 User byName = users.findByName("alice").orElseThrow();
 
 // Query with filtering and ordering
@@ -303,34 +302,57 @@ Optional<User> oldVersion = users.getAndUpdateOne(userId, u -> u
 
 ## Repository Methods
 
-Annotate methods with `@DocumentPath` and they're auto-implemented (works for any field, but indexing recommended for performance):
+Define methods in your repository interface and they're auto-implemented based on method name parsing (works for any field, but indexing recommended for performance):
 
 ```java
 @DocumentCollection(path = "players", indexes = {
     @DocumentIndex(path = "username", maxLength = 16),
-    @DocumentIndex(path = "rank", maxLength = 32)
+    @DocumentIndex(path = "rank", maxLength = 32),
+    @DocumentIndex(path = "stats.level")
 })
 public interface PlayerRepository extends DocumentRepository<UUID, Player> {
 
-    // Returns Optional<Player>
-    @DocumentPath("username")
+    // === Simple equality (parsed from method name) ===
     Optional<Player> findByUsername(String username);
-
-    // Returns Stream<Player>
-    @DocumentPath("rank")
     Stream<Player> streamByRank(String rank);
+    List<Player> findByRank(String rank);
 
-    // Returns List<Player>
-    @DocumentPath("rank")
-    List<Player> listByRank(String rank);
+    // === Multiple conditions (AND/OR) ===
+    List<Player> findByRankAndUsername(String rank, String username);
+    List<Player> findByRankOrUsername(String rank, String username);
+    // AND has precedence: A OR B AND C → A OR (B AND C)
+    List<Player> findByUsernameOrRankAndLevel(String username, String rank, int level);
 
-    // Nested properties
-    @DocumentPath("stats.level")
-    Stream<Player> streamByStatsLevel(int level);
+    // === Nested properties (auto-discovered from camelCase or use $ as separator) ===
+    Stream<Player> findByStatsLevel(int level);      // statsLevel → stats.level
+    List<Player> findByStats$Score(int score);       // stats$Score → stats.score (explicit)
 
-    // Custom logic
+    // === Ordering ===
+    List<Player> findByRankOrderByUsernameAsc(String rank);
+    List<Player> findAllOrderByStats$LevelDesc();
+    Stream<Player> streamAllOrderByUsernameAscRankDesc();
+
+    // === Limiting ===
+    Optional<Player> findFirstByOrderByStats$LevelDesc();  // First = limit 1
+    List<Player> findTop10ByRank(String rank);              // TopN = limit N
+
+    // === Count/Exists/Delete ===
+    long countByRank(String rank);
+    boolean existsByUsername(String username);
+    long deleteByRank(String rank);
+
+    // === Alternative prefixes (all equivalent to find) ===
+    Optional<Player> readByUsername(String username);
+    Optional<Player> getByUsername(String username);
+    List<Player> queryByRank(String rank);
+
+    // === Underscores for readability (ignored in parsing) ===
+    Optional<Player> findBy_username(String username);
+    List<Player> findBy_rank_and_username(String rank, String username);
+
+    // === Custom logic with default methods ===
     default boolean isUsernameTaken(String username) {
-        return findByUsername(username).isPresent();
+        return this.existsByUsername(username);
     }
 
     default Player getOrCreate(UUID id, String username) {
@@ -342,6 +364,36 @@ public interface PlayerRepository extends DocumentRepository<UUID, Player> {
         });
     }
 }
+```
+
+**Method Name Syntax:**
+
+| Pattern | Example | Description |
+|---------|---------|-------------|
+| `findBy{Field}` | `findByName(String)` | Simple equality |
+| `findBy{A}And{B}` | `findByNameAndLevel(String, int)` | AND conditions |
+| `findBy{A}Or{B}` | `findByNameOrEmail(String, String)` | OR conditions |
+| `findBy{Field}OrderBy{F}Asc/Desc` | `findByActiveOrderByLevelDesc(boolean)` | With ordering |
+| `findAllOrderBy{Field}` | `findAllOrderByNameAsc()` | All with ordering |
+| `findFirst...` | `findFirstByOrderByLevelDesc()` | Limit to 1 |
+| `findTop{N}...` | `findTop10ByActive(boolean)` | Limit to N |
+| `countBy{Field}` | `countByActive(boolean)` | Count matching |
+| `existsBy{Field}` | `existsByEmail(String)` | Check existence |
+| `deleteBy{Field}` | `deleteByLevel(int)` | Delete matching |
+| `streamBy{Field}` | `streamByLevel(int)` | Must return `Stream<T>` |
+| `{field}${nested}` | `findByProfile$Age(int)` | Nested field (→ `profile.age`) |
+
+**Return Types:**
+- `Optional<T>` - Single result or empty
+- `Stream<T>` - Lazy stream (required for `stream` prefix)
+- `List<T>`, `Collection<T>`, `Set<T>` - Collected results
+- `T` (naked entity) - Single result or null
+- `long` - For count/delete operations
+- `boolean` - For exists operations
+
+**Note:** For complex queries (comparisons like `>`, `<`, `>=`, regex, etc.), use the Query DSL instead:
+```java
+users.find(q -> q.where(on("level", gt(10))).orderBy(desc("score")));
 ```
 
 **Built-in Methods** (from `DocumentRepository`):
@@ -567,13 +619,9 @@ public class UserProfile {
 )
 public interface UserAccountRepository extends DocumentRepository<UUID, UserAccount> {
 
-    @DocumentPath("email")
+    // Method names are parsed automatically - no annotations needed!
     Optional<UserAccount> findByEmail(String email);
-
-    @DocumentPath("username")
     Optional<UserAccount> findByUsername(String username);
-
-    @DocumentPath("role")
     Stream<UserAccount> streamByRole(String role);
 
     default UserAccount register(String email, String username) {

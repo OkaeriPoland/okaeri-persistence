@@ -8,9 +8,9 @@ import lombok.Data;
 import lombok.NonNull;
 
 import java.util.Arrays;
+import java.util.Map;
 
-import static eu.okaeri.persistence.filter.predicate.SimplePredicate.gte;
-import static eu.okaeri.persistence.filter.predicate.SimplePredicate.lte;
+import static eu.okaeri.persistence.document.DocumentValueUtils.extractValue;
 
 @Data
 @SuppressWarnings("unchecked")
@@ -53,12 +53,21 @@ public class Condition implements Predicate {
 
     @Override
     public boolean check(Object leftOperand) {
+
+        Object valueToCheck;
+        if ((this.path != null) && (leftOperand instanceof Map)) {
+            valueToCheck = extractValue((Map<?, ?>) leftOperand, this.path.toParts());
+        } else {
+            valueToCheck = leftOperand;
+        }
+
         if (this.operator == LogicalOperator.AND) {
-            return Arrays.stream(this.predicates).allMatch(p -> p.check(leftOperand));
+            return Arrays.stream(this.predicates).allMatch(p -> p.check(valueToCheck));
         }
         if (this.operator == LogicalOperator.OR) {
-            return Arrays.stream(this.predicates).anyMatch(p -> p.check(leftOperand));
+            return Arrays.stream(this.predicates).anyMatch(p -> p.check(valueToCheck));
         }
+
         throw new IllegalArgumentException("Unsupported operator: " + this.operator);
     }
 }
