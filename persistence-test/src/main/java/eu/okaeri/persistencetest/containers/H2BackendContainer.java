@@ -7,11 +7,19 @@ import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.jdbc.H2Persistence;
 import eu.okaeri.persistence.jdbc.commons.JdbcHelper;
 
+import java.io.File;
+
 /**
- * H2 in-memory database backend container.
- * No Docker container required - uses in-memory database.
+ * H2 file-based database backend container.
+ * Uses temp file for more realistic performance testing.
  */
 public class H2BackendContainer implements BackendContainer {
+
+    private final String dbPath;
+
+    public H2BackendContainer() {
+        this.dbPath = System.getProperty("java.io.tmpdir") + File.separator + "h2_test_" + System.nanoTime();
+    }
 
     @Override
     public String getName() {
@@ -21,7 +29,7 @@ public class H2BackendContainer implements BackendContainer {
     @Override
     public DocumentPersistence createPersistence() {
         HikariConfig hikariConfig = JdbcHelper.configureHikari(
-            "jdbc:h2:mem:test_" + System.nanoTime() + ";mode=mysql",
+            "jdbc:h2:" + this.dbPath + ";mode=mysql",
             "org.h2.Driver"
         );
 
@@ -43,7 +51,15 @@ public class H2BackendContainer implements BackendContainer {
 
     @Override
     public void close() throws Exception {
-        // No cleanup needed for in-memory database
+        // Clean up temp database files
+        File dbFile = new File(this.dbPath + ".mv.db");
+        if (dbFile.exists()) {
+            dbFile.delete();
+        }
+        File traceFile = new File(this.dbPath + ".trace.db");
+        if (traceFile.exists()) {
+            traceFile.delete();
+        }
     }
 
     @Override
