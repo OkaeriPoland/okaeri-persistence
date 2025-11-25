@@ -30,7 +30,10 @@ public class StartsWithPredicate extends SimplePredicate {
     }
 
     @Override
-    public boolean check(@NonNull Object leftOperand) {
+    public boolean check(Object leftOperand) {
+        if (leftOperand == null) {
+            return false;
+        }
         String left = String.valueOf(leftOperand);
         String right = (String) this.getRightOperand();
         if (this.ignoreCase) {

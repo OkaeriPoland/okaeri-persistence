@@ -20,6 +20,7 @@ import lombok.NonNull;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.UUID;
 
 @Data
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
@@ -60,7 +61,29 @@ public abstract class SimplePredicate implements Predicate {
     }
 
     /**
-     * Creates an equals predicate for numeric values.
+     * Creates an equals predicate for int values.
+     * {@code field == value}
+     *
+     * @param rightOperand the value to compare against
+     * @return equals predicate
+     */
+    public static SimplePredicate eq(int rightOperand) {
+        return new EqPredicate(rightOperand);
+    }
+
+    /**
+     * Creates an equals predicate for long values.
+     * {@code field == value}
+     *
+     * @param rightOperand the value to compare against
+     * @return equals predicate
+     */
+    public static SimplePredicate eq(long rightOperand) {
+        return new EqPredicate(rightOperand);
+    }
+
+    /**
+     * Creates an equals predicate for double values.
      * {@code field == value}
      *
      * @param rightOperand the value to compare against
@@ -95,6 +118,28 @@ public abstract class SimplePredicate implements Predicate {
     }
 
     /**
+     * Creates an equals predicate for UUID values.
+     * {@code field == value.toString()}
+     *
+     * @param rightOperand the UUID to compare against
+     * @return equals predicate
+     */
+    public static SimplePredicate eq(@NonNull UUID rightOperand) {
+        return new EqPredicate(rightOperand.toString());
+    }
+
+    /**
+     * Creates an equals predicate for enum values.
+     * {@code field == value.name()}
+     *
+     * @param rightOperand the enum to compare against
+     * @return equals predicate
+     */
+    public static SimplePredicate eq(@NonNull Enum<?> rightOperand) {
+        return new EqPredicate(rightOperand.name());
+    }
+
+    /**
      * Creates a case-insensitive equals predicate for string values.
      * Shorthand for {@code eq(value).ignoreCase()}.
      * {@code lower(field) == lower(value)}
@@ -107,7 +152,29 @@ public abstract class SimplePredicate implements Predicate {
     }
 
     /**
-     * Creates a greater-than-or-equal predicate.
+     * Creates a greater-than-or-equal predicate for int values.
+     * {@code field >= value}
+     *
+     * @param rightOperand the value to compare against
+     * @return greater-than-or-equal predicate
+     */
+    public static SimplePredicate gte(int rightOperand) {
+        return new GtePredicate(rightOperand);
+    }
+
+    /**
+     * Creates a greater-than-or-equal predicate for long values.
+     * {@code field >= value}
+     *
+     * @param rightOperand the value to compare against
+     * @return greater-than-or-equal predicate
+     */
+    public static SimplePredicate gte(long rightOperand) {
+        return new GtePredicate(rightOperand);
+    }
+
+    /**
+     * Creates a greater-than-or-equal predicate for double values.
      * {@code field >= value}
      *
      * @param rightOperand the value to compare against
@@ -118,7 +185,29 @@ public abstract class SimplePredicate implements Predicate {
     }
 
     /**
-     * Creates a greater-than predicate.
+     * Creates a greater-than predicate for int values.
+     * {@code field > value}
+     *
+     * @param rightOperand the value to compare against
+     * @return greater-than predicate
+     */
+    public static SimplePredicate gt(int rightOperand) {
+        return new GtPredicate(rightOperand);
+    }
+
+    /**
+     * Creates a greater-than predicate for long values.
+     * {@code field > value}
+     *
+     * @param rightOperand the value to compare against
+     * @return greater-than predicate
+     */
+    public static SimplePredicate gt(long rightOperand) {
+        return new GtPredicate(rightOperand);
+    }
+
+    /**
+     * Creates a greater-than predicate for double values.
      * {@code field > value}
      *
      * @param rightOperand the value to compare against
@@ -129,7 +218,29 @@ public abstract class SimplePredicate implements Predicate {
     }
 
     /**
-     * Creates a less-than-or-equal predicate.
+     * Creates a less-than-or-equal predicate for int values.
+     * {@code field <= value}
+     *
+     * @param rightOperand the value to compare against
+     * @return less-than-or-equal predicate
+     */
+    public static SimplePredicate lte(int rightOperand) {
+        return new LtePredicate(rightOperand);
+    }
+
+    /**
+     * Creates a less-than-or-equal predicate for long values.
+     * {@code field <= value}
+     *
+     * @param rightOperand the value to compare against
+     * @return less-than-or-equal predicate
+     */
+    public static SimplePredicate lte(long rightOperand) {
+        return new LtePredicate(rightOperand);
+    }
+
+    /**
+     * Creates a less-than-or-equal predicate for double values.
      * {@code field <= value}
      *
      * @param rightOperand the value to compare against
@@ -140,7 +251,29 @@ public abstract class SimplePredicate implements Predicate {
     }
 
     /**
-     * Creates a less-than predicate.
+     * Creates a less-than predicate for int values.
+     * {@code field < value}
+     *
+     * @param rightOperand the value to compare against
+     * @return less-than predicate
+     */
+    public static SimplePredicate lt(int rightOperand) {
+        return new LtPredicate(rightOperand);
+    }
+
+    /**
+     * Creates a less-than predicate for long values.
+     * {@code field < value}
+     *
+     * @param rightOperand the value to compare against
+     * @return less-than predicate
+     */
+    public static SimplePredicate lt(long rightOperand) {
+        return new LtPredicate(rightOperand);
+    }
+
+    /**
+     * Creates a less-than predicate for double values.
      * {@code field < value}
      *
      * @param rightOperand the value to compare against
@@ -151,7 +284,29 @@ public abstract class SimplePredicate implements Predicate {
     }
 
     /**
-     * Creates a not-equals predicate for numeric values.
+     * Creates a not-equals predicate for int values.
+     * {@code field != value}
+     *
+     * @param rightOperand the value to compare against
+     * @return not-equals predicate
+     */
+    public static SimplePredicate ne(int rightOperand) {
+        return new NePredicate(rightOperand);
+    }
+
+    /**
+     * Creates a not-equals predicate for long values.
+     * {@code field != value}
+     *
+     * @param rightOperand the value to compare against
+     * @return not-equals predicate
+     */
+    public static SimplePredicate ne(long rightOperand) {
+        return new NePredicate(rightOperand);
+    }
+
+    /**
+     * Creates a not-equals predicate for double values.
      * {@code field != value}
      *
      * @param rightOperand the value to compare against
@@ -181,6 +336,28 @@ public abstract class SimplePredicate implements Predicate {
      */
     public static SimplePredicate ne(boolean rightOperand) {
         return new NePredicate(rightOperand);
+    }
+
+    /**
+     * Creates a not-equals predicate for UUID values.
+     * {@code field != value.toString()}
+     *
+     * @param rightOperand the UUID to compare against
+     * @return not-equals predicate
+     */
+    public static SimplePredicate ne(@NonNull UUID rightOperand) {
+        return new NePredicate(rightOperand.toString());
+    }
+
+    /**
+     * Creates a not-equals predicate for enum values.
+     * {@code field != value.name()}
+     *
+     * @param rightOperand the enum to compare against
+     * @return not-equals predicate
+     */
+    public static SimplePredicate ne(@NonNull Enum<?> rightOperand) {
+        return new NePredicate(rightOperand.name());
     }
 
     /**
@@ -271,11 +448,41 @@ public abstract class SimplePredicate implements Predicate {
     }
 
     /**
-     * Creates a between predicate for range matching.
+     * Creates a between predicate for range matching with int values.
      * Sugar for {@code gte(min), lte(max)}.
      * {@code field >= min AND field <= max}
      * <p>
      * Usage: {@code on("level", between(10, 50))}
+     *
+     * @param min the minimum value (inclusive)
+     * @param max the maximum value (inclusive)
+     * @return array of predicates (gte and lte)
+     */
+    public static Predicate[] between(int min, int max) {
+        return new Predicate[]{gte(min), lte(max)};
+    }
+
+    /**
+     * Creates a between predicate for range matching with long values.
+     * Sugar for {@code gte(min), lte(max)}.
+     * {@code field >= min AND field <= max}
+     * <p>
+     * Usage: {@code on("level", between(10L, 50L))}
+     *
+     * @param min the minimum value (inclusive)
+     * @param max the maximum value (inclusive)
+     * @return array of predicates (gte and lte)
+     */
+    public static Predicate[] between(long min, long max) {
+        return new Predicate[]{gte(min), lte(max)};
+    }
+
+    /**
+     * Creates a between predicate for range matching with double values.
+     * Sugar for {@code gte(min), lte(max)}.
+     * {@code field >= min AND field <= max}
+     * <p>
+     * Usage: {@code on("level", between(10.0, 50.0))}
      *
      * @param min the minimum value (inclusive)
      * @param max the maximum value (inclusive)

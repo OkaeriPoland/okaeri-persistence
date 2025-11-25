@@ -84,6 +84,16 @@ public final class DocumentValueUtils {
             return Objects.equals(String.valueOf(value1), String.valueOf(value2));
         }
 
+        // String and Enum - compare as strings (enum uses name()), with case-insensitive fallback
+        if ((value1 instanceof String) && (value2 instanceof Enum)) {
+            String enumName = ((Enum<?>) value2).name();
+            return value1.equals(enumName) || ((String) value1).equalsIgnoreCase(enumName);
+        }
+        if ((value1 instanceof Enum) && (value2 instanceof String)) {
+            String enumName = ((Enum<?>) value1).name();
+            return enumName.equals(value2) || enumName.equalsIgnoreCase((String) value2);
+        }
+
         throw new IllegalArgumentException("cannot compare " + value1 + " [" + value1.getClass() + "] to " + value2 + " [" + value2.getClass() + "]");
     }
 

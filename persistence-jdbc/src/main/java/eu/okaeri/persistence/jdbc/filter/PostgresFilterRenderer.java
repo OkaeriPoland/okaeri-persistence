@@ -7,6 +7,7 @@ import eu.okaeri.persistence.filter.predicate.SimplePredicate;
 import eu.okaeri.persistence.filter.predicate.collection.InPredicate;
 import eu.okaeri.persistence.filter.predicate.collection.NotInPredicate;
 import eu.okaeri.persistence.filter.predicate.equality.EqPredicate;
+import eu.okaeri.persistence.filter.predicate.equality.NePredicate;
 import eu.okaeri.persistence.filter.predicate.nullity.IsNullPredicate;
 import eu.okaeri.persistence.filter.predicate.nullity.NotNullPredicate;
 import eu.okaeri.persistence.filter.predicate.string.ContainsPredicate;
@@ -37,12 +38,34 @@ public class PostgresFilterRenderer extends SqlFilterRenderer {
             return "(" + path.toPostgresJsonPath(true) + " is not null)";
         }
 
+        // Handle ne/notIn with null inclusion (document-first: null != X is true)
+        if (predicate instanceof NePredicate) {
+            Object rightOperand = ((NePredicate) predicate).getRightOperand();
+            String baseCondition;
+            if (rightOperand instanceof Number) {
+                baseCondition = "(" + path.toPostgresJsonPath() + ")::numeric "
+                    + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            } else {
+                baseCondition = path.toPostgresJsonPath(true) + " "
+                    + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            }
+            return "((" + baseCondition + ") or (" + path.toPostgresJsonPath(true) + " is null))";
+        }
+
         // Handle IN/NOT IN predicates with numeric collections
         if ((predicate instanceof InPredicate) && ((InPredicate) predicate).isNumeric()) {
             return "((" + path.toPostgresJsonPath() + ")::numeric " + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
         }
         if ((predicate instanceof NotInPredicate) && ((NotInPredicate) predicate).isNumeric()) {
-            return "((" + path.toPostgresJsonPath() + ")::numeric " + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
+            String baseCondition = "(" + path.toPostgresJsonPath() + ")::numeric "
+                + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            return "((" + baseCondition + ") or (" + path.toPostgresJsonPath(true) + " is null))";
+        }
+        // Handle non-numeric NotInPredicate
+        if (predicate instanceof NotInPredicate) {
+            String baseCondition = path.toPostgresJsonPath(true) + " "
+                + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            return "((" + baseCondition + ") or (" + path.toPostgresJsonPath(true) + " is null))";
         }
 
         // Handle other numeric comparisons

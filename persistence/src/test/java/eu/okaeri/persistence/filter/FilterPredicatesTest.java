@@ -5,8 +5,9 @@ import eu.okaeri.persistence.filter.renderer.DefaultFilterRenderer;
 import eu.okaeri.persistence.filter.renderer.DefaultStringRenderer;
 import org.junit.jupiter.api.Test;
 
-import static eu.okaeri.persistence.filter.predicate.SimplePredicate.eq;
-import static eu.okaeri.persistence.filter.predicate.SimplePredicate.gte;
+import java.util.UUID;
+
+import static eu.okaeri.persistence.filter.predicate.SimplePredicate.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class FilterPredicatesTest {
@@ -66,5 +67,56 @@ public class FilterPredicatesTest {
         assertThat(gte(1).check(1.01)).isTrue();
         assertThat(gte(1).check(1.00000222)).isTrue();
         assertThat(gte(1).check(3590530953000000d)).isTrue();
+    }
+
+    @Test
+    public void test_eq_uuid() {
+        UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        String uuidString = "550e8400-e29b-41d4-a716-446655440000";
+
+        // eq(UUID) converts to string internally
+        assertThat(eq(uuid).check(uuidString)).isTrue();
+        assertThat(eq(uuid).check("550e8400-e29b-41d4-a716-446655440000")).isTrue();
+        assertThat(eq(uuid).check("different-uuid")).isFalse();
+
+        // ne(UUID) also works
+        assertThat(ne(uuid).check(uuidString)).isFalse();
+        assertThat(ne(uuid).check("different-uuid")).isTrue();
+    }
+
+    enum TestStatus {
+        ACTIVE, INACTIVE, PENDING
+    }
+
+    @Test
+    public void test_eq_enum() {
+        // eq(Enum) converts to name() string internally
+        // Document stores enum as string "ACTIVE", predicate compares against "ACTIVE"
+        assertThat(eq(TestStatus.ACTIVE).check("ACTIVE")).isTrue();
+        assertThat(eq(TestStatus.ACTIVE).check("INACTIVE")).isFalse();
+        assertThat(eq(TestStatus.ACTIVE).check("active")).isFalse(); // case-sensitive
+
+        assertThat(eq(TestStatus.PENDING).check("PENDING")).isTrue();
+        assertThat(eq(TestStatus.INACTIVE).check("INACTIVE")).isTrue();
+
+        // ne(Enum) also works
+        assertThat(ne(TestStatus.ACTIVE).check("ACTIVE")).isFalse();
+        assertThat(ne(TestStatus.ACTIVE).check("INACTIVE")).isTrue();
+        assertThat(ne(TestStatus.ACTIVE).check("PENDING")).isTrue();
+    }
+
+    @Test
+    public void test_eq_enum_render() {
+        DefaultFilterRenderer dpr = new DefaultFilterRenderer(new DefaultStringRenderer());
+        assertThat(dpr.renderPredicate(X, eq(TestStatus.ACTIVE))).isEqualTo("(x == \"ACTIVE\")");
+        assertThat(dpr.renderPredicate(X, ne(TestStatus.PENDING))).isEqualTo("(x != \"PENDING\")");
+    }
+
+    @Test
+    public void test_eq_uuid_render() {
+        DefaultFilterRenderer dpr = new DefaultFilterRenderer(new DefaultStringRenderer());
+        UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+        assertThat(dpr.renderPredicate(X, eq(uuid))).isEqualTo("(x == \"550e8400-e29b-41d4-a716-446655440000\")");
+        assertThat(dpr.renderPredicate(X, ne(uuid))).isEqualTo("(x != \"550e8400-e29b-41d4-a716-446655440000\")");
     }
 }

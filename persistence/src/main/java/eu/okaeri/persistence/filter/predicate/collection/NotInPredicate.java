@@ -24,7 +24,11 @@ public class NotInPredicate extends SimplePredicate {
 
     @Override
     @SuppressWarnings("unchecked")
-    public boolean check(@NonNull Object leftOperand) {
+    public boolean check(Object leftOperand) {
+        // null values satisfy notIn (document-first: null is not in any set)
+        if (leftOperand == null) {
+            return true;
+        }
         Collection<?> collection = (Collection<?>) this.getRightOperand();
         return collection.stream().noneMatch(value -> compareEquals(leftOperand, value));
     }

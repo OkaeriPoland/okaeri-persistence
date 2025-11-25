@@ -4,7 +4,8 @@ import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.filter.OrderBy;
 import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.filter.condition.LogicalOperator;
-import eu.okaeri.persistence.filter.predicate.*;
+import eu.okaeri.persistence.filter.predicate.Predicate;
+import eu.okaeri.persistence.filter.predicate.SimplePredicate;
 import eu.okaeri.persistence.filter.predicate.equality.EqPredicate;
 import eu.okaeri.persistence.filter.predicate.equality.NePredicate;
 import eu.okaeri.persistence.filter.predicate.numeric.GtPredicate;
@@ -18,6 +19,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -126,6 +128,14 @@ public class DefaultFilterRenderer implements FilterRenderer {
 
         if (operand instanceof CharSequence) {
             return this.stringRenderer.render(String.valueOf(operand));
+        }
+
+        if (operand instanceof Enum) {
+            return this.stringRenderer.render(((Enum<?>) operand).name());
+        }
+
+        if (operand instanceof UUID) {
+            return this.stringRenderer.render(operand.toString());
         }
 
         if (operand instanceof Collection) {

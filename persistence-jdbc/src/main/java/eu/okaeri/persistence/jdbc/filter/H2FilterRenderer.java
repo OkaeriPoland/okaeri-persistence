@@ -7,6 +7,7 @@ import eu.okaeri.persistence.filter.predicate.SimplePredicate;
 import eu.okaeri.persistence.filter.predicate.collection.InPredicate;
 import eu.okaeri.persistence.filter.predicate.collection.NotInPredicate;
 import eu.okaeri.persistence.filter.predicate.equality.EqPredicate;
+import eu.okaeri.persistence.filter.predicate.equality.NePredicate;
 import eu.okaeri.persistence.filter.predicate.nullity.IsNullPredicate;
 import eu.okaeri.persistence.filter.predicate.nullity.NotNullPredicate;
 import eu.okaeri.persistence.filter.predicate.string.ContainsPredicate;
@@ -39,6 +40,29 @@ public class H2FilterRenderer extends SqlFilterRenderer {
             return "(" + fieldReference + " is not null)";
         }
 
+        // Handle ne/notIn with null inclusion (document-first: null != X is true)
+        if (predicate instanceof NePredicate) {
+            Object rightOperand = ((NePredicate) predicate).getRightOperand();
+            String baseCondition;
+            if (rightOperand instanceof Number) {
+                Number value = (Number) rightOperand;
+                String castType = ((value instanceof Double) || (value instanceof Float))
+                    ? "decimal(20,10)"
+                    : "int";
+                baseCondition = "cast(cast(" + fieldReference + " as varchar) as " + castType + ") "
+                    + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            } else if (rightOperand instanceof Boolean) {
+                // H2 JSON booleans don't have quotes, just cast to varchar
+                baseCondition = "cast(" + fieldReference + " as varchar) "
+                    + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            } else {
+                String castField = "cast(" + fieldReference + " as varchar)";
+                String unquotedField = "replace(substring(" + castField + ", 2, length(" + castField + ") - 2), '\\\"', '\"')";
+                baseCondition = unquotedField + " " + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            }
+            return "((" + baseCondition + ") or (" + fieldReference + " is null))";
+        }
+
         // Handle IN/NOT IN predicates with numeric collections
         if ((predicate instanceof InPredicate) && ((InPredicate) predicate).isNumeric()) {
             Collection<?> collection = (Collection<?>) ((InPredicate) predicate).getRightOperand();
@@ -57,8 +81,16 @@ public class H2FilterRenderer extends SqlFilterRenderer {
                 ? "decimal(20,10)"
                 : "int";
 
-            return "(cast(cast(" + fieldReference + " as varchar) as " + castType + ") "
-                + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
+            String baseCondition = "cast(cast(" + fieldReference + " as varchar) as " + castType + ") "
+                + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            return "((" + baseCondition + ") or (" + fieldReference + " is null))";
+        }
+        // Handle non-numeric NotInPredicate
+        if (predicate instanceof NotInPredicate) {
+            String castField = "cast(" + fieldReference + " as varchar)";
+            String unquotedField = "replace(substring(" + castField + ", 2, length(" + castField + ") - 2), '\\\"', '\"')";
+            String baseCondition = unquotedField + " " + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            return "((" + baseCondition + ") or (" + fieldReference + " is null))";
         }
 
         // Handle numeric comparisons with proper type casting

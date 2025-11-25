@@ -16,7 +16,11 @@ public class NePredicate extends SimplePredicate {
     }
 
     @Override
-    public boolean check(@NonNull Object leftOperand) {
+    public boolean check(Object leftOperand) {
+        // null values satisfy ne (document-first: null != X is true)
+        if (leftOperand == null) {
+            return true;
+        }
         return !compareEquals(leftOperand, this.getRightOperand());
     }
 }

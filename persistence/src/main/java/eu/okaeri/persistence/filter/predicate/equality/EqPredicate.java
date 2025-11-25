@@ -38,7 +38,7 @@ public class EqPredicate extends SimplePredicate {
     }
 
     @Override
-    public boolean check(@NonNull Object leftOperand) {
+    public boolean check(Object leftOperand) {
         if (this.ignoreCase && (leftOperand instanceof String) && (this.getRightOperand() instanceof String)) {
             return ((String) leftOperand).equalsIgnoreCase((String) this.getRightOperand());
         }

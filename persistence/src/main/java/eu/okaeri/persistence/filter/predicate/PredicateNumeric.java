@@ -11,7 +11,11 @@ public abstract class PredicateNumeric extends SimplePredicate {
     }
 
     @Override
-    public boolean check(@NonNull Object leftOperand) {
+    public boolean check(Object leftOperand) {
+        // null values don't satisfy numeric comparisons
+        if (leftOperand == null) {
+            return false;
+        }
 
         if ((leftOperand instanceof Number) && (this.getRightOperand() instanceof Number)) {
             BigDecimal left = new BigDecimal(String.valueOf(leftOperand));

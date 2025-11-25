@@ -24,7 +24,7 @@ public class InPredicate extends SimplePredicate {
 
     @Override
     @SuppressWarnings("unchecked")
-    public boolean check(@NonNull Object leftOperand) {
+    public boolean check(Object leftOperand) {
         Collection<?> collection = (Collection<?>) this.getRightOperand();
         return collection.stream().anyMatch(value -> compareEquals(leftOperand, value));
     }

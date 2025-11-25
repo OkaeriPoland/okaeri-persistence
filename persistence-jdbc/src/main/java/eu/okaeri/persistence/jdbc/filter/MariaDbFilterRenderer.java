@@ -7,6 +7,7 @@ import eu.okaeri.persistence.filter.predicate.SimplePredicate;
 import eu.okaeri.persistence.filter.predicate.collection.InPredicate;
 import eu.okaeri.persistence.filter.predicate.collection.NotInPredicate;
 import eu.okaeri.persistence.filter.predicate.equality.EqPredicate;
+import eu.okaeri.persistence.filter.predicate.equality.NePredicate;
 import eu.okaeri.persistence.filter.predicate.nullity.IsNullPredicate;
 import eu.okaeri.persistence.filter.predicate.nullity.NotNullPredicate;
 import eu.okaeri.persistence.filter.predicate.string.ContainsPredicate;
@@ -38,6 +39,24 @@ public class MariaDbFilterRenderer extends SqlFilterRenderer {
             return "(json_extract(`value`, " + this.renderOperand(jsonPath) + ") is not null)";
         }
 
+        // Handle ne/notIn with null inclusion (document-first: null != X is true)
+        if (predicate instanceof NePredicate) {
+            Object rightOperand = ((NePredicate) predicate).getRightOperand();
+            String baseCondition;
+            if (rightOperand instanceof Number) {
+                Number value = (Number) rightOperand;
+                String castType = ((value instanceof Double) || (value instanceof Float))
+                    ? "decimal(20,10)"
+                    : "signed";
+                baseCondition = "cast(json_extract(`value`, " + this.renderOperand(jsonPath) + ") as " + castType + ") "
+                    + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            } else {
+                String unquotedField = "json_unquote(json_extract(`value`, " + this.renderOperand(jsonPath) + "))";
+                baseCondition = unquotedField + " " + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            }
+            return "((" + baseCondition + ") or (json_extract(`value`, " + this.renderOperand(jsonPath) + ") is null))";
+        }
+
         // Handle IN/NOT IN predicates with numeric collections
         if ((predicate instanceof InPredicate) && ((InPredicate) predicate).isNumeric()) {
             Collection<?> collection = (Collection<?>) ((InPredicate) predicate).getRightOperand();
@@ -56,8 +75,15 @@ public class MariaDbFilterRenderer extends SqlFilterRenderer {
                 ? "decimal(20,10)"
                 : "signed";
 
-            return "(cast(json_extract(`value`, " + this.renderOperand(jsonPath) + ") as " + castType + ") "
-                + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
+            String baseCondition = "cast(json_extract(`value`, " + this.renderOperand(jsonPath) + ") as " + castType + ") "
+                + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            return "((" + baseCondition + ") or (json_extract(`value`, " + this.renderOperand(jsonPath) + ") is null))";
+        }
+        // Handle non-numeric NotInPredicate
+        if (predicate instanceof NotInPredicate) {
+            String unquotedField = "json_unquote(json_extract(`value`, " + this.renderOperand(jsonPath) + "))";
+            String baseCondition = unquotedField + " " + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
+            return "((" + baseCondition + ") or (json_extract(`value`, " + this.renderOperand(jsonPath) + ") is null))";
         }
 
         // Handle numeric comparisons with proper type casting
