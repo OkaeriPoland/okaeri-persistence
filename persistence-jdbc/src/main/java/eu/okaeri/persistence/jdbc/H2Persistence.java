@@ -168,7 +168,7 @@ public class H2Persistence extends JdbcPersistence {
         String expression = this.buildGeneratedColumnExpression(index, fieldRef);
         String columnType = this.getColumnType(index);
 
-        // Add generated column
+        // Add generated column (H2 only supports virtual)
         String addColumnSql = "alter table `" + tableName + "` add column `" + columnName + "` " +
             columnType + " generated always as (" + expression + ")";
         connection.createStatement().execute(this.debugQuery(addColumnSql));
@@ -183,7 +183,7 @@ public class H2Persistence extends JdbcPersistence {
     private void updateGeneratedColumnIfNeeded(@NonNull Connection connection, @NonNull String tableName,
                                                @NonNull IndexProperty index, @NonNull String columnName) throws SQLException {
         // For string columns, check if maxLength changed
-        if (!index.isNumeric() && !index.isBoolean()) {
+        if (!index.isNumeric() && !index.isBoolean() && !index.isFloatingPoint()) {
             DatabaseMetaData metaData = connection.getMetaData();
             ResultSet rs = metaData.getColumns(null, null, tableName.toUpperCase(), columnName.toUpperCase());
             if (rs.next()) {
@@ -192,9 +192,36 @@ public class H2Persistence extends JdbcPersistence {
                     // Need to recreate the column with new length
                     this.dropGeneratedColumn(connection, tableName, columnName);
                     this.createGeneratedColumn(connection, tableName, index, columnName);
+                    return; // Index was created in createGeneratedColumn
                 }
             }
             rs.close();
+        }
+
+        // Ensure index exists on the column (handles cases where column exists but index doesn't)
+        this.ensureIndexExists(connection, tableName, columnName);
+    }
+
+    private void ensureIndexExists(@NonNull Connection connection, @NonNull String tableName,
+                                   @NonNull String columnName) throws SQLException {
+        String indexName = tableName + "_" + columnName + "_idx";
+
+        // Check if index exists
+        DatabaseMetaData metaData = connection.getMetaData();
+        ResultSet rs = metaData.getIndexInfo(null, null, tableName.toUpperCase(), false, false);
+        boolean indexExists = false;
+        while (rs.next()) {
+            String existingIndexName = rs.getString("INDEX_NAME");
+            if ((existingIndexName != null) && existingIndexName.equalsIgnoreCase(indexName)) {
+                indexExists = true;
+                break;
+            }
+        }
+        rs.close();
+
+        if (!indexExists) {
+            String createIndexSql = "create index `" + indexName + "` on `" + tableName + "` (`" + columnName + "`)";
+            connection.createStatement().execute(this.debugQuery(createIndexSql));
         }
     }
 
@@ -381,12 +408,12 @@ public class H2Persistence extends JdbcPersistence {
             private boolean hasMore = true;
 
             private void fetchNextBatch() {
-                if (!hasMore) return;
+                if (!this.hasMore) return;
 
-                String sql = baseQuery + " limit " + batchSize + " offset " + offset;
-                try (Connection connection = getDataSource().getConnection()) {
+                String sql = baseQuery + " limit " + batchSize + " offset " + this.offset;
+                try (Connection connection = H2Persistence.this.getDataSource().getConnection()) {
                     Statement statement = connection.createStatement();
-                    ResultSet resultSet = statement.executeQuery(debugQuery(sql));
+                    ResultSet resultSet = statement.executeQuery(H2Persistence.this.debugQuery(sql));
                     List<PersistenceEntity<String>> batch = new ArrayList<>();
 
                     while (resultSet.next()) {
@@ -396,17 +423,17 @@ public class H2Persistence extends JdbcPersistence {
                     }
 
                     if (batch.isEmpty()) {
-                        hasMore = false;
-                        currentBatch = null;
+                        this.hasMore = false;
+                        this.currentBatch = null;
                         return;
                     }
 
-                    currentBatch = batch.iterator();
-                    offset += batchSize;
+                    this.currentBatch = batch.iterator();
+                    this.offset += batchSize;
 
                     // If we got fewer results than requested, this is the last batch
                     if (batch.size() < batchSize) {
-                        hasMore = false;
+                        this.hasMore = false;
                     }
                 } catch (SQLException e) {
                     throw new RuntimeException("cannot stream from " + collection, e);
@@ -415,17 +442,17 @@ public class H2Persistence extends JdbcPersistence {
 
             @Override
             public boolean hasNext() {
-                if (currentBatch == null || !currentBatch.hasNext()) {
-                    if (!hasMore) return false;
-                    fetchNextBatch();
+                if ((currentBatch == null) || !this.currentBatch.hasNext()) {
+                    if (!this.hasMore) return false;
+                    this.fetchNextBatch();
                 }
-                return currentBatch != null && currentBatch.hasNext();
+                return (currentBatch != null) && this.currentBatch.hasNext();
             }
 
             @Override
             public PersistenceEntity<String> next() {
-                if (!hasNext()) throw new NoSuchElementException();
-                return currentBatch.next();
+                if (!this.hasNext()) throw new NoSuchElementException();
+                return this.currentBatch.next();
             }
         };
 

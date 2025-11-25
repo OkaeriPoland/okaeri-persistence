@@ -114,11 +114,14 @@ public class MariaDbPersistence extends JdbcPersistence {
                 }
             }
 
-            // Add columns for desired indexes
+            // Add columns for desired indexes and ensure indexes exist
             for (IndexProperty index : desiredIndexes) {
                 String columnName = getIndexColumnName(index);
                 if (!existingIndexColumns.contains(columnName)) {
                     this.createGeneratedColumn(connection, tableName, index, columnName);
+                } else {
+                    // Column exists - ensure index exists too
+                    this.ensureIndexExists(connection, tableName, columnName);
                 }
             }
         } catch (SQLException exception) {
@@ -176,6 +179,33 @@ public class MariaDbPersistence extends JdbcPersistence {
         // Drop column
         String dropColumnSql = "alter table `" + tableName + "` drop column if exists `" + columnName + "`";
         connection.createStatement().execute(dropColumnSql);
+    }
+
+    private void ensureIndexExists(@NonNull Connection connection, @NonNull String tableName,
+                                   @NonNull String columnName) throws SQLException {
+        String indexName = tableName + "_" + columnName + "_idx";
+
+        // Check if index exists
+        DatabaseMetaData metaData = connection.getMetaData();
+        ResultSet rs = metaData.getIndexInfo(null, null, tableName, false, false);
+        boolean indexExists = false;
+        while (rs.next()) {
+            String existingIndexName = rs.getString("INDEX_NAME");
+            if ((existingIndexName != null) && existingIndexName.equalsIgnoreCase(indexName)) {
+                indexExists = true;
+                break;
+            }
+        }
+        rs.close();
+
+        if (!indexExists) {
+            String createIndexSql = "create index `" + indexName + "` on `" + tableName + "` (`" + columnName + "`)";
+            try {
+                connection.createStatement().execute(this.debugQuery(createIndexSql));
+            } catch (SQLException e) {
+                LOGGER.warning("Could not create index " + indexName + ": " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -518,7 +548,7 @@ public class MariaDbPersistence extends JdbcPersistence {
 
         String updateExpr = UPDATE_RENDERER.render(filter.getOperations());
         String sql = "update `" + this.table(collection) + "` set `value` = " + updateExpr +
-                     " where " + this.filterRenderer.renderCondition(filter.getWhere());
+            " where " + this.filterRenderer.renderCondition(filter.getWhere());
 
         try (Connection connection = this.getDataSource().getConnection()) {
             Statement statement = connection.createStatement();
