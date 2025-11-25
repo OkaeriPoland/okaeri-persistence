@@ -7,6 +7,7 @@ import lombok.NonNull;
 import java.util.Collection;
 
 import static eu.okaeri.persistence.document.DocumentValueUtils.compareEquals;
+import static eu.okaeri.persistence.filter.predicate.PredicateValidation.validatedAll;
 
 /**
  * VALUE in collection
@@ -18,7 +19,7 @@ public class InPredicate extends SimplePredicate {
     private final boolean numeric;
 
     public InPredicate(@NonNull Collection<?> values) {
-        super(values);
+        super(validatedAll(values));
         this.numeric = validateAndCheckNumeric(values, "IN");
     }
 

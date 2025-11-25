@@ -12,7 +12,11 @@ public class DefaultStringRenderer implements StringRenderer {
     protected String escape(@NonNull String value) {
         StringBuilder builder = new StringBuilder();
         for (char c : value.toCharArray()) {
-            if (c == '\'') {
+            if (c == '\0') {
+                throw new IllegalArgumentException("Null bytes are not supported in string values");
+            } else if (c == '\\') {
+                builder.append("\\\\");
+            } else if (c == '\'') {
                 builder.append("\\'");
             } else if (c == '\"') {
                 builder.append("\\\"");

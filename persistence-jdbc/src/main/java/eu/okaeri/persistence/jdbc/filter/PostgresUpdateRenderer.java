@@ -332,8 +332,17 @@ public class PostgresUpdateRenderer {
 
     /**
      * Converts a field path like "user.name" to PostgreSQL path format: {user,name}
+     * Validates field components to prevent SQL injection.
      */
     private String toPostgresArrayPath(String field) {
+        // Validate each path component for dangerous characters
+        String[] parts = field.split("\\.");
+        for (String part : parts) {
+            if (part.contains("'") || part.contains("}") || part.contains("{") ||
+                part.contains("--") || part.contains(";")) {
+                throw new IllegalArgumentException("Invalid field name: " + field);
+            }
+        }
         return "{" + field.replace(".", ",") + "}";
     }
 

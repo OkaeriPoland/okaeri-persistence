@@ -4,6 +4,7 @@ import eu.okaeri.persistence.filter.predicate.SimplePredicate;
 import lombok.NonNull;
 
 import static eu.okaeri.persistence.document.DocumentValueUtils.compareEquals;
+import static eu.okaeri.persistence.filter.predicate.PredicateValidation.validated;
 
 /**
  * VALUE not equals X
@@ -12,7 +13,7 @@ import static eu.okaeri.persistence.document.DocumentValueUtils.compareEquals;
 public class NePredicate extends SimplePredicate {
 
     public NePredicate(@NonNull Object rightOperand) {
-        super(rightOperand);
+        super(validated(rightOperand));
     }
 
     @Override

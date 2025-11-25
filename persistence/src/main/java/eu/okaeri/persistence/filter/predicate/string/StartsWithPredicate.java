@@ -4,6 +4,8 @@ import eu.okaeri.persistence.filter.predicate.SimplePredicate;
 import lombok.Getter;
 import lombok.NonNull;
 
+import static eu.okaeri.persistence.filter.predicate.PredicateValidation.validated;
+
 /**
  * String starts with predicate.
  * {@code field startsWith "prefix"}
@@ -18,7 +20,7 @@ public class StartsWithPredicate extends SimplePredicate {
     }
 
     public StartsWithPredicate(@NonNull String prefix, boolean ignoreCase) {
-        super(prefix);
+        super(validated(prefix));
         this.ignoreCase = ignoreCase;
     }
 

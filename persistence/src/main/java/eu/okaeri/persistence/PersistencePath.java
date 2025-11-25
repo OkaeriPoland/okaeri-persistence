@@ -98,14 +98,16 @@ public class PersistencePath {
 
     public String toMariaDbJsonPath() {
         String identifier = "$." + this.value.replace(SEPARATOR, ".");
-        if (identifier.contains("'") || identifier.contains("/") || identifier.contains("#") || identifier.contains("--")) {
+        if (identifier.contains("'") || identifier.contains("/") || identifier.contains("#") ||
+            identifier.contains("--") || identifier.contains(";")) {
             throw new IllegalArgumentException("identifier '" + identifier + "' cannot be used as sql json path");
         }
         return identifier;
     }
 
     public String toH2FieldReference() {
-        if (this.value.contains("'") || this.value.contains("/") || this.value.contains("#") || this.value.contains("--")) {
+        if (this.value.contains("'") || this.value.contains("\"") || this.value.contains("/") ||
+            this.value.contains("#") || this.value.contains("--") || this.value.contains(";")) {
             throw new IllegalArgumentException("identifier '" + this.value + "' cannot be used as H2 field reference");
         }
         // Convert path segments to H2 field reference: "field1"."field2"."field3"
@@ -145,7 +147,8 @@ public class PersistencePath {
             }
         }
 
-        if (identifier.toString().contains("/") || identifier.toString().contains("#") || identifier.toString().contains("--")) {
+        if (identifier.toString().contains("/") || identifier.toString().contains("#") ||
+            identifier.toString().contains("--") || identifier.toString().contains(";")) {
             throw new IllegalArgumentException("identifier " + identifier + " cannot be used as sql json path");
         }
 
@@ -153,7 +156,14 @@ public class PersistencePath {
     }
 
     public String toMongoPath() {
-        return this.value.replace(SEPARATOR, ".");
+        String path = this.value.replace(SEPARATOR, ".");
+        // Validate: MongoDB field names should not start with $ (reserved for operators)
+        for (String segment : path.split("\\.")) {
+            if (segment.startsWith("$")) {
+                throw new IllegalArgumentException("Field name cannot start with $: " + segment);
+            }
+        }
+        return path;
     }
 
     public List<String> toParts() {
@@ -175,7 +185,7 @@ public class PersistencePath {
 
     private String toSafeFilePath(String[] parts) {
         return Arrays.stream(parts)
-            .map(part -> part.replace("^\\.+", "").replaceAll("[\\\\/:*?\"<>|]", ""))
+            .map(part -> part.replaceAll("^\\.+", "").replaceAll("[\\\\/:*?\"<>|]", ""))
             .collect(Collectors.joining(File.separator));
     }
 

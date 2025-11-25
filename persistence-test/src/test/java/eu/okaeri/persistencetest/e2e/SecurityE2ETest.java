@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 import static eu.okaeri.persistence.filter.condition.Condition.on;
 import static eu.okaeri.persistence.filter.predicate.SimplePredicate.*;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * E2E Security Tests - validates SQL injection prevention and proper string escaping.
@@ -256,5 +257,308 @@ public class SecurityE2ETest extends E2ETestBase {
 
         var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
         assertThat(remaining).hasSize(8);
+    }
+
+    // ===== NOSQL/MONGODB OPERATOR INJECTION PREVENTION =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_nosql_operator_in_string_value_eq(BackendTestContext btc) {
+        // MongoDB operator syntax in string value should be treated as literal
+        String mongoOperator = "{$gt: 0}";
+        btc.getUserRepository().save(new User(mongoOperator, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        // Should match only the exact string, not interpret as operator
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(mongoOperator)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(mongoOperator);
+
+        // Other users should NOT be returned (operator not executed)
+        assertThat(found.get(0).getExp()).isEqualTo(999);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_nosql_ne_operator_injection(BackendTestContext btc) {
+        // $ne operator that would match all if interpreted
+        String mongoNe = "{$ne: null}";
+        btc.getUserRepository().save(new User(mongoNe, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(mongoNe)))).toList();
+        assertThat(found).hasSize(1); // Only exact match, not all documents
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_nosql_regex_operator_injection(BackendTestContext btc) {
+        // $regex operator that would match all if interpreted
+        String mongoRegex = "{$regex: \".*\"}";
+        btc.getUserRepository().save(new User(mongoRegex, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(mongoRegex)))).toList();
+        assertThat(found).hasSize(1); // Only exact match
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_nosql_json_structure_injection(BackendTestContext btc) {
+        // Attempt to inject JSON structure to add operators
+        String jsonInjection = "test\", \"$gt\": 0, \"x\": \"";
+        btc.getUserRepository().save(new User(jsonInjection, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(jsonInjection)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(jsonInjection);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_nosql_operator_in_collection(BackendTestContext btc) {
+        // MongoDB operator in IN collection should be treated as literal
+        String operator1 = "{$ne: null}";
+        String operator2 = "{$gt: 0}";
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", in(operator1, operator2)))).toList();
+        assertThat(found).isEmpty(); // None of these strings exist as names
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_nosql_where_operator_injection(BackendTestContext btc) {
+        // $where operator (JavaScript execution) should be treated as literal
+        String whereInjection = "{$where: \"this.exp > 0\"}";
+        btc.getUserRepository().save(new User(whereInjection, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(whereInjection)))).toList();
+        assertThat(found).hasSize(1); // Only exact match, no JS execution
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_regex_wildcard_in_contains_escaped(BackendTestContext btc) {
+        // Regex .* should be escaped, not match everything
+        btc.getUserRepository().save(new User("test.*pattern", 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        // Should match literal ".*", not use as regex wildcard
+        var found = btc.getUserRepository().find(q -> q.where(on("name", contains(".*")))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo("test.*pattern");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_regex_metacharacters_in_contains(BackendTestContext btc) {
+        // Various regex metacharacters should be escaped
+        btc.getUserRepository().save(new User("test^$pattern", 999));
+        btc.getUserRepository().save(new User("test+pattern", 1000));
+        btc.getUserRepository().save(new User("test?pattern", 1001));
+        assertThat(btc.getUserRepository().count()).isEqualTo(8);
+
+        // Each should match only its literal pattern
+        assertThat(btc.getUserRepository().find(q -> q.where(on("name", contains("^$")))).toList()).hasSize(1);
+        assertThat(btc.getUserRepository().find(q -> q.where(on("name", contains("+p")))).toList()).hasSize(1);
+        assertThat(btc.getUserRepository().find(q -> q.where(on("name", contains("?p")))).toList()).hasSize(1);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_backslash_quote_injection(BackendTestContext btc) {
+        // Backslash before quote - attempt to escape the escape
+        String backslashQuote = "test\\\"injection";
+        btc.getUserRepository().save(new User(backslashQuote, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(backslashQuote)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(backslashQuote);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_double_quote_in_string(BackendTestContext btc) {
+        // Double quotes in string values should be handled correctly
+        String withQuote = "test\"injection";
+        btc.getUserRepository().save(new User(withQuote, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(withQuote)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(withQuote);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_null_byte_in_string_rejected(BackendTestContext btc) {
+        // Null bytes are rejected for consistent behavior across all backends
+        String nullByte = "test\u0000admin";
+        assertThatThrownBy(() -> btc.getUserRepository().find(q -> q.where(on("name", eq(nullByte)))).toList())
+            .hasMessageContaining("Null bytes are not supported");
+    }
+
+    // ===== SQL QUOTE ESCAPE BYPASS TESTS =====
+    // These tests verify that pre-escaped quotes don't break out of string literals
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_pre_escaped_quote_bypass_attempt(BackendTestContext btc) {
+        // User provides pre-escaped quotes hoping to break out
+        // test'' OR 1=1-- -> after escaping: test'''' OR 1=1--
+        // In SQL: 'test'''' OR 1=1--' should be a single string literal
+        String preEscaped = "test'' OR 1=1--";
+        btc.getUserRepository().save(new User(preEscaped, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        // Should match ONLY the exact string, not cause SQL injection
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(preEscaped)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(preEscaped);
+        assertThat(found.get(0).getExp()).isEqualTo(999);
+
+        // Verify no other users were affected (would happen if OR 1=1 executed)
+        var allUsers = btc.getUserRepository().streamAll().toList();
+        assertThat(allUsers).hasSize(6);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_multiple_pre_escaped_quotes(BackendTestContext btc) {
+        // Multiple pre-escaped quotes
+        String multiQuote = "a''''b''''c";
+        btc.getUserRepository().save(new User(multiQuote, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(multiQuote)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(multiQuote);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_odd_number_of_quotes(BackendTestContext btc) {
+        // Odd number of quotes - attempts to leave unbalanced quotes
+        String oddQuotes = "test''' OR 1=1--";
+        btc.getUserRepository().save(new User(oddQuotes, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(oddQuotes)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(oddQuotes);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_backslash_before_quote(BackendTestContext btc) {
+        // Backslash before quote - in SQL standard, backslash is literal
+        String backslashQuote = "test\\' OR 1=1--";
+        btc.getUserRepository().save(new User(backslashQuote, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(backslashQuote)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(backslashQuote);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_double_backslash_quote(BackendTestContext btc) {
+        // Double backslash then quote
+        String doubleBackslash = "test\\\\' OR 1=1--";
+        btc.getUserRepository().save(new User(doubleBackslash, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(doubleBackslash)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(doubleBackslash);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_quote_at_end_of_string(BackendTestContext btc) {
+        // Quote at the end - ensures string termination is handled
+        String endQuote = "test'";
+        btc.getUserRepository().save(new User(endQuote, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(endQuote)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(endQuote);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_quote_at_start_of_string(BackendTestContext btc) {
+        // Quote at the start
+        String startQuote = "'test";
+        btc.getUserRepository().save(new User(startQuote, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(startQuote)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(startQuote);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_only_quotes_string(BackendTestContext btc) {
+        // String of only quotes
+        String onlyQuotes = "''''";
+        btc.getUserRepository().save(new User(onlyQuotes, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(onlyQuotes)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(onlyQuotes);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_complex_injection_string(BackendTestContext btc) {
+        // Complex injection attempt combining multiple techniques
+        String complex = "admin'--; DROP TABLE users; SELECT * FROM secrets WHERE '1'='1";
+        btc.getUserRepository().save(new User(complex, 999));
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(complex)))).toList();
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getName()).isEqualTo(complex);
+
+        // Table should still exist and have correct count
+        assertThat(btc.getUserRepository().count()).isEqualTo(6);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_injection_in_delete_operation(BackendTestContext btc) {
+        // Ensure delete with injection doesn't delete wrong records
+        String injection = "' OR '1'='1";
+
+        // This should delete 0 records (no user has this exact name)
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", eq(injection))));
+        assertThat(deleted).isEqualTo(0);
+
+        // All original users should still exist
+        assertThat(btc.getUserRepository().count()).isEqualTo(5);
+        var names = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(names).containsExactlyInAnyOrder("alice", "bob", "charlie", "diana", "eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_always_true_condition_blocked(BackendTestContext btc) {
+        // Attempt to create always-true condition via injection
+        String alwaysTrue = "x' OR 'a'='a";
+
+        var found = btc.getUserRepository().find(q -> q.where(on("name", eq(alwaysTrue)))).toList();
+        // Should NOT return all users - injection should be blocked
+        assertThat(found).isEmpty(); // No user has this name
+
+        // Verify all users still exist (weren't affected)
+        assertThat(btc.getUserRepository().count()).isEqualTo(5);
     }
 }

@@ -12,8 +12,8 @@ import eu.okaeri.persistence.filter.UpdateFilter;
 import eu.okaeri.persistence.filter.operation.UpdateOperation;
 import eu.okaeri.persistence.filter.renderer.FilterRenderer;
 import eu.okaeri.persistence.jdbc.filter.MariaDbFilterRenderer;
+import eu.okaeri.persistence.jdbc.filter.MariaDbStringRenderer;
 import eu.okaeri.persistence.jdbc.filter.MariaDbUpdateRenderer;
-import eu.okaeri.persistence.jdbc.filter.SqlStringRenderer;
 import eu.okaeri.persistence.raw.PersistenceIndexMode;
 import eu.okaeri.persistence.raw.PersistencePropertyMode;
 import lombok.NonNull;
@@ -25,7 +25,7 @@ import java.util.stream.StreamSupport;
 
 public class MariaDbPersistence extends JdbcPersistence {
 
-    private static final SqlStringRenderer STRING_RENDERER = new SqlStringRenderer();
+    private static final MariaDbStringRenderer STRING_RENDERER = new MariaDbStringRenderer();
     private static final FilterRenderer FILTER_RENDERER = new MariaDbFilterRenderer(STRING_RENDERER);
     private static final MariaDbUpdateRenderer UPDATE_RENDERER = new MariaDbUpdateRenderer(STRING_RENDERER);
 

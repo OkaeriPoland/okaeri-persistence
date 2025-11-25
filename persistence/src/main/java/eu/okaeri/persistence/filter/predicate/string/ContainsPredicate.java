@@ -4,6 +4,8 @@ import eu.okaeri.persistence.filter.predicate.SimplePredicate;
 import lombok.Getter;
 import lombok.NonNull;
 
+import static eu.okaeri.persistence.filter.predicate.PredicateValidation.validated;
+
 /**
  * String contains predicate.
  * {@code field contains "substring"}
@@ -18,7 +20,7 @@ public class ContainsPredicate extends SimplePredicate {
     }
 
     public ContainsPredicate(@NonNull String substring, boolean ignoreCase) {
-        super(substring);
+        super(validated(substring));
         this.ignoreCase = ignoreCase;
     }
 

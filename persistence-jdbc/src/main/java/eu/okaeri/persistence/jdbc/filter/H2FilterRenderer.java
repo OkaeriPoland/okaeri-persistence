@@ -57,7 +57,7 @@ public class H2FilterRenderer extends SqlFilterRenderer {
                     + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
             } else {
                 String castField = "cast(" + fieldReference + " as varchar)";
-                String unquotedField = "replace(substring(" + castField + ", 2, length(" + castField + ") - 2), '\\\"', '\"')";
+                String unquotedField = "replace(replace(substring(" + castField + ", 2, length(" + castField + ") - 2), '\\\\', '\\'), '\\\"', '\"')";
                 baseCondition = unquotedField + " " + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
             }
             return "((" + baseCondition + ") or (" + fieldReference + " is null))";
@@ -88,7 +88,7 @@ public class H2FilterRenderer extends SqlFilterRenderer {
         // Handle non-numeric NotInPredicate
         if (predicate instanceof NotInPredicate) {
             String castField = "cast(" + fieldReference + " as varchar)";
-            String unquotedField = "replace(substring(" + castField + ", 2, length(" + castField + ") - 2), '\\\"', '\"')";
+            String unquotedField = "replace(replace(substring(" + castField + ", 2, length(" + castField + ") - 2), '\\\\', '\\'), '\\\"', '\"')";
             String baseCondition = unquotedField + " " + this.renderOperator(predicate) + " " + this.renderOperand(predicate);
             return "((" + baseCondition + ") or (" + fieldReference + " is null))";
         }
@@ -115,11 +115,12 @@ public class H2FilterRenderer extends SqlFilterRenderer {
                 + this.renderOperator(predicate) + " " + this.renderOperand(predicate) + ")";
         }
 
-        // Unescape JSON: remove outer quotes, unescape \" to ", and unescape \\ to \
+        // Unescape JSON: remove outer quotes, unescape \\ to \, and unescape \" to "
         // Use SUBSTRING instead of TRIM to remove exactly first and last character (the outer quotes)
         // This prevents accidentally removing quotes that are part of escaped sequences like \"
+        // Order matters: unescape \\ first, then \" (so \\\" becomes \" not \")
         String castField = "cast(" + fieldReference + " as varchar)";
-        String unquotedField = "replace(substring(" + castField + ", 2, length(" + castField + ") - 2), '\\\"', '\"')";
+        String unquotedField = "replace(replace(substring(" + castField + ", 2, length(" + castField + ") - 2), '\\\\', '\\'), '\\\"', '\"')";
 
         // Handle case-insensitive equals
         if ((predicate instanceof EqPredicate) && ((EqPredicate) predicate).isIgnoreCase()) {

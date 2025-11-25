@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NonNull;
 
 import static eu.okaeri.persistence.document.DocumentValueUtils.compareEquals;
+import static eu.okaeri.persistence.filter.predicate.PredicateValidation.validated;
 
 /**
  * VALUE equals X
@@ -20,7 +21,7 @@ public class EqPredicate extends SimplePredicate {
     }
 
     public EqPredicate(@NonNull Object rightOperand, boolean ignoreCase) {
-        super(rightOperand);
+        super(validated(rightOperand));
         this.ignoreCase = ignoreCase;
     }
 

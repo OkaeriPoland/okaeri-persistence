@@ -254,7 +254,10 @@ public class MongoPersistence extends NativeRawPersistence {
 
     @Override
     public boolean updateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+
         Document updateDoc = UPDATE_RENDERER.render(operations);
+        this.debugQuery(updateDoc.toJson());
+
         // Use getMatchedCount() - returns true if document exists, even if no fields changed
         // This is correct for operations like $min/$max where the value might not change
         return this.mongo(collection)
@@ -264,7 +267,10 @@ public class MongoPersistence extends NativeRawPersistence {
 
     @Override
     public Optional<String> updateOneAndGet(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+
         Document updateDoc = UPDATE_RENDERER.render(operations);
+        this.debugQuery(updateDoc.toJson());
+
         BasicDBObject result = this.mongo(collection)
             .findOneAndUpdate(
                 Filters.eq("_id", path.getValue()),
@@ -281,7 +287,10 @@ public class MongoPersistence extends NativeRawPersistence {
 
     @Override
     public Optional<String> getAndUpdateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+
         Document updateDoc = UPDATE_RENDERER.render(operations);
+        this.debugQuery(updateDoc.toJson());
+
         BasicDBObject result = this.mongo(collection)
             .findOneAndUpdate(
                 Filters.eq("_id", path.getValue()),
@@ -298,11 +307,13 @@ public class MongoPersistence extends NativeRawPersistence {
 
     @Override
     public long update(@NonNull PersistenceCollection collection, @NonNull UpdateFilter filter) {
+
         if (filter.getWhere() == null) {
             throw new IllegalArgumentException("update requires a WHERE condition - use updateOne() for single document updates");
         }
 
         Document updateDoc = UPDATE_RENDERER.render(filter.getOperations());
+        this.debugQuery(updateDoc.toJson());
         Document whereDoc = Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere())));
 
         return this.mongo(collection)

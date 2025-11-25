@@ -4,6 +4,8 @@ import eu.okaeri.persistence.filter.predicate.SimplePredicate;
 import lombok.Getter;
 import lombok.NonNull;
 
+import static eu.okaeri.persistence.filter.predicate.PredicateValidation.validated;
+
 /**
  * String ends with predicate.
  * {@code field endsWith "suffix"}
@@ -18,7 +20,7 @@ public class EndsWithPredicate extends SimplePredicate {
     }
 
     public EndsWithPredicate(@NonNull String suffix, boolean ignoreCase) {
-        super(suffix);
+        super(validated(suffix));
         this.ignoreCase = ignoreCase;
     }
 

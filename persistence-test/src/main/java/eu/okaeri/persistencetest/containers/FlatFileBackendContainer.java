@@ -18,6 +18,10 @@ public class FlatFileBackendContainer implements BackendContainer {
 
     private Path tempDir;
 
+    public Path getTempDir() {
+        return tempDir;
+    }
+
     @Override
     public String getName() {
         return "Flat Files";

@@ -23,6 +23,9 @@ public class JsonStringRenderer implements StringRenderer {
     protected String escape(@NonNull String value) {
         StringBuilder builder = new StringBuilder();
         for (char c : value.toCharArray()) {
+            if (c == '\0') {
+                throw new IllegalArgumentException("Null bytes are not supported in string values");
+            }
             switch (c) {
                 case '\\':
                     builder.append("\\\\");

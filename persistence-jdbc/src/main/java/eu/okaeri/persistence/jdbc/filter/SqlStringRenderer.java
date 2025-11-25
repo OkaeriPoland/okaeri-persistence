@@ -22,6 +22,9 @@ public class SqlStringRenderer implements StringRenderer {
      * LIKE pattern escaping is handled separately by escapeLikePattern().
      */
     protected String escape(@NonNull String value) {
+        if (value.indexOf('\0') >= 0) {
+            throw new IllegalArgumentException("Null bytes are not supported in string values");
+        }
         // SQL standard: escape single quotes by doubling them
         return value.replace("'", "''");
     }
