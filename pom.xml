@@ -7,7 +7,7 @@
     <groupId>eu.okaeri</groupId>
     <artifactId>okaeri-persistence</artifactId>
     <packaging>pom</packaging>
-    <version>3.0.1-beta.12</version>
+    <version>3.0.1-beta.13</version>
     <modules>
         <module>persistence</module>
         <module>persistence-test</module>
@@ -21,6 +21,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
+        <maven.compiler.testSource>21</maven.compiler.testSource>
+        <maven.compiler.testTarget>21</maven.compiler.testTarget>
 
         <!-- Dependency versions -->
         <lombok.version>1.18.42</lombok.version>

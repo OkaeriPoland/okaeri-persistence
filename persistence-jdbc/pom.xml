@@ -5,17 +5,11 @@
     <parent>
         <groupId>eu.okaeri</groupId>
         <artifactId>okaeri-persistence</artifactId>
-        <version>3.0.1-beta.12</version>
+        <version>3.0.1-beta.13</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>okaeri-persistence-jdbc</artifactId>
-
-    <properties>
-        <!-- Use Java 21 for test compilation -->
-        <maven.compiler.testSource>21</maven.compiler.testSource>
-        <maven.compiler.testTarget>21</maven.compiler.testTarget>
-    </properties>
 
     <dependencies>
         <dependency>
