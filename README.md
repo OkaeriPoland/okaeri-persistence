@@ -3,7 +3,7 @@
 ![License](https://img.shields.io/github/license/OkaeriPoland/okaeri-persistence?style=for-the-badge&color=blue)
 [![Discord](https://img.shields.io/discord/589089838200913930?style=for-the-badge&logo=discord&color=blue)](https://discord.gg/hASN5eX)
 
-Object Document Mapping (ODM) library for Java - write your data layer once, run it anywhere. MongoDB today, PostgreSQL tomorrow, in-memory for tests.
+Object Document Mapping (ODM) library for Java - store JSON documents in MongoDB, PostgreSQL, MariaDB, H2, Redis, or flat files with a consistent API. Write your data layer once, run it anywhere.
 
 ## Features
 
@@ -36,24 +36,24 @@ Pick one (or multiple):
 
 **Native Document Support:**
 
-| Backend        | Artifact                    | Description                                                                                                                                  |
-|----------------|-----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| **MongoDB**    | `okaeri-persistence-mongo`  | Uses the official MongoDB driver. Native document store with automatic index creation and native filtering by properties.                    |
-| **PostgreSQL** | `okaeri-persistence-jdbc`   | Uses the official PostgreSQL JDBC driver with HikariCP. Stores documents as JSONB with native GIN indexes and JSONB operators for filtering. |
+| Backend        | Artifact                   | Description                                                                                                                                  |
+|----------------|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| **MongoDB**    | `okaeri-persistence-mongo` | Uses the official MongoDB driver. Native document store with automatic index creation and native filtering by properties.                    |
+| **PostgreSQL** | `okaeri-persistence-jdbc`  | Uses the official PostgreSQL JDBC driver with HikariCP. Stores documents as JSONB with native GIN indexes and JSONB operators for filtering. |
 
 **Other Storage:**
 
-| Backend        | Artifact                    | Description                                                                                                                                                                                |
-|----------------|-----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **MariaDB**    | `okaeri-persistence-jdbc`   | Uses HikariCP with MariaDB. Stores documents using native JSON datatype with native query translation (`JSON_EXTRACT`, `JSON_UNQUOTE`). Native indexes via stored generated columns.       |
-| **H2**         | `okaeri-persistence-jdbc`   | Uses HikariCP with H2. Stores documents as native JSON type with native query translation using field reference syntax `(value)."field"`. No index support (no performance gain).            |
-| **Redis**      | `okaeri-persistence-redis`  | Uses Lettuce client. Stores JSON as strings in Redis hashes. No index support - filtering done in memory.                                                                                  |
-| **Flat Files** | `okaeri-persistence-flat`   | File-based storage using any okaeri-configs format (YAML/JSON/HOCON). In-memory indexes.                                                                                                   |
-| **In-Memory**  | `okaeri-persistence-core`   | Pure in-memory storage with in-memory indexes. Zero persistence, excellent performance.                                                                                               |
+| Backend        | Artifact                   | Description                                                                                                                                                                          |
+|----------------|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **MariaDB**    | `okaeri-persistence-jdbc`  | Uses HikariCP with MariaDB. Stores documents using native JSON datatype with native query translation (`JSON_EXTRACT`, `JSON_UNQUOTE`). Native indexes via stored generated columns. |
+| **H2**         | `okaeri-persistence-jdbc`  | Uses HikariCP with H2. Stores documents as native JSON type with native query translation using field reference syntax `(value)."field"`. No index support.                          |
+| **Redis**      | `okaeri-persistence-redis` | Uses Lettuce client. Stores JSON as strings in Redis hashes. No index support - filtering done in memory.                                                                            |
+| **Flat Files** | `okaeri-persistence-flat`  | File-based storage using any okaeri-configs format (YAML/JSON/HOCON). In-memory indexes.                                                                                             |
+| **In-Memory**  | `okaeri-persistence-core`  | Pure in-memory storage with in-memory indexes. Zero persistence.                                                                                                                     |
 
 ## Installation
 
-![Version](https://img.shields.io/badge/version-3.0.1--beta.5-blue.svg?style=for-the-badge)
+![Version](https://img.shields.io/badge/dynamic/xml?style=for-the-badge&label=version&logo=apachemaven&query=%2F*%5Blocal-name()%3D'project'%5D%2F*%5Blocal-name()%3D'version'%5D%2Ftext%28%29&url=https%3A%2F%2Fraw.githubusercontent.com%2FOkaeriPoland%2Fokaeri-persistence%2Frefs%2Fheads%2Fmaster%2Fpom.xml)
 ![Java](https://img.shields.io/badge/java-8%2B-blue.svg?style=for-the-badge)
 
 ### Maven
@@ -232,9 +232,9 @@ List<User> results = userRepo.find(q -> q
 - **PostgreSQL**: Native JSONB operators (`->`, `->>`, `@>`) with GIN indexes
 - **MariaDB**: Native JSON functions (`JSON_EXTRACT`, `JSON_UNQUOTE`) with proper type casting
 - **H2**: Native JSON field reference syntax (`(column)."field"`) with type casting
-- **Redis, Flat Files, In-Memory**:In-memory filter evaluation (fetch all, filter in Java)
+- **Redis, Flat Files, In-Memory**: In-memory filter evaluation (fetch all, filter in Java)
 
-**Performance Note**: Native backends (MongoDB, PostgreSQL, MariaDB, H2) push filtering to the database for optimal performance. Other backends fetch all documents and filter in memory.
+**Performance Note**: Native backends (MongoDB, PostgreSQL, MariaDB, H2) push filtering to the database. Other backends fetch all documents and filter in memory.
 
 ## Update DSL
 
@@ -367,20 +367,20 @@ public interface PlayerRepository extends DocumentRepository<UUID, Player> {
 
 **Method Name Syntax:**
 
-| Pattern | Example | Description |
-|---------|---------|-------------|
-| `findBy{Field}` | `findByName(String)` | Simple equality |
-| `findBy{A}And{B}` | `findByNameAndLevel(String, int)` | AND conditions |
-| `findBy{A}Or{B}` | `findByNameOrEmail(String, String)` | OR conditions |
-| `findBy{Field}OrderBy{F}Asc/Desc` | `findByActiveOrderByLevelDesc(boolean)` | With ordering |
-| `findAllOrderBy{Field}` | `findAllOrderByNameAsc()` | All with ordering |
-| `findFirst...` | `findFirstByOrderByLevelDesc()` | Limit to 1 |
-| `findTop{N}...` | `findTop10ByActive(boolean)` | Limit to N |
-| `countBy{Field}` | `countByActive(boolean)` | Count matching |
-| `existsBy{Field}` | `existsByEmail(String)` | Check existence |
-| `deleteBy{Field}` | `deleteByLevel(int)` | Delete matching |
-| `streamBy{Field}` | `streamByLevel(int)` | Must return `Stream<T>` |
-| `{field}${nested}` | `findByProfile$Age(int)` | Nested field (→ `profile.age`) |
+| Pattern                           | Example                                 | Description                    |
+|-----------------------------------|-----------------------------------------|--------------------------------|
+| `findBy{Field}`                   | `findByName(String)`                    | Simple equality                |
+| `findBy{A}And{B}`                 | `findByNameAndLevel(String, int)`       | AND conditions                 |
+| `findBy{A}Or{B}`                  | `findByNameOrEmail(String, String)`     | OR conditions                  |
+| `findBy{Field}OrderBy{F}Asc/Desc` | `findByActiveOrderByLevelDesc(boolean)` | With ordering                  |
+| `findAllOrderBy{Field}`           | `findAllOrderByNameAsc()`               | All with ordering              |
+| `findFirst...`                    | `findFirstByOrderByLevelDesc()`         | Limit to 1                     |
+| `findTop{N}...`                   | `findTop10ByActive(boolean)`            | Limit to N                     |
+| `countBy{Field}`                  | `countByActive(boolean)`                | Count matching                 |
+| `existsBy{Field}`                 | `existsByEmail(String)`                 | Check existence                |
+| `deleteBy{Field}`                 | `deleteByLevel(int)`                    | Delete matching                |
+| `streamBy{Field}`                 | `streamByLevel(int)`                    | Must return `Stream<T>`        |
+| `{field}${nested}`                | `findByProfile$Age(int)`                | Nested field (→ `profile.age`) |
 
 **Return Types:**
 - `Optional<T>` - Single result or empty
@@ -545,18 +545,18 @@ Declare indexes once in your `@DocumentCollection`:
 )
 ```
 
-| Backend         | keyLength Usage      | maxLength Usage                    | Index Type                              |
-|-----------------|----------------------|------------------------------------|-----------------------------------------|
-| **MongoDB**     | Ignored              | Ignored                            | Native `createIndex()`                  |
-| **PostgreSQL**  | Uses for key VARCHAR | Ignored (uses JSONB GIN)           | Native JSONB expression indexes         |
-| **MariaDB**     | Uses for key VARCHAR | Uses for generated column VARCHAR  | Native stored generated columns         |
-| **H2**          | Uses for key VARCHAR | Ignored                            | None (no performance gain)              |
-| **Redis**       | Ignored              | Ignored                            | None                                    |
-| **Flat/Memory** | Ignored              | Ignored                            | In-memory (TreeMap + HashMap, O(log n)) |
+| Backend        | keyLength Usage      | maxLength Usage            | Index Type                      |
+|----------------|----------------------|----------------------------|---------------------------------|
+| **MongoDB**    | Ignored              | Ignored                    | Native `createIndex()`          |
+| **PostgreSQL** | Uses for key VARCHAR | Ignored (uses JSONB GIN)   | Native JSONB expression indexes |
+| **MariaDB**    | Uses for key VARCHAR | Used for generated column* | Native stored generated columns |
+| **H2**         | Uses for key VARCHAR | Ignored                    | None                            |
+| **Redis**      | Ignored              | Ignored                    | None                            |
+| **Flat Files** | Ignored              | Ignored                    | In-memory (TreeMap + HashMap)   |
+| **In-Memory**  | Ignored              | Ignored                    | In-memory (TreeMap + HashMap)   |
 
 - `keyLength` auto-detected (UUID=36, Integer=11, Long=20, others=255) - used by JDBC backends for primary key VARCHAR
-- `maxLength` used by MariaDB for generated column VARCHAR size
-- Indexes speed up reads but slow writes - use sparingly
+- `maxLength` used by MariaDB for string fields only (numeric/boolean use fixed types)
 
 ## Streaming Datasets
 
@@ -744,15 +744,15 @@ List<UserAccount> moderators = accounts.find(q -> q
 
 ## Backend Comparison
 
-| Backend        | Indexes          | Query DSL | Update DSL               | Best For                 |
-|----------------|------------------|-----------|--------------------------|--------------------------|
-| **MongoDB**    | Native           | Native    | Native (atomic)          | Document workloads       |
-| **PostgreSQL** | Native (JSONB)   | Native    | Native (atomic)          | Already using Postgres   |
-| **MariaDB**    | Native (stored)  | Native    | Native (atomic)*         | Already using MariaDB    |
-| **H2**         | None             | Native    | In-memory                | Testing/Embedded         |
-| **Redis**      | None             | In-memory | In-memory                | Fast key-value access    |
-| **Flat Files** | In-memory        | In-memory | In-memory                | Config files, small apps |
-| **In-Memory**  | In-memory        | In-memory | In-memory (synchronized) | Testing, temp state      |
+| Backend        | Indexes            | Query DSL | Update DSL               | Best For                 |
+|----------------|--------------------|-----------|--------------------------|--------------------------|
+| **MongoDB**    | Native             | Native    | Native (atomic)          | Document workloads       |
+| **PostgreSQL** | Native (JSONB)     | Native    | Native (atomic)          | Already using Postgres   |
+| **MariaDB**    | Native (gen. col.) | Native    | Native (atomic)*         | Already using MariaDB    |
+| **H2**         | None               | Native    | In-memory                | Testing/Embedded         |
+| **Redis**      | None               | In-memory | In-memory                | Fast key-value access    |
+| **Flat Files** | In-memory          | In-memory | In-memory                | Config files, small apps |
+| **In-Memory**  | In-memory          | In-memory | In-memory (synchronized) | Testing, temp state      |
 
 ## Configurer Support
 
@@ -766,7 +766,7 @@ new DocumentPersistence(new MongoPersistence(mongoClient, "mydb", JsonSimpleConf
 new DocumentPersistence(new FlatPersistence(new File("./data"), YamlBukkitConfigurer::new))
 ```
 
-MongoDB, PostgreSQL, Redis, and In-Memory use JSON. Flat Files support any format.
+MongoDB, PostgreSQL, MariaDB, H2, and Redis require a JSON configurer. In-Memory uses an internal configurer. Flat Files support any format.
 
 ## Related Projects
 
