@@ -2,8 +2,24 @@ name: Test with Coverage
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ master ]
+    paths-ignore:
+      - '.github/**'
+      - '.editorconfig'
+      - '.gitattributes'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'README.md'
   pull_request:
     branches: [ master ]
+    paths-ignore:
+      - '.github/**'
+      - '.editorconfig'
+      - '.gitattributes'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'README.md'
 
 jobs:
   build:
