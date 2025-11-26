@@ -33,6 +33,9 @@ public class PropertyIndex {
     // value -> set of docIds (for equality queries)
     private final ConcurrentHashMap<Object, Set<String>> valueToDocIds = new ConcurrentHashMap<>();
 
+    // lowercase string -> set of docIds (for case-insensitive string queries)
+    private final ConcurrentHashMap<String, Set<String>> lowercaseToDocIds = new ConcurrentHashMap<>();
+
     // BigDecimal -> set of docIds (for numeric range queries, sorted)
     // Note: Not using synchronizedNavigableMap - we use synchronized(this) blocks instead
     private final NavigableMap<BigDecimal, Set<String>> numericIndex = new TreeMap<>();
@@ -67,6 +70,12 @@ public class PropertyIndex {
 
             // Add to equality index
             this.valueToDocIds.computeIfAbsent(value, k -> ConcurrentHashMap.newKeySet()).add(docId);
+
+            // Add to lowercase index if string
+            if (value instanceof String) {
+                String lowercase = ((String) value).toLowerCase();
+                this.lowercaseToDocIds.computeIfAbsent(lowercase, k -> ConcurrentHashMap.newKeySet()).add(docId);
+            }
 
             // Add to numeric index if applicable
             BigDecimal numeric = this.toNumeric(value);
@@ -103,6 +112,7 @@ public class PropertyIndex {
         synchronized (this) {
             this.docIdToValue.clear();
             this.valueToDocIds.clear();
+            this.lowercaseToDocIds.clear();
             this.numericIndex.clear();
             this.docIdToNumeric.clear();
         }
@@ -121,6 +131,20 @@ public class PropertyIndex {
             return Collections.emptySet();
         }
         Set<String> result = this.valueToDocIds.get(value);
+        return (result != null) ? new HashSet<>(result) : Collections.emptySet();
+    }
+
+    /**
+     * Find all documents with a case-insensitive string match.
+     *
+     * @param value the string value to find (case-insensitive)
+     * @return set of document IDs (never null)
+     */
+    public Set<String> findEqualsIgnoreCase(String value) {
+        if (value == null) {
+            return Collections.emptySet();
+        }
+        Set<String> result = this.lowercaseToDocIds.get(value.toLowerCase());
         return (result != null) ? new HashSet<>(result) : Collections.emptySet();
     }
 
@@ -313,6 +337,13 @@ public class PropertyIndex {
     private Optional<Set<String>> tryQueryPredicate(@NonNull Predicate predicate) {
         if (predicate instanceof EqPredicate) {
             EqPredicate eq = (EqPredicate) predicate;
+            if (eq.isIgnoreCase()) {
+                Object val = eq.getRightOperand();
+                if (val instanceof String) {
+                    return Optional.of(this.findEqualsIgnoreCase((String) val));
+                }
+                return Optional.empty();
+            }
             return Optional.of(this.findEquals(eq.getRightOperand()));
         }
 
@@ -398,6 +429,18 @@ public class PropertyIndex {
             docIds.remove(docId);
             if (docIds.isEmpty()) {
                 this.valueToDocIds.remove(value);
+            }
+        }
+
+        // Remove from lowercase index
+        if (value instanceof String) {
+            String lowercase = ((String) value).toLowerCase();
+            Set<String> lcDocIds = this.lowercaseToDocIds.get(lowercase);
+            if (lcDocIds != null) {
+                lcDocIds.remove(docId);
+                if (lcDocIds.isEmpty()) {
+                    this.lowercaseToDocIds.remove(lowercase);
+                }
             }
         }
 
