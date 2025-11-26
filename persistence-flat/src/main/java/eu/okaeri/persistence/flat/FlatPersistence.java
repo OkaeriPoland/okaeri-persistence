@@ -164,6 +164,12 @@ public class FlatPersistence implements Persistence, FilterablePersistence, Stre
 
         // Track collection
         this.knownCollections.put(collection.getValue(), collection);
+
+        // Rebuild indexes from existing documents on disk
+        if (!collection.getIndexes().isEmpty()) {
+            @Cleanup Stream<PersistenceEntity<Document>> docs = this.stream(collection, Integer.MAX_VALUE);
+            docs.forEach(doc -> this.updateIndexes(collection, doc.getPath(), doc.getValue()));
+        }
     }
 
     // ==================== READ OPERATIONS ====================
@@ -300,9 +306,9 @@ public class FlatPersistence implements Persistence, FilterablePersistence, Stre
             throw new IllegalArgumentException("DeleteFilter requires WHERE condition - use deleteAll() instead");
         }
 
-        // Find matching documents
-        List<PersistencePath> toDelete = this.streamAll(collection)
-            .filter(entity -> this.filterEvaluator.evaluateCondition(filter.getWhere(), entity.getValue()))
+        // Find matching documents using optimized find (uses indexes)
+        FindFilter findFilter = FindFilter.builder().where(filter.getWhere()).build();
+        List<PersistencePath> toDelete = this.find(collection, findFilter)
             .map(PersistenceEntity::getPath)
             .collect(Collectors.toList());
 

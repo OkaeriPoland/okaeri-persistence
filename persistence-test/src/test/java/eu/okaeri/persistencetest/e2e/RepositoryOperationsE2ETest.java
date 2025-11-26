@@ -1,6 +1,7 @@
 package eu.okaeri.persistencetest.e2e;
 
 import eu.okaeri.persistencetest.fixtures.User;
+import eu.okaeri.persistencetest.fixtures.UserProfile;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -358,5 +359,27 @@ public class RepositoryOperationsE2ETest extends E2ETestBase {
 
         // Verify count unchanged
         assertThat(btc.getUserRepository().count()).isEqualTo(3);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_persistence_delete_all_collections(BackendTestContext btc) {
+        // Verify both collections have data
+        assertThat(btc.getUserRepository().count()).isEqualTo(3);
+
+        // Add data to profile repository
+        UserProfile profile = new UserProfile();
+        profile.setPath(UUID.randomUUID());
+        profile.setName("test_profile");
+        btc.getProfileRepository().save(profile);
+        assertThat(btc.getProfileRepository().count()).isEqualTo(1);
+
+        // Delete ALL collections via persistence
+        long deleted = btc.getUserRepository().getPersistence().deleteAll();
+        assertThat(deleted).isGreaterThanOrEqualTo(2); // At least 2 collections
+
+        // Verify all collections are empty
+        assertThat(btc.getUserRepository().count()).isEqualTo(0);
+        assertThat(btc.getProfileRepository().count()).isEqualTo(0);
     }
 }

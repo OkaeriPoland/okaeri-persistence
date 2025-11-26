@@ -155,8 +155,8 @@ public class MariaDbPersistence implements Persistence, FilterablePersistence, S
         int keyLength = collection.getKeyLength();
 
         String createSql = "create table if not exists `" + tableName + "` (" +
-            "`key` varchar(" + keyLength + ") primary key not null," +
-            "`value` json not null)" +
+            "`key` varchar(" + keyLength + ") primary key not null, " +
+            "`value` json not null) " +
             "engine = InnoDB character set = utf8mb4 collate = utf8mb4_bin;";
         String alterKeySql = "alter table `" + tableName + "` MODIFY COLUMN `key` varchar(" + keyLength + ") not null";
 

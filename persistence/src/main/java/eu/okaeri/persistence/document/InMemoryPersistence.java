@@ -193,9 +193,9 @@ public class InMemoryPersistence implements Persistence, FilterablePersistence, 
             throw new IllegalArgumentException("DeleteFilter requires WHERE condition - use deleteAll() instead");
         }
 
-        // Find matching documents
-        List<PersistencePath> toDelete = this.streamAll(collection)
-            .filter(entity -> this.filterEvaluator.evaluateCondition(filter.getWhere(), entity.getValue()))
+        // Find matching documents using optimized find (uses indexes)
+        FindFilter findFilter = FindFilter.builder().where(filter.getWhere()).build();
+        List<PersistencePath> toDelete = this.find(collection, findFilter)
             .map(PersistenceEntity::getPath)
             .collect(Collectors.toList());
 
