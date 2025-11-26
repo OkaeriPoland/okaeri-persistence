@@ -1,6 +1,7 @@
 # Okaeri Persistence
 
 ![License](https://img.shields.io/github/license/OkaeriPoland/okaeri-persistence?style=for-the-badge&color=blue)
+[![Codecov](https://img.shields.io/codecov/c/github/OkaeriPoland/okaeri-persistence?style=for-the-badge&logo=codecov)](https://codecov.io/gh/OkaeriPoland/okaeri-persistence)
 [![Discord](https://img.shields.io/discord/589089838200913930?style=for-the-badge&logo=discord&color=blue)](https://discord.gg/hASN5eX)
 
 Object Document Mapping (ODM) library for Java - store JSON documents in MongoDB, PostgreSQL, MariaDB, H2, Redis, or flat files with a consistent API. Write your data layer once, run it anywhere.
