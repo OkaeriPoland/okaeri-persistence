@@ -8,8 +8,9 @@ Object Document Mapping (ODM) library for Java - store JSON documents in MongoDB
 ## Features
 
 - **Write Once, Run Anywhere**: Swap databases with one line - the core Java philosophy (without the XML hell)
-- **Fluent Query DSL**: Basic filtering, ordering, and pagination across all backends (native translation for MongoDB/PostgreSQL, in-memory evaluation for others)
-- **Repository Pattern**: Annotate fields and get auto-implemented finders - simple but effective
+- **Fluent Query DSL**: Filtering, ordering, and pagination across all backends (native for MongoDB/PostgreSQL/MariaDB/H2, in-memory for others)
+- **Fluent Update DSL**: Field and array operations (native atomic for MongoDB/PostgreSQL/MariaDB, in-memory for others)
+- **Repository Pattern**: Define method names, get auto-implemented finders (`findByName`, `streamByLevel`, etc.)
 - **Unified Indexing**: Declare indexes once, backends create native indexes when supported
 - **Document-Based**: Store data as JSON/YAML documents - flexible but not schema-free
 - **Streaming Support**: Process large datasets with Java streams and automatic batching
