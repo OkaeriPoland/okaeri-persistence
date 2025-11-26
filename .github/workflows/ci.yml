@@ -1,4 +1,4 @@
-name: CI
+name: Test with Coverage
 
 on:
   workflow_dispatch:
@@ -20,7 +20,7 @@ jobs:
           cache: maven
 
       - name: Build and test with Maven
-        run: mvn -B verify -Dtest='!**/IndexPerformanceE2ETest'
+        run: mvn -B verify -Dtest='!**/IndexPerformanceE2ETest' -Dsurefire.failIfNoSpecifiedTests=false
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
