@@ -89,7 +89,7 @@ public class UpdateBuilder {
     /**
      * Multiply a numeric field by a factor.
      *
-     * @param field Field path
+     * @param field  Field path
      * @param factor Multiplication factor
      * @return This builder for chaining
      */
@@ -150,7 +150,7 @@ public class UpdateBuilder {
     /**
      * Append multiple values to an array field.
      *
-     * @param field Field path to array
+     * @param field  Field path to array
      * @param values Values to append
      * @return This builder for chaining
      */
@@ -162,7 +162,7 @@ public class UpdateBuilder {
     /**
      * Append multiple values to an array field.
      *
-     * @param field Field path to array
+     * @param field  Field path to array
      * @param values Collection of values to append
      * @return This builder for chaining
      */
@@ -208,7 +208,7 @@ public class UpdateBuilder {
     /**
      * Remove all occurrences of multiple values from an array field.
      *
-     * @param field Field path to array
+     * @param field  Field path to array
      * @param values Values to remove
      * @return This builder for chaining
      */
@@ -232,7 +232,7 @@ public class UpdateBuilder {
     /**
      * Add multiple values to an array field, only adding values that don't already exist.
      *
-     * @param field Field path to array
+     * @param field  Field path to array
      * @param values Values to add (if not present)
      * @return This builder for chaining
      */
@@ -244,7 +244,7 @@ public class UpdateBuilder {
     /**
      * Add multiple values to an array field, only adding values that don't already exist.
      *
-     * @param field Field path to array
+     * @param field  Field path to array
      * @param values Collection of values to add (if not present)
      * @return This builder for chaining
      */
@@ -257,6 +257,7 @@ public class UpdateBuilder {
 
     /**
      * Get the list of operations. Used internally by repository implementations.
+     *
      * @return List of update operations
      */
     public List<UpdateOperation> getOperations() {

@@ -39,7 +39,8 @@ public class IndexProperty extends PersistencePath {
     }
 
     public IndexProperty maxLength(int maxLength) {
-        if ((maxLength < 1) || (maxLength > 255)) throw new IllegalArgumentException("max length should be between 1 and 255");
+        if ((maxLength < 1) || (maxLength > 255))
+            throw new IllegalArgumentException("max length should be between 1 and 255");
         this.maxLength = maxLength;
         return this;
     }

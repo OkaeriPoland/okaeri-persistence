@@ -2,7 +2,6 @@ package eu.okaeri.persistencetest.containers;
 
 import com.zaxxer.hikari.HikariConfig;
 import eu.okaeri.configs.json.simple.JsonSimpleConfigurer;
-import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.jdbc.PostgresPersistence;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -42,10 +41,7 @@ public class PostgresBackendContainer implements BackendContainer {
         hikariConfig.setMinimumIdle(1);
         hikariConfig.setConnectionTimeout(30000);
 
-        return new DocumentPersistence(
-            new PostgresPersistence(PersistencePath.of(""), hikariConfig),
-            JsonSimpleConfigurer::new
-        );
+        return new DocumentPersistence(new PostgresPersistence(hikariConfig, JsonSimpleConfigurer::new));
     }
 
     @Override

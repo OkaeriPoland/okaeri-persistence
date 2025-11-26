@@ -35,7 +35,7 @@ public class MongoFilterRenderer extends DefaultFilterRenderer {
     /**
      * Escapes special regex characters for literal string matching in MongoDB $regex.
      * Regex special characters: . * + ? [ ] ( ) { } ^ $ | \
-     * Also escapes for JSON context (backslashes and quotes).
+     * Also escapes for JSON context (backslashes and quotes must be doubled).
      */
     protected String escapeRegex(@NonNull String value) {
         // First escape regex metacharacters with backslash

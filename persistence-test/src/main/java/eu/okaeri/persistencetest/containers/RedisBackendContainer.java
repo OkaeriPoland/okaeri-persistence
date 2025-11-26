@@ -1,7 +1,6 @@
 package eu.okaeri.persistencetest.containers;
 
 import eu.okaeri.configs.json.simple.JsonSimpleConfigurer;
-import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.redis.RedisPersistence;
 import io.lettuce.core.RedisClient;
@@ -38,10 +37,7 @@ public class RedisBackendContainer implements BackendContainer {
 
         RedisClient redisClient = RedisClient.create(redisUri);
 
-        return new DocumentPersistence(
-            new RedisPersistence(PersistencePath.of(""), redisClient),
-            JsonSimpleConfigurer::new
-        );
+        return new DocumentPersistence(new RedisPersistence(redisClient, JsonSimpleConfigurer::new));
     }
 
     @Override

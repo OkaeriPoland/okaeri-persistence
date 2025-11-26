@@ -2,9 +2,11 @@ package eu.okaeri.persistence.jdbc;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import eu.okaeri.persistence.PersistenceCollection;
-import eu.okaeri.persistence.PersistenceEntity;
-import eu.okaeri.persistence.PersistencePath;
+import eu.okaeri.configs.serdes.OkaeriSerdesPack;
+import eu.okaeri.persistence.*;
+import eu.okaeri.persistence.document.ConfigurerProvider;
+import eu.okaeri.persistence.document.Document;
+import eu.okaeri.persistence.document.DocumentSerializer;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
@@ -13,32 +15,129 @@ import eu.okaeri.persistence.filter.operation.UpdateOperation;
 import eu.okaeri.persistence.jdbc.filter.MariaDbFilterRenderer;
 import eu.okaeri.persistence.jdbc.filter.MariaDbStringRenderer;
 import eu.okaeri.persistence.jdbc.filter.MariaDbUpdateRenderer;
-import eu.okaeri.persistence.raw.PersistenceIndexMode;
-import eu.okaeri.persistence.raw.PersistencePropertyMode;
+import eu.okaeri.persistence.util.ConnectionRetry;
+import lombok.Getter;
 import lombok.NonNull;
 
+import java.io.IOException;
 import java.sql.*;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class MariaDbPersistence extends JdbcPersistence {
+/**
+ * MariaDB persistence backend with native JSON filtering, indexing, and updates.
+ * Uses generated columns for efficient JSON field indexing.
+ */
+public class MariaDbPersistence implements Persistence, FilterablePersistence, StreamablePersistence, UpdatablePersistence {
 
+    private static final boolean DEBUG = Boolean.parseBoolean(System.getProperty("okaeri.platform.debug", "false"));
     private static final Logger LOGGER = Logger.getLogger(MariaDbPersistence.class.getSimpleName());
-    private static final String INDEX_COLUMN_PREFIX = "_idx_";
+    private static final String INDEX_COLUMN_PREFIX = "_f_";
+
     private static final MariaDbStringRenderer STRING_RENDERER = new MariaDbStringRenderer();
     private static final MariaDbUpdateRenderer UPDATE_RENDERER = new MariaDbUpdateRenderer(STRING_RENDERER);
-    private final MariaDbFilterRenderer filterRenderer;
 
-    public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig) {
-        super(basePath, hikariConfig, PersistencePropertyMode.NATIVE, PersistenceIndexMode.NATIVE);
+    private final @Getter PersistencePath basePath;
+    private @Getter HikariDataSource dataSource;
+
+    private final @Getter DocumentSerializer serializer;
+    private final MariaDbFilterRenderer filterRenderer;
+    private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
+
+    public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig,
+                              @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+        this.basePath = basePath;
+        this.serializer = new DocumentSerializer(configurerProvider, serdesPacks);
+        this.filterRenderer = new MariaDbFilterRenderer(STRING_RENDERER);
+        this.connect(hikariConfig);
+    }
+
+    public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource,
+                              @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+        this.basePath = basePath;
+        this.dataSource = dataSource;
+        this.serializer = new DocumentSerializer(configurerProvider, serdesPacks);
         this.filterRenderer = new MariaDbFilterRenderer(STRING_RENDERER);
     }
 
-    public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource) {
-        super(basePath, dataSource, PersistencePropertyMode.NATIVE, PersistenceIndexMode.NATIVE);
-        this.filterRenderer = new MariaDbFilterRenderer(STRING_RENDERER);
+    public MariaDbPersistence(@NonNull HikariConfig hikariConfig,
+                              @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+        this(PersistencePath.of(""), hikariConfig, configurerProvider, serdesPacks);
+    }
+
+    public MariaDbPersistence(@NonNull HikariDataSource dataSource,
+                              @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+        this(PersistencePath.of(""), dataSource, configurerProvider, serdesPacks);
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private PersistencePath basePath;
+        private HikariConfig hikariConfig;
+        private HikariDataSource dataSource;
+        private ConfigurerProvider configurerProvider;
+        private OkaeriSerdesPack[] serdesPacks = new OkaeriSerdesPack[0];
+
+        public Builder basePath(@NonNull String basePath) {
+            this.basePath = PersistencePath.of(basePath);
+            return this;
+        }
+
+        public Builder basePath(@NonNull PersistencePath basePath) {
+            this.basePath = basePath;
+            return this;
+        }
+
+        public Builder hikariConfig(@NonNull HikariConfig hikariConfig) {
+            this.hikariConfig = hikariConfig;
+            return this;
+        }
+
+        public Builder dataSource(@NonNull HikariDataSource dataSource) {
+            this.dataSource = dataSource;
+            return this;
+        }
+
+        public Builder configurer(@NonNull ConfigurerProvider configurerProvider) {
+            this.configurerProvider = configurerProvider;
+            return this;
+        }
+
+        public Builder serdes(@NonNull OkaeriSerdesPack... packs) {
+            this.serdesPacks = packs;
+            return this;
+        }
+
+        public MariaDbPersistence build() {
+            if ((this.hikariConfig == null) && (this.dataSource == null)) {
+                throw new IllegalStateException("hikariConfig or dataSource is required");
+            }
+            if ((this.hikariConfig != null) && (this.dataSource != null)) {
+                throw new IllegalStateException("hikariConfig and dataSource are mutually exclusive");
+            }
+            if (this.configurerProvider == null) {
+                throw new IllegalStateException("configurer is required");
+            }
+            PersistencePath path = this.basePath != null ? this.basePath : PersistencePath.of("");
+            if (this.dataSource != null) {
+                return new MariaDbPersistence(path, this.dataSource, this.configurerProvider, this.serdesPacks);
+            }
+            return new MariaDbPersistence(path, this.hikariConfig, this.configurerProvider, this.serdesPacks);
+        }
+    }
+
+    private void connect(@NonNull HikariConfig hikariConfig) {
+        this.dataSource = ConnectionRetry.of(this.basePath.getValue())
+            .connector(() -> new HikariDataSource(hikariConfig))
+            .connect();
     }
 
     /**
@@ -48,21 +147,23 @@ public class MariaDbPersistence extends JdbcPersistence {
         return INDEX_COLUMN_PREFIX + index.toSqlIdentifier();
     }
 
+    // ==================== COLLECTION MANAGEMENT ====================
+
     @Override
     public void registerCollection(@NonNull PersistenceCollection collection) {
-
-        String collectionTable = this.table(collection);
+        String tableName = this.table(collection);
         int keyLength = collection.getKeyLength();
 
-        String sql = "create table if not exists `" + collectionTable + "` (" +
+        String createSql = "create table if not exists `" + tableName + "` (" +
             "`key` varchar(" + keyLength + ") primary key not null," +
             "`value` json not null)" +
-            "engine = InnoDB character set = utf8mb4;";
-        String alterKeySql = "alter table `" + collectionTable + "` MODIFY COLUMN `key` varchar(" + keyLength + ") not null";
+            "engine = InnoDB character set = utf8mb4 collate = utf8mb4_bin;";
+        String alterKeySql = "alter table `" + tableName + "` MODIFY COLUMN `key` varchar(" + keyLength + ") not null";
 
-        try (Connection connection = this.getDataSource().getConnection()) {
-            connection.createStatement().execute(sql);
-            connection.createStatement().execute(alterKeySql);
+        try (Connection connection = this.dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
+            statement.execute(this.debugQuery(createSql));
+            statement.execute(this.debugQuery(alterKeySql));
         } catch (SQLException exception) {
             throw new RuntimeException("cannot register collection", exception);
         }
@@ -70,24 +171,25 @@ public class MariaDbPersistence extends JdbcPersistence {
         // Drop legacy emulated index table if exists
         this.dropLegacyIndexTable(collection);
 
-        // Manage generated columns for native indexing (like H2)
+        // Manage generated columns for native indexing
         this.manageGeneratedColumns(collection);
 
-        // Register in known collections (from RawPersistence)
-        this.getKnownCollections().put(collection.getValue(), collection);
-        this.getKnownIndexes().put(collection.getValue(), collection.getIndexes());
+        // Track collection
+        this.knownCollections.put(collection.getValue(), collection);
     }
 
     private void dropLegacyIndexTable(@NonNull PersistenceCollection collection) {
-        String indexTable = this.indexTable(collection);
-        try (Connection connection = this.getDataSource().getConnection()) {
+        String indexTable = this.basePath.sub(collection).sub("index").toSqlIdentifier();
+        try (Connection connection = this.dataSource.getConnection()) {
             DatabaseMetaData metaData = connection.getMetaData();
-            ResultSet tables = metaData.getTables(null, null, indexTable, new String[]{"TABLE"});
-            if (tables.next()) {
-                String dropSql = "drop table `" + indexTable + "`";
-                connection.createStatement().execute(dropSql);
+            try (ResultSet tables = metaData.getTables(null, null, indexTable, new String[]{"TABLE"})) {
+                if (tables.next()) {
+                    String dropSql = "drop table `" + indexTable + "`";
+                    try (Statement statement = connection.createStatement()) {
+                        statement.execute(this.debugQuery(dropSql));
+                    }
+                }
             }
-            tables.close();
         } catch (SQLException exception) {
             throw new RuntimeException("cannot drop legacy index table " + indexTable, exception);
         }
@@ -97,7 +199,7 @@ public class MariaDbPersistence extends JdbcPersistence {
         String tableName = this.table(collection);
         Set<IndexProperty> desiredIndexes = collection.getIndexes();
 
-        try (Connection connection = this.getDataSource().getConnection()) {
+        try (Connection connection = this.dataSource.getConnection()) {
             // Get existing index columns
             Set<String> existingIndexColumns = this.getExistingIndexColumns(connection, tableName);
 
@@ -120,7 +222,6 @@ public class MariaDbPersistence extends JdbcPersistence {
                 if (!existingIndexColumns.contains(columnName)) {
                     this.createGeneratedColumn(connection, tableName, index, columnName);
                 } else {
-                    // Column exists - ensure index exists too
                     this.ensureIndexExists(connection, tableName, columnName);
                 }
             }
@@ -132,14 +233,14 @@ public class MariaDbPersistence extends JdbcPersistence {
     private Set<String> getExistingIndexColumns(@NonNull Connection connection, @NonNull String tableName) throws SQLException {
         Set<String> columns = new HashSet<>();
         DatabaseMetaData metaData = connection.getMetaData();
-        ResultSet rs = metaData.getColumns(null, null, tableName, null);
-        while (rs.next()) {
-            String columnName = rs.getString("COLUMN_NAME");
-            if (columnName.startsWith(INDEX_COLUMN_PREFIX)) {
-                columns.add(columnName);
+        try (ResultSet rs = metaData.getColumns(null, null, tableName, null)) {
+            while (rs.next()) {
+                String columnName = rs.getString("COLUMN_NAME");
+                if (columnName.startsWith(INDEX_COLUMN_PREFIX)) {
+                    columns.add(columnName);
+                }
             }
         }
-        rs.close();
         return columns;
     }
 
@@ -148,18 +249,15 @@ public class MariaDbPersistence extends JdbcPersistence {
         String expression = this.buildGeneratedColumnExpression(index);
         String columnType = this.getColumnType(index);
 
-        // MariaDB requires STORED (not VIRTUAL) for indexed generated columns
         String addColumnSql = "alter table `" + tableName + "` add column `" + columnName + "` " +
             columnType + " as (" + expression + ") stored";
 
-        try {
-            connection.createStatement().execute(this.debugQuery(addColumnSql));
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(this.debugQuery(addColumnSql));
 
-            // Create index on the generated column
             String indexName = tableName + "_" + columnName + "_idx";
             String createIndexSql = "create index `" + indexName + "` on `" + tableName + "` (`" + columnName + "`)";
-            connection.createStatement().execute(this.debugQuery(createIndexSql));
-
+            statement.execute(this.debugQuery(createIndexSql));
         } catch (SQLException e) {
             LOGGER.warning("Could not create generated column " + columnName + ": " + e.getMessage());
         }
@@ -167,67 +265,58 @@ public class MariaDbPersistence extends JdbcPersistence {
 
     private void dropGeneratedColumn(@NonNull Connection connection, @NonNull String tableName,
                                      @NonNull String columnName) throws SQLException {
-        // Drop index first
         String indexName = tableName + "_" + columnName + "_idx";
         String dropIndexSql = "drop index if exists `" + indexName + "` on `" + tableName + "`";
-        try {
-            connection.createStatement().execute(dropIndexSql);
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(this.debugQuery(dropIndexSql));
         } catch (SQLException e) {
             // Index might not exist - that's okay
         }
 
-        // Drop column
         String dropColumnSql = "alter table `" + tableName + "` drop column if exists `" + columnName + "`";
-        connection.createStatement().execute(dropColumnSql);
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(this.debugQuery(dropColumnSql));
+        }
     }
 
     private void ensureIndexExists(@NonNull Connection connection, @NonNull String tableName,
                                    @NonNull String columnName) throws SQLException {
         String indexName = tableName + "_" + columnName + "_idx";
 
-        // Check if index exists
         DatabaseMetaData metaData = connection.getMetaData();
-        ResultSet rs = metaData.getIndexInfo(null, null, tableName, false, false);
         boolean indexExists = false;
-        while (rs.next()) {
-            String existingIndexName = rs.getString("INDEX_NAME");
-            if ((existingIndexName != null) && existingIndexName.equalsIgnoreCase(indexName)) {
-                indexExists = true;
-                break;
+        try (ResultSet rs = metaData.getIndexInfo(null, null, tableName, false, false)) {
+            while (rs.next()) {
+                String existingIndexName = rs.getString("INDEX_NAME");
+                if ((existingIndexName != null) && existingIndexName.equalsIgnoreCase(indexName)) {
+                    indexExists = true;
+                    break;
+                }
             }
         }
-        rs.close();
 
         if (!indexExists) {
             String createIndexSql = "create index `" + indexName + "` on `" + tableName + "` (`" + columnName + "`)";
-            try {
-                connection.createStatement().execute(this.debugQuery(createIndexSql));
+            try (Statement statement = connection.createStatement()) {
+                statement.execute(this.debugQuery(createIndexSql));
             } catch (SQLException e) {
                 LOGGER.warning("Could not create index " + indexName + ": " + e.getMessage());
             }
         }
     }
 
-    /**
-     * Build expression that matches what MariaDbFilterRenderer generates.
-     * This ensures the query optimizer can use the index.
-     */
     private String buildGeneratedColumnExpression(@NonNull IndexProperty index) {
         String jsonPath = index.toMariaDbJsonPath();
 
         if (index.isFloatingPoint()) {
-            // Match: cast(json_extract(`value`, '$.field') as decimal(20,10))
             return "cast(json_extract(`value`, '" + jsonPath + "') as decimal(20,10))";
         } else if (index.isNumeric()) {
-            // Match: cast(json_extract(`value`, '$.field') as signed)
-            return "cast(json_extract(`value`, '" + jsonPath + "') as signed)";
+            // Use floor() to handle decimal representations of integers (e.g., 100.0 -> 100)
+            // JSON serializers may output integers as decimals during read-modify-write cycles
+            return "cast(floor(json_extract(`value`, '" + jsonPath + "')) as signed)";
         } else if (index.isBoolean()) {
-            // Boolean in MariaDB JSON: true/false literals
-            // json_unquote returns 'true'/'false' strings for boolean JSON values
-            // Match the string comparison approach used by filter renderer
             return "json_unquote(json_extract(`value`, '" + jsonPath + "'))";
         } else {
-            // Match: json_unquote(json_extract(`value`, '$.field'))
             return "json_unquote(json_extract(`value`, '" + jsonPath + "'))";
         }
     }
@@ -238,64 +327,230 @@ public class MariaDbPersistence extends JdbcPersistence {
         } else if (index.isNumeric()) {
             return "bigint";
         } else if (index.isBoolean()) {
-            // Booleans stored as 'true'/'false' strings via json_unquote
             return "varchar(5)";
         } else {
             return "varchar(" + index.getMaxLength() + ")";
         }
     }
 
+    private void checkCollectionRegistered(@NonNull PersistenceCollection collection) {
+        if (!this.knownCollections.containsKey(collection.getValue())) {
+            throw new IllegalArgumentException("Collection not registered: " + collection.getValue());
+        }
+    }
+
+    private String table(@NonNull PersistenceCollection collection) {
+        return this.basePath.sub(collection).toSqlIdentifier();
+    }
+
+    private String debugQuery(@NonNull String sql) {
+        if (DEBUG) {
+            System.out.println("[MariaDB] " + sql);
+        }
+        return sql;
+    }
+
+    // ==================== READ OPERATIONS ====================
+
     @Override
-    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull String raw) {
-
+    public boolean exists(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         this.checkCollectionRegistered(collection);
-        String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?) on duplicate key update `value` = ?";
+        String sql = "select 1 from `" + this.table(collection) + "` where `key` = ? limit 1";
 
-        try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(sql);
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql))) {
             prepared.setString(1, path.getValue());
-            prepared.setString(2, raw);
-            prepared.setString(3, raw);
-            return prepared.executeUpdate() > 0;
-        } catch (SQLException exception) {
-            throw new RuntimeException("cannot write " + path + " to " + collection, exception);
-        }
-    }
-
-    @Override
-    public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, String> entities) {
-
-        if (entities.isEmpty()) {
-            return 0;
-        }
-
-        this.checkCollectionRegistered(collection);
-        String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?) on duplicate key update `value` = ?";
-
-        try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(sql);
-            connection.setAutoCommit(false);
-            for (Map.Entry<PersistencePath, String> entry : entities.entrySet()) {
-                prepared.setString(1, entry.getKey().getValue());
-                prepared.setString(2, entry.getValue());
-                prepared.setString(3, entry.getValue());
-                prepared.addBatch();
+            try (ResultSet resultSet = prepared.executeQuery()) {
+                return resultSet.next();
             }
-            int[] results = prepared.executeBatch();
-            connection.commit();
-            return results.length;
         } catch (SQLException exception) {
-            throw new RuntimeException("cannot write " + entities + " to " + collection, exception);
+            throw new RuntimeException("cannot check if " + path + " exists in " + collection, exception);
         }
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
+    public long count(@NonNull PersistenceCollection collection) {
+        this.checkCollectionRegistered(collection);
+        String sql = "select count(1) from `" + this.table(collection) + "`";
 
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
+             ResultSet resultSet = prepared.executeQuery()) {
+            if (resultSet.next()) {
+                return resultSet.getLong(1);
+            }
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot count " + collection, exception);
+        }
+
+        return 0;
+    }
+
+    @Override
+    public Optional<Document> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
+        this.checkCollectionRegistered(collection);
+        String sql = "select `value` from `" + this.table(collection) + "` where `key` = ? limit 1";
+
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql))) {
+            prepared.setString(1, path.getValue());
+            try (ResultSet resultSet = prepared.executeQuery()) {
+                if (resultSet.next()) {
+                    String json = resultSet.getString("value");
+                    return Optional.of(this.serializer.deserialize(collection, path, json));
+                }
+            }
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot read " + path + " from " + collection, exception);
+        }
+
+        return Optional.empty();
+    }
+
+    private static final int BATCH_SIZE = 1000;
+
+    @Override
+    public Map<PersistencePath, Document> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
+        this.checkCollectionRegistered(collection);
+        if (paths.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<PersistencePath, Document> map = new LinkedHashMap<>();
+        List<PersistencePath> pathList = new ArrayList<>(paths);
+
+        for (int i = 0; i < pathList.size(); i += BATCH_SIZE) {
+            List<PersistencePath> batch = pathList.subList(i, Math.min(i + BATCH_SIZE, pathList.size()));
+            String placeholders = batch.stream().map(p -> "?").collect(Collectors.joining(", "));
+            String sql = "select `key`, `value` from `" + this.table(collection) + "` where `key` in (" + placeholders + ")";
+
+            try (Connection connection = this.dataSource.getConnection();
+                 PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql))) {
+                int currentIndex = 1;
+                for (PersistencePath path : batch) {
+                    prepared.setString(currentIndex++, path.getValue());
+                }
+                try (ResultSet resultSet = prepared.executeQuery()) {
+                    while (resultSet.next()) {
+                        String key = resultSet.getString("key");
+                        String json = resultSet.getString("value");
+                        PersistencePath path = PersistencePath.of(key);
+                        map.put(path, this.serializer.deserialize(collection, path, json));
+                    }
+                }
+            } catch (SQLException exception) {
+                throw new RuntimeException("cannot read batch from " + collection, exception);
+            }
+        }
+
+        return map;
+    }
+
+    @Override
+    public Map<PersistencePath, Document> readAll(@NonNull PersistenceCollection collection) {
+        return this.streamAll(collection).collect(Collectors.toMap(
+            PersistenceEntity::getPath,
+            PersistenceEntity::getValue
+        ));
+    }
+
+    // ==================== STREAMING ====================
+
+    @Override
+    public Stream<PersistenceEntity<Document>> streamAll(@NonNull PersistenceCollection collection) {
+        this.checkCollectionRegistered(collection);
+        String sql = "select `key`, `value` from `" + this.table(collection) + "`";
+
+        try (Connection connection = this.dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(this.debugQuery(sql))) {
+            List<PersistenceEntity<Document>> results = new ArrayList<>();
+
+            while (resultSet.next()) {
+                String key = resultSet.getString("key");
+                String json = resultSet.getString("value");
+                PersistencePath path = PersistencePath.of(key);
+                Document doc = this.serializer.deserialize(collection, path, json);
+                results.add(new PersistenceEntity<>(path, doc));
+            }
+
+            return results.stream();
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot stream all from " + collection, exception);
+        }
+    }
+
+    @Override
+    public Stream<PersistenceEntity<Document>> stream(@NonNull PersistenceCollection collection, int batchSize) {
+        this.checkCollectionRegistered(collection);
+        String baseQuery = "select `key`, `value` from `" + this.table(collection) + "`";
+
+        Iterator<PersistenceEntity<Document>> iterator = new Iterator<PersistenceEntity<Document>>() {
+            private int offset = 0;
+            private Iterator<PersistenceEntity<Document>> currentBatch = null;
+            private boolean hasMore = true;
+
+            private void fetchNextBatch() {
+                if (!this.hasMore) return;
+
+                String sql = baseQuery + " limit " + batchSize + " offset " + this.offset;
+                try (Connection connection = MariaDbPersistence.this.dataSource.getConnection();
+                     Statement statement = connection.createStatement();
+                     ResultSet resultSet = statement.executeQuery(MariaDbPersistence.this.debugQuery(sql))) {
+                    List<PersistenceEntity<Document>> batch = new ArrayList<>();
+
+                    while (resultSet.next()) {
+                        String key = resultSet.getString("key");
+                        String json = resultSet.getString("value");
+                        PersistencePath path = PersistencePath.of(key);
+                        Document doc = MariaDbPersistence.this.serializer.deserialize(collection, path, json);
+                        batch.add(new PersistenceEntity<>(path, doc));
+                    }
+
+                    if (batch.isEmpty()) {
+                        this.hasMore = false;
+                        this.currentBatch = null;
+                        return;
+                    }
+
+                    this.currentBatch = batch.iterator();
+                    this.offset += batchSize;
+
+                    if (batch.size() < batchSize) {
+                        this.hasMore = false;
+                    }
+                } catch (SQLException e) {
+                    throw new RuntimeException("cannot stream from " + collection, e);
+                }
+            }
+
+            @Override
+            public boolean hasNext() {
+                if ((this.currentBatch == null) || !this.currentBatch.hasNext()) {
+                    if (!this.hasMore) return false;
+                    this.fetchNextBatch();
+                }
+                return (this.currentBatch != null) && this.currentBatch.hasNext();
+            }
+
+            @Override
+            public PersistenceEntity<Document> next() {
+                if (!this.hasNext()) throw new NoSuchElementException();
+                return this.currentBatch.next();
+            }
+        };
+
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED), false);
+    }
+
+    // ==================== FILTERING ====================
+
+    @Override
+    public Stream<PersistenceEntity<Document>> find(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
         this.checkCollectionRegistered(collection);
 
         // Set indexed properties context for the renderer to use generated columns
-        Set<IndexProperty> indexes = this.getKnownIndexes().get(collection.getValue());
+        Set<IndexProperty> indexes = this.knownCollections.get(collection.getValue()).getIndexes();
         this.filterRenderer.setIndexedProperties(indexes);
 
         String sql = "select `key`, `value` from `" + this.table(collection) + "`";
@@ -316,16 +571,17 @@ public class MariaDbPersistence extends JdbcPersistence {
             sql += " offset " + filter.getSkip();
         }
 
-        try (Connection connection = this.getDataSource().getConnection()) {
-
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery(this.debugQuery(sql));
-            List<PersistenceEntity<String>> results = new ArrayList<>();
+        try (Connection connection = this.dataSource.getConnection();
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(this.debugQuery(sql))) {
+            List<PersistenceEntity<Document>> results = new ArrayList<>();
 
             while (resultSet.next()) {
                 String key = resultSet.getString("key");
-                String value = resultSet.getString("value");
-                results.add(new PersistenceEntity<>(PersistencePath.of(key), value));
+                String json = resultSet.getString("value");
+                PersistencePath path = PersistencePath.of(key);
+                Document doc = this.serializer.deserialize(collection, path, json);
+                results.add(new PersistenceEntity<>(path, doc));
             }
 
             return results.stream();
@@ -335,91 +591,28 @@ public class MariaDbPersistence extends JdbcPersistence {
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> stream(@NonNull PersistenceCollection collection, int batchSize) {
-
-        this.checkCollectionRegistered(collection);
-        String baseQuery = "select `key`, `value` from `" + this.table(collection) + "`";
-
-        // Custom iterator that fetches batches lazily (Java 8 compatible)
-        Iterator<PersistenceEntity<String>> iterator = new Iterator<PersistenceEntity<String>>() {
-            private int offset = 0;
-            private Iterator<PersistenceEntity<String>> currentBatch = null;
-            private boolean hasMore = true;
-
-            private void fetchNextBatch() {
-                if (!this.hasMore) return;
-
-                String sql = baseQuery + " limit " + batchSize + " offset " + this.offset;
-                try (Connection connection = MariaDbPersistence.this.getDataSource().getConnection()) {
-                    Statement statement = connection.createStatement();
-                    ResultSet resultSet = statement.executeQuery(MariaDbPersistence.this.debugQuery(sql));
-                    List<PersistenceEntity<String>> batch = new ArrayList<>();
-
-                    while (resultSet.next()) {
-                        String key = resultSet.getString("key");
-                        String value = resultSet.getString("value");
-                        batch.add(new PersistenceEntity<>(PersistencePath.of(key), value));
-                    }
-
-                    if (batch.isEmpty()) {
-                        this.hasMore = false;
-                        this.currentBatch = null;
-                        return;
-                    }
-
-                    this.currentBatch = batch.iterator();
-                    this.offset += batchSize;
-
-                    // If we got fewer results than requested, this is the last batch
-                    if (batch.size() < batchSize) {
-                        this.hasMore = false;
-                    }
-                } catch (SQLException e) {
-                    throw new RuntimeException("cannot stream from " + collection, e);
-                }
-            }
-
-            @Override
-            public boolean hasNext() {
-                if ((this.currentBatch == null) || !this.currentBatch.hasNext()) {
-                    if (!this.hasMore) return false;
-                    this.fetchNextBatch();
-                }
-                return (this.currentBatch != null) && this.currentBatch.hasNext();
-            }
-
-            @Override
-            public PersistenceEntity<String> next() {
-                if (!this.hasNext()) throw new NoSuchElementException();
-                return this.currentBatch.next();
-            }
-        };
-
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED), false);
-    }
-
-    @Override
-    public long deleteByFilter(@NonNull PersistenceCollection collection, @NonNull DeleteFilter filter) {
-
+    public long delete(@NonNull PersistenceCollection collection, @NonNull DeleteFilter filter) {
         this.checkCollectionRegistered(collection);
 
         if (filter.getWhere() == null) {
-            throw new IllegalArgumentException("deleteByFilter requires a WHERE condition - use deleteAll() to clear collection");
+            throw new IllegalArgumentException("DeleteFilter requires WHERE condition - use deleteAll() instead");
         }
 
-        // Set indexed properties context for the renderer to use generated columns
-        Set<IndexProperty> indexes = this.getKnownIndexes().get(collection.getValue());
+        Set<IndexProperty> indexes = this.knownCollections.get(collection.getValue()).getIndexes();
         this.filterRenderer.setIndexedProperties(indexes);
 
-        String sql = "delete from `" + this.table(collection) + "` where " + this.filterRenderer.renderCondition(filter.getWhere());
+        String sql = "delete from `" + this.table(collection) + "` where " +
+            this.filterRenderer.renderCondition(filter.getWhere());
 
-        try (Connection connection = this.getDataSource().getConnection()) {
-            Statement statement = connection.createStatement();
+        try (Connection connection = this.dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
             return statement.executeUpdate(this.debugQuery(sql));
         } catch (SQLException exception) {
             throw new RuntimeException("cannot delete from " + collection + " with " + filter, exception);
         }
     }
+
+    // ==================== UPDATES ====================
 
     @Override
     public boolean updateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
@@ -428,18 +621,17 @@ public class MariaDbPersistence extends JdbcPersistence {
         String updateExpr = UPDATE_RENDERER.render(operations);
         String sql = "update `" + this.table(collection) + "` set `value` = " + updateExpr + " where `key` = ?";
 
-        try (Connection connection = this.getDataSource().getConnection()) {
-            PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql));
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql))) {
             prepared.setString(1, path.getValue());
-            int rowsAffected = prepared.executeUpdate();
-            return rowsAffected > 0;
+            return prepared.executeUpdate() > 0;
         } catch (SQLException exception) {
             throw new RuntimeException("cannot update " + path + " in " + collection, exception);
         }
     }
 
     @Override
-    public Optional<String> updateOneAndGet(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+    public Optional<Document> updateOneAndGet(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
         this.checkCollectionRegistered(collection);
 
         String lockSql = "select `value` from `" + this.table(collection) + "` where `key` = ? for update";
@@ -447,45 +639,43 @@ public class MariaDbPersistence extends JdbcPersistence {
         String updateSql = "update `" + this.table(collection) + "` set `value` = " + updateExpr + " where `key` = ?";
         String selectSql = "select `value` from `" + this.table(collection) + "` where `key` = ?";
 
-        try (Connection connection = this.getDataSource().getConnection()) {
+        try (Connection connection = this.dataSource.getConnection()) {
             connection.setAutoCommit(false);
 
             try {
-                // Lock the row first to ensure atomicity
-                PreparedStatement lockStmt = connection.prepareStatement(lockSql);
-                lockStmt.setString(1, path.getValue());
-                ResultSet lockResult = lockStmt.executeQuery();
-
-                if (!lockResult.next()) {
-                    connection.rollback();
-                    return Optional.empty();
-                }
-                lockStmt.close();
-
-                // Perform the update on the locked row
-                PreparedStatement updateStmt = connection.prepareStatement(this.debugQuery(updateSql));
-                updateStmt.setString(1, path.getValue());
-                updateStmt.executeUpdate();
-                updateStmt.close();
-
-                // Read the updated value
-                PreparedStatement selectStmt = connection.prepareStatement(selectSql);
-                selectStmt.setString(1, path.getValue());
-                ResultSet resultSet = selectStmt.executeQuery();
-
-                if (resultSet.next()) {
-                    String value = resultSet.getString("value");
-                    selectStmt.close();
-                    connection.commit();
-                    return Optional.ofNullable(value);
+                try (PreparedStatement lockStmt = connection.prepareStatement(this.debugQuery(lockSql))) {
+                    lockStmt.setString(1, path.getValue());
+                    try (ResultSet lockResult = lockStmt.executeQuery()) {
+                        if (!lockResult.next()) {
+                            connection.rollback();
+                            return Optional.empty();
+                        }
+                    }
                 }
 
-                selectStmt.close();
+                try (PreparedStatement updateStmt = connection.prepareStatement(this.debugQuery(updateSql))) {
+                    updateStmt.setString(1, path.getValue());
+                    updateStmt.executeUpdate();
+                }
+
+                try (PreparedStatement selectStmt = connection.prepareStatement(this.debugQuery(selectSql))) {
+                    selectStmt.setString(1, path.getValue());
+                    try (ResultSet resultSet = selectStmt.executeQuery()) {
+                        if (resultSet.next()) {
+                            String json = resultSet.getString("value");
+                            connection.commit();
+                            return Optional.of(this.serializer.deserialize(collection, path, json));
+                        }
+                    }
+                }
+
                 connection.commit();
                 return Optional.empty();
             } catch (SQLException e) {
                 connection.rollback();
                 throw e;
+            } finally {
+                connection.setAutoCommit(true);
             }
         } catch (SQLException exception) {
             throw new RuntimeException("cannot update and get " + path + " in " + collection, exception);
@@ -493,41 +683,41 @@ public class MariaDbPersistence extends JdbcPersistence {
     }
 
     @Override
-    public Optional<String> getAndUpdateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+    public Optional<Document> getAndUpdateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
         this.checkCollectionRegistered(collection);
 
         String selectSql = "select `value` from `" + this.table(collection) + "` where `key` = ? for update";
         String updateExpr = UPDATE_RENDERER.render(operations);
         String updateSql = "update `" + this.table(collection) + "` set `value` = " + updateExpr + " where `key` = ?";
 
-        try (Connection connection = this.getDataSource().getConnection()) {
+        try (Connection connection = this.dataSource.getConnection()) {
             connection.setAutoCommit(false);
 
             try {
-                // Lock and read the current value
-                PreparedStatement selectStmt = connection.prepareStatement(selectSql);
-                selectStmt.setString(1, path.getValue());
-                ResultSet resultSet = selectStmt.executeQuery();
-
-                if (!resultSet.next()) {
-                    connection.rollback();
-                    return Optional.empty();
+                String json;
+                try (PreparedStatement selectStmt = connection.prepareStatement(this.debugQuery(selectSql))) {
+                    selectStmt.setString(1, path.getValue());
+                    try (ResultSet resultSet = selectStmt.executeQuery()) {
+                        if (!resultSet.next()) {
+                            connection.rollback();
+                            return Optional.empty();
+                        }
+                        json = resultSet.getString("value");
+                    }
                 }
 
-                String currentValue = resultSet.getString("value");
-                selectStmt.close();
-
-                // Perform the update
-                PreparedStatement updateStmt = connection.prepareStatement(this.debugQuery(updateSql));
-                updateStmt.setString(1, path.getValue());
-                updateStmt.executeUpdate();
-                updateStmt.close();
+                try (PreparedStatement updateStmt = connection.prepareStatement(this.debugQuery(updateSql))) {
+                    updateStmt.setString(1, path.getValue());
+                    updateStmt.executeUpdate();
+                }
 
                 connection.commit();
-                return Optional.of(currentValue);
+                return Optional.of(this.serializer.deserialize(collection, path, json));
             } catch (SQLException e) {
                 connection.rollback();
                 throw e;
+            } finally {
+                connection.setAutoCommit(true);
             }
         } catch (SQLException exception) {
             throw new RuntimeException("cannot get and update " + path + " in " + collection, exception);
@@ -542,19 +732,151 @@ public class MariaDbPersistence extends JdbcPersistence {
             throw new IllegalArgumentException("update requires a WHERE condition - use updateOne() for single document updates");
         }
 
-        // Set indexed properties context for the renderer to use generated columns
-        Set<IndexProperty> indexes = this.getKnownIndexes().get(collection.getValue());
+        Set<IndexProperty> indexes = this.knownCollections.get(collection.getValue()).getIndexes();
         this.filterRenderer.setIndexedProperties(indexes);
 
         String updateExpr = UPDATE_RENDERER.render(filter.getOperations());
         String sql = "update `" + this.table(collection) + "` set `value` = " + updateExpr +
             " where " + this.filterRenderer.renderCondition(filter.getWhere());
 
-        try (Connection connection = this.getDataSource().getConnection()) {
-            Statement statement = connection.createStatement();
+        try (Connection connection = this.dataSource.getConnection();
+             Statement statement = connection.createStatement()) {
             return statement.executeUpdate(this.debugQuery(sql));
         } catch (SQLException exception) {
             throw new RuntimeException("cannot update " + collection + " with " + filter, exception);
         }
+    }
+
+    // ==================== WRITE OPERATIONS ====================
+
+    @Override
+    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
+        this.checkCollectionRegistered(collection);
+        this.serializer.setupDocument(document, collection, path);
+
+        String json = this.serializer.serialize(document);
+        String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?) " +
+            "on duplicate key update `value` = ?";
+
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql))) {
+            prepared.setString(1, path.getValue());
+            prepared.setString(2, json);
+            prepared.setString(3, json);
+            return prepared.executeUpdate() > 0;
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot write " + path + " to " + collection, exception);
+        }
+    }
+
+    @Override
+    public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, Document> documents) {
+        if (documents.isEmpty()) {
+            return 0;
+        }
+        this.checkCollectionRegistered(collection);
+
+        String sql = "insert into `" + this.table(collection) + "` (`key`, `value`) values (?, ?) " +
+            "on duplicate key update `value` = ?";
+
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql))) {
+            connection.setAutoCommit(false);
+
+            try {
+                for (Map.Entry<PersistencePath, Document> entry : documents.entrySet()) {
+                    PersistencePath path = entry.getKey();
+                    Document document = entry.getValue();
+                    this.serializer.setupDocument(document, collection, path);
+
+                    String json = this.serializer.serialize(document);
+                    prepared.setString(1, path.getValue());
+                    prepared.setString(2, json);
+                    prepared.setString(3, json);
+                    prepared.addBatch();
+                }
+
+                int[] results = prepared.executeBatch();
+                connection.commit();
+                return results.length;
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot write batch to " + collection, exception);
+        }
+    }
+
+    // ==================== DELETE OPERATIONS ====================
+
+    @Override
+    public boolean delete(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
+        this.checkCollectionRegistered(collection);
+        String sql = "delete from `" + this.table(collection) + "` where `key` = ?";
+
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql))) {
+            prepared.setString(1, path.getValue());
+            return prepared.executeUpdate() > 0;
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot delete " + path + " from " + collection, exception);
+        }
+    }
+
+    @Override
+    public long delete(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
+        this.checkCollectionRegistered(collection);
+        if (paths.isEmpty()) {
+            return 0;
+        }
+
+        long totalDeleted = 0;
+        List<PersistencePath> pathList = new ArrayList<>(paths);
+
+        for (int i = 0; i < pathList.size(); i += BATCH_SIZE) {
+            List<PersistencePath> batch = pathList.subList(i, Math.min(i + BATCH_SIZE, pathList.size()));
+            String placeholders = batch.stream().map(p -> "?").collect(Collectors.joining(", "));
+            String sql = "delete from `" + this.table(collection) + "` where `key` in (" + placeholders + ")";
+
+            try (Connection connection = this.dataSource.getConnection();
+                 PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql))) {
+                int currentIndex = 1;
+                for (PersistencePath path : batch) {
+                    prepared.setString(currentIndex++, path.getValue());
+                }
+                totalDeleted += prepared.executeUpdate();
+            } catch (SQLException exception) {
+                throw new RuntimeException("cannot delete batch from " + collection, exception);
+            }
+        }
+
+        return totalDeleted;
+    }
+
+    @Override
+    public boolean deleteAll(@NonNull PersistenceCollection collection) {
+        this.checkCollectionRegistered(collection);
+        String sql = "truncate table `" + this.table(collection) + "`";
+
+        try (Connection connection = this.dataSource.getConnection();
+             PreparedStatement prepared = connection.prepareStatement(this.debugQuery(sql))) {
+            prepared.executeUpdate();
+            return true;
+        } catch (SQLException exception) {
+            throw new RuntimeException("cannot truncate " + collection, exception);
+        }
+    }
+
+    @Override
+    public long deleteAll() {
+        return this.knownCollections.values().stream()
+            .map(this::deleteAll)
+            .filter(Predicate.isEqual(true))
+            .count();
+    }
+
+    @Override
+    public void close() throws IOException {
+        this.dataSource.close();
     }
 }

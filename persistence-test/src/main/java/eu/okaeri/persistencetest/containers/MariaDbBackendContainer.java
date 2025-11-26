@@ -2,7 +2,6 @@ package eu.okaeri.persistencetest.containers;
 
 import com.zaxxer.hikari.HikariConfig;
 import eu.okaeri.configs.json.simple.JsonSimpleConfigurer;
-import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.jdbc.MariaDbPersistence;
 import org.testcontainers.containers.MariaDBContainer;
@@ -50,10 +49,7 @@ public class MariaDbBackendContainer implements BackendContainer {
         hikariConfig.setMaxLifetime(600000);
         hikariConfig.setKeepaliveTime(60000);
 
-        return new DocumentPersistence(
-            new MariaDbPersistence(PersistencePath.of(""), hikariConfig),
-            JsonSimpleConfigurer::new
-        );
+        return new DocumentPersistence(new MariaDbPersistence(hikariConfig, JsonSimpleConfigurer::new));
     }
 
     @Override

@@ -3,7 +3,6 @@ package eu.okaeri.persistencetest.containers;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import eu.okaeri.configs.json.simple.JsonSimpleConfigurer;
-import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.mongo.MongoPersistence;
 import org.testcontainers.containers.MongoDBContainer;
@@ -33,8 +32,7 @@ public class MongoBackendContainer implements BackendContainer {
         MongoClient mongoClient = MongoClients.create(MONGO.getConnectionString());
 
         return new DocumentPersistence(
-            new MongoPersistence(PersistencePath.of(""), mongoClient, "okaeri_persistence"),
-            JsonSimpleConfigurer::new
+            new MongoPersistence(mongoClient, "okaeri_persistence", JsonSimpleConfigurer::new)
         );
     }
 

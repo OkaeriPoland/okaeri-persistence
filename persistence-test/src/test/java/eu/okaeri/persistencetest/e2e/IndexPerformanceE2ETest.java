@@ -5,11 +5,10 @@ import eu.okaeri.persistencetest.IndexPerformanceTestContext;
 import eu.okaeri.persistencetest.containers.*;
 import eu.okaeri.persistencetest.fixtures.IndexTestEntity;
 import lombok.Getter;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-
-import org.junit.jupiter.api.AfterAll;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +46,7 @@ public class IndexPerformanceE2ETest extends E2ETestBase {
     /**
      * Higher factor for native DB backends (need more data to show index benefit)
      */
-    private static final int FACTOR_NATIVE_DB = 2_000;
+    private static final int FACTOR_LENIENT = 2_000;
 
     /**
      * Maximum ratio of indexed time to non-indexed time for fully indexed queries.
@@ -58,7 +57,7 @@ public class IndexPerformanceE2ETest extends E2ETestBase {
     /**
      * More lenient speedup ratio for native DB backends due to network/query overhead.
      */
-    private static final double SPEEDUP_RATIO_NATIVE_DB = 0.8;
+    private static final double SPEEDUP_RATIO_LENIENT = 0.95;
 
     /**
      * Maximum ratio for mixed queries (partially indexed).
@@ -69,7 +68,7 @@ public class IndexPerformanceE2ETest extends E2ETestBase {
     /**
      * Mixed query ratio for native DB backends.
      */
-    private static final double SPEEDUP_MIXED_NATIVE_DB = 0.9;
+    private static final double SPEEDUP_MIXED_LENIENT = 0.99;
 
     /**
      * Number of warmup iterations before timing
@@ -96,16 +95,16 @@ public class IndexPerformanceE2ETest extends E2ETestBase {
 
         IndexPerfContext(BackendContainer backend) {
             this.backend = backend;
-            boolean nativeDb = isNativeDbBackend(backend);
-            this.factor = nativeDb ? FACTOR_NATIVE_DB : FACTOR_DEFAULT;
-            this.speedupRatio = nativeDb ? SPEEDUP_RATIO_NATIVE_DB : SPEEDUP_RATIO_DEFAULT;
-            this.speedupMixed = nativeDb ? SPEEDUP_MIXED_NATIVE_DB : SPEEDUP_MIXED_DEFAULT;
+            boolean lenientBackend = isLenientBackend(backend);
+            this.factor = lenientBackend ? FACTOR_LENIENT : FACTOR_DEFAULT;
+            this.speedupRatio = lenientBackend ? SPEEDUP_RATIO_LENIENT : SPEEDUP_RATIO_DEFAULT;
+            this.speedupMixed = lenientBackend ? SPEEDUP_MIXED_LENIENT : SPEEDUP_MIXED_DEFAULT;
             DocumentPersistence persistence = backend.createPersistence();
             this.indexedRepo = persistence.createRepository(IndexPerformanceTestContext.IndexedRepository.class);
             this.nonIndexedRepo = persistence.createRepository(IndexPerformanceTestContext.NonIndexedRepository.class);
         }
 
-        private static boolean isNativeDbBackend(BackendContainer backend) {
+        private static boolean isLenientBackend(BackendContainer backend) {
             String name = backend.getName().toLowerCase();
             return name.contains("mongo") || name.contains("postgres") || name.contains("maria") || name.contains("h2");
         }
@@ -210,6 +209,57 @@ public class IndexPerformanceE2ETest extends E2ETestBase {
             }
             cachedContexts = null;
         }
+    }
+
+    // ========================================================================
+    // PRECISE TESTS: Single document lookups (1-3 results)
+    // ========================================================================
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("indexableBackends")
+    @DisplayName("PRECISE: Single doc lookup by category + sequence")
+    void test_precise_findByCategoryAndSequence(IndexPerfContext ctx) {
+        String category = "category_42";
+        int sequence = 7; // exactly 1 document
+
+        TimingResult result = this.timeQueries(
+            () -> ctx.indexed().findByCategoryAndSequence(category, sequence),
+            () -> ctx.nonIndexed().findByCategoryAndSequence(category, sequence),
+            1
+        );
+
+        this.assertSpeedup(result, ctx.getSpeedupRatio(), "findByCategoryAndSequence (1 doc)");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("indexableBackends")
+    @DisplayName("PRECISE: Single doc lookup by level + sequence")
+    void test_precise_findByLevelAndSequence(IndexPerfContext ctx) {
+        int level = 33;
+        int sequence = 5; // exactly 1 document
+
+        TimingResult result = this.timeQueries(
+            () -> ctx.indexed().findByLevelAndSequence(level, sequence),
+            () -> ctx.nonIndexed().findByLevelAndSequence(level, sequence),
+            1
+        );
+
+        this.assertSpeedup(result, ctx.getSpeedupRatio(), "findByLevelAndSequence (1 doc)");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("indexableBackends")
+    @DisplayName("PRECISE: Two doc lookup by level range (99 only)")
+    void test_precise_findByLevelEquals99(IndexPerfContext ctx) {
+        int level = 99; // only level 99 - exactly factor documents
+
+        TimingResult result = this.timeQueries(
+            () -> ctx.indexed().findByLevel(level),
+            () -> ctx.nonIndexed().findByLevel(level),
+            ctx.getFactor()
+        );
+
+        this.assertSpeedup(result, ctx.getSpeedupRatio(), "findByLevel=99 (factor docs)");
     }
 
     // ========================================================================

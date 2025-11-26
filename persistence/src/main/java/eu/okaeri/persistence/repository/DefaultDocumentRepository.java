@@ -45,7 +45,7 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
 
     @Override
     public long delete(DeleteFilter filter) {
-        return this.persistence.deleteByFilter(this.collection, filter);
+        return this.persistence.delete(this.collection, filter);
     }
 
     @Override
@@ -93,7 +93,7 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
 
     @Override
     public Stream<T> find(@NonNull FindFilter filter) {
-        return this.persistence.readByFilter(this.collection, filter)
+        return this.persistence.find(this.collection, filter)
             .map(document -> document.into(this.documentType))
             .map(PersistenceEntity::getValue);
     }
@@ -115,7 +115,6 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
 
     @Override
     public Collection<T> findAllByPath(@NonNull Iterable<?> paths) {
-
         Set<PersistencePath> pathSet = StreamSupport.stream(paths.spliterator(), false)
             .map(DefaultDocumentRepository::toPath)
             .collect(Collectors.toSet());
@@ -127,14 +126,24 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
 
     @Override
     public Collection<T> findOrCreateAllByPath(@NonNull Iterable<?> paths) {
-
         Set<PersistencePath> pathSet = StreamSupport.stream(paths.spliterator(), false)
             .map(DefaultDocumentRepository::toPath)
             .collect(Collectors.toSet());
 
-        return this.persistence.readOrEmpty(this.collection, pathSet).values().stream()
-            .map(document -> document.into(this.documentType))
-            .collect(Collectors.toList());
+        // Get existing documents
+        Map<PersistencePath, Document> existing = this.persistence.read(this.collection, pathSet);
+
+        // Create empty documents for missing paths
+        List<T> result = new ArrayList<>();
+        for (PersistencePath path : pathSet) {
+            Document doc = existing.get(path);
+            if (doc == null) {
+                // Create new empty document
+                doc = this.persistence.getSerializer().createDocument(this.collection, path);
+            }
+            result.add(doc.into(this.documentType));
+        }
+        return result;
     }
 
     @Override
@@ -145,7 +154,10 @@ public class DefaultDocumentRepository<T extends Document> implements DocumentRe
 
     @Override
     public T findOrCreateByPath(@NonNull Object path) {
-        Document document = this.persistence.readOrEmpty(this.collection, toPath(path));
+        PersistencePath persistencePath = toPath(path);
+        Optional<Document> existing = this.persistence.read(this.collection, persistencePath);
+        Document document = existing.orElseGet(() ->
+            this.persistence.getSerializer().createDocument(this.collection, persistencePath));
         return document.into(this.documentType);
     }
 

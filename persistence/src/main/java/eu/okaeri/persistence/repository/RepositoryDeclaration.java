@@ -226,14 +226,14 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
             if (insideType == PersistenceEntity.class) {
                 return (persistence, collection, args) -> {
                     FindFilter filter = buildFindFilter(parsed, args);
-                    return persistence.readByFilter(collection, filter)
+                    return persistence.find(collection, filter)
                         .findFirst()
                         .map(entity -> entity.into(entityType));
                 };
             } else {
                 return (persistence, collection, args) -> {
                     FindFilter filter = buildFindFilter(parsed, args);
-                    return persistence.readByFilter(collection, filter)
+                    return persistence.find(collection, filter)
                         .findFirst()
                         .map(entity -> entity.into(entityType))
                         .map(PersistenceEntity::getValue);
@@ -245,13 +245,13 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
             if (insideType == PersistenceEntity.class) {
                 return (persistence, collection, args) -> {
                     FindFilter filter = buildFindFilter(parsed, args);
-                    return persistence.readByFilter(collection, filter)
+                    return persistence.find(collection, filter)
                         .map(entity -> entity.into(entityType));
                 };
             } else {
                 return (persistence, collection, args) -> {
                     FindFilter filter = buildFindFilter(parsed, args);
-                    return persistence.readByFilter(collection, filter)
+                    return persistence.find(collection, filter)
                         .map(entity -> entity.into(entityType))
                         .map(PersistenceEntity::getValue);
                 };
@@ -262,14 +262,14 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
             if (insideType == PersistenceEntity.class) {
                 return (persistence, collection, args) -> {
                     FindFilter filter = buildFindFilter(parsed, args);
-                    return persistence.readByFilter(collection, filter)
+                    return persistence.find(collection, filter)
                         .map(entity -> entity.into(entityType))
                         .collect(Collectors.toList());
                 };
             } else {
                 return (persistence, collection, args) -> {
                     FindFilter filter = buildFindFilter(parsed, args);
-                    return persistence.readByFilter(collection, filter)
+                    return persistence.find(collection, filter)
                         .map(entity -> entity.into(entityType))
                         .map(PersistenceEntity::getValue)
                         .collect(Collectors.toList());
@@ -281,14 +281,14 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
             if (insideType == PersistenceEntity.class) {
                 return (persistence, collection, args) -> {
                     FindFilter filter = buildFindFilter(parsed, args);
-                    return persistence.readByFilter(collection, filter)
+                    return persistence.find(collection, filter)
                         .map(entity -> entity.into(entityType))
                         .collect(Collectors.toSet());
                 };
             } else {
                 return (persistence, collection, args) -> {
                     FindFilter filter = buildFindFilter(parsed, args);
-                    return persistence.readByFilter(collection, filter)
+                    return persistence.find(collection, filter)
                         .map(entity -> entity.into(entityType))
                         .map(PersistenceEntity::getValue)
                         .collect(Collectors.toSet());
@@ -300,7 +300,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
         if (Document.class.isAssignableFrom(returnType)) {
             return (persistence, collection, args) -> {
                 FindFilter filter = buildFindFilter(parsed, args);
-                return persistence.readByFilter(collection, filter)
+                return persistence.find(collection, filter)
                     .findFirst()
                     .map(entity -> entity.into(entityType))
                     .map(PersistenceEntity::getValue)
@@ -317,7 +317,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
     private static RepositoryMethodCaller createCountCaller(ParsedMethod parsed, Class<? extends Document> entityType) {
         return (persistence, collection, args) -> {
             FindFilter filter = buildFindFilter(parsed, args);
-            return persistence.readByFilter(collection, filter).count();
+            return persistence.find(collection, filter).count();
         };
     }
 
@@ -335,7 +335,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
             }
             builder.limit(1);
 
-            return persistence.readByFilter(collection, builder.build()).findAny().isPresent();
+            return persistence.find(collection, builder.build()).findAny().isPresent();
         };
     }
 
@@ -350,7 +350,7 @@ public class RepositoryDeclaration<T extends DocumentRepository> {
             }
 
             DeleteFilter filter = DeleteFilter.builder().where(condition).build();
-            return persistence.deleteByFilter(collection, filter);
+            return persistence.delete(collection, filter);
         };
     }
 

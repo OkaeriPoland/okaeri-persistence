@@ -1,394 +1,335 @@
 package eu.okaeri.persistence.redis;
 
-import eu.okaeri.persistence.PersistenceCollection;
-import eu.okaeri.persistence.PersistenceEntity;
-import eu.okaeri.persistence.PersistencePath;
-import eu.okaeri.persistence.document.index.IndexProperty;
-import eu.okaeri.persistence.raw.PersistenceIndexMode;
-import eu.okaeri.persistence.raw.PersistencePropertyMode;
-import eu.okaeri.persistence.raw.RawPersistence;
+import eu.okaeri.configs.serdes.OkaeriSerdesPack;
+import eu.okaeri.persistence.*;
+import eu.okaeri.persistence.document.ConfigurerProvider;
+import eu.okaeri.persistence.document.Document;
+import eu.okaeri.persistence.document.DocumentSerializer;
 import io.lettuce.core.*;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
 import io.lettuce.core.codec.RedisCodec;
 import io.lettuce.core.codec.StringCodec;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
+import eu.okaeri.persistence.util.ConnectionRetry;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.SneakyThrows;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.function.Predicate;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class RedisPersistence extends RawPersistence {
+/**
+ * Redis persistence backend using Lettuce client.
+ * Stores documents as JSON in Redis hashes.
+ * <p>
+ * Note: Redis doesn't support native filtering or indexing.
+ * Use {@link eu.okaeri.persistence.document.DocumentPersistence} wrapper
+ * for filtering/update support with in-memory fallback.
+ */
+public class RedisPersistence implements Persistence {
 
     private static final Logger LOGGER = Logger.getLogger(RedisPersistence.class.getSimpleName());
-    @Getter private StatefulRedisConnection<String, String> connection;
-    @Getter private RedisClient client;
 
-    public RedisPersistence(@NonNull PersistencePath basePath, @NonNull RedisClient client) {
-        super(basePath, PersistencePropertyMode.NATIVE, PersistenceIndexMode.EMULATED);
+    private final @Getter PersistencePath basePath;
+    private @Getter StatefulRedisConnection<String, String> connection;
+    private @Getter RedisClient client;
+
+    private final @Getter DocumentSerializer serializer;
+    private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
+
+    public RedisPersistence(@NonNull PersistencePath basePath, @NonNull RedisClient client,
+                            @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+        this.basePath = basePath;
+        this.serializer = new DocumentSerializer(configurerProvider, serdesPacks);
         this.connect(client);
     }
 
-    public RedisPersistence(@NonNull RedisClient client) {
-        this(PersistencePath.of(""), client);
+    public RedisPersistence(@NonNull RedisClient client, @NonNull ConfigurerProvider configurerProvider,
+                            @NonNull OkaeriSerdesPack... serdesPacks) {
+        this(PersistencePath.of(""), client, configurerProvider, serdesPacks);
     }
 
-    private static <T> List<List<T>> partition(Collection<T> members, int maxSize) {
+    public static Builder builder() {
+        return new Builder();
+    }
 
-        List<List<T>> res = new ArrayList<>();
-        List<T> internal = new ArrayList<>();
+    public static class Builder {
+        private PersistencePath basePath;
+        private RedisClient client;
+        private ConfigurerProvider configurerProvider;
+        private OkaeriSerdesPack[] serdesPacks = new OkaeriSerdesPack[0];
 
-        for (T member : members) {
-            internal.add(member);
-            if (internal.size() == maxSize) {
-                res.add(internal);
-                internal = new ArrayList<>();
+        public Builder basePath(@NonNull String basePath) {
+            this.basePath = PersistencePath.of(basePath);
+            return this;
+        }
+
+        public Builder basePath(@NonNull PersistencePath basePath) {
+            this.basePath = basePath;
+            return this;
+        }
+
+        public Builder client(@NonNull RedisClient client) {
+            this.client = client;
+            return this;
+        }
+
+        public Builder configurer(@NonNull ConfigurerProvider configurerProvider) {
+            this.configurerProvider = configurerProvider;
+            return this;
+        }
+
+        public Builder serdes(@NonNull OkaeriSerdesPack... packs) {
+            this.serdesPacks = packs;
+            return this;
+        }
+
+        public RedisPersistence build() {
+            if (this.client == null) {
+                throw new IllegalStateException("client is required");
             }
+            if (this.configurerProvider == null) {
+                throw new IllegalStateException("configurer is required");
+            }
+            PersistencePath path = (this.basePath != null) ? this.basePath : PersistencePath.of("");
+            return new RedisPersistence(path, this.client, this.configurerProvider, this.serdesPacks);
         }
-
-        if (!internal.isEmpty()) {
-            res.add(internal);
-        }
-
-        return res;
     }
 
-    @SneakyThrows
     private void connect(RedisClient client) {
         this.client = client;
         this.connection = this.createConnection(StringCodec.UTF8);
     }
 
-    @SneakyThrows
     public <K, V> StatefulRedisConnection<K, V> createConnection(RedisCodec<K, V> codec) {
         if (this.client == null) {
-            throw new RuntimeException("Cannot create connection! Make sure connect(RedisClient) is called before creating additional connections.");
+            throw new RuntimeException("Cannot create connection - client not initialized");
         }
-        StatefulRedisConnection<K, V> localConnection = null;
-        do {
-            try {
-                localConnection = this.client.connect(codec);
-            } catch (Exception exception) {
-                if (exception.getCause() != null) {
-                    LOGGER.severe("[" + this.getBasePath().getValue() + "] Cannot connect with redis (waiting 30s): " + exception.getMessage() + " caused by " + exception.getCause().getMessage());
-                } else {
-                    LOGGER.severe("[" + this.getBasePath().getValue() + "] Cannot connect with redis (waiting 30s): " + exception.getMessage());
-                }
-                Thread.sleep(30_000);
-            }
-        } while (localConnection == null);
-        return localConnection;
+        return ConnectionRetry.of(this.basePath.getValue())
+            .connector(() -> this.client.connect(codec))
+            .connect();
     }
 
-    @SneakyThrows
     public <K, V> StatefulRedisPubSubConnection<K, V> createPubSubConnection(RedisCodec<K, V> codec) {
         if (this.client == null) {
-            throw new RuntimeException("Cannot create connection! Make sure connect(RedisClient) is called before creating additional connections.");
+            throw new RuntimeException("Cannot create connection - client not initialized");
         }
-        StatefulRedisPubSubConnection<K, V> localConnection = null;
-        do {
-            try {
-                localConnection = this.client.connectPubSub(codec);
-            } catch (Exception exception) {
-                if (exception.getCause() != null) {
-                    LOGGER.severe("[" + this.getBasePath().getValue() + "] Cannot connect with redis pubsub (waiting 30s): " + exception.getMessage() + " caused by " + exception.getCause().getMessage());
-                } else {
-                    LOGGER.severe("[" + this.getBasePath().getValue() + "] Cannot connect with redis pubsub (waiting 30s): " + exception.getMessage());
-                }
-                Thread.sleep(30_000);
-            }
-        } while (localConnection == null);
-        return localConnection;
+        return ConnectionRetry.of(this.basePath.getValue() + " pubsub")
+            .connector(() -> this.client.connectPubSub(codec))
+            .connect();
+    }
+
+    // ==================== COLLECTION MANAGEMENT ====================
+
+    @Override
+    public void registerCollection(@NonNull PersistenceCollection collection) {
+        this.knownCollections.put(collection.getValue(), collection);
+    }
+
+    private String hashKey(@NonNull PersistenceCollection collection) {
+        return this.basePath.sub(collection).getValue();
+    }
+
+    private void checkCollectionRegistered(@NonNull PersistenceCollection collection) {
+        if (!this.knownCollections.containsKey(collection.getValue())) {
+            throw new IllegalArgumentException("Collection not registered: " + collection.getValue());
+        }
+    }
+
+    // ==================== READ OPERATIONS ====================
+
+    @Override
+    public boolean exists(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
+        this.checkCollectionRegistered(collection);
+        return this.connection.sync().hexists(this.hashKey(collection), path.getValue());
     }
 
     @Override
-    public boolean updateIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property, String identity) {
-
-        // remove from old set value_to_keys
-        RedisCommands<String, String> sync = this.getConnection().sync();
-        this.dropIndex(collection, path, property);
-        String indexSet = this.toIndexValueToKeys(collection, property, identity).getValue();
-
-        // register new value
-        String valuesSet = this.toValuesSet(collection, property).getValue();
-        sync.sadd(valuesSet, identity);
-
-        // add to new value_to_keys
-        sync.sadd(indexSet, path.getValue());
-
-        // update key_to_value
-        String keyToValue = this.toIndexKeyToValue(collection, property).getValue();
-        return sync.hset(keyToValue, path.getValue(), identity);
+    public long count(@NonNull PersistenceCollection collection) {
+        this.checkCollectionRegistered(collection);
+        return this.connection.sync().hlen(this.hashKey(collection));
     }
 
     @Override
-    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull IndexProperty property) {
-
-        // get current value by key
-        String keyToValue = this.toIndexKeyToValue(collection, property).getValue();
-        RedisCommands<String, String> sync = this.getConnection().sync();
-        String currentValue = sync.hget(keyToValue, path.getValue());
-
-        // delete old value mapping
-        if (currentValue == null) return false;
-        sync.hdel(keyToValue, path.getValue());
-
-        // delete from values set
-        String valuesSet = this.toValuesSet(collection, property).getValue();
-        sync.srem(valuesSet, currentValue);
-
-        // delete from value to set
-        PersistencePath indexSet = this.toIndexValueToKeys(collection, property, currentValue);
-        return sync.srem(indexSet.getValue(), path.getValue()) > 0;
+    public Optional<Document> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
+        this.checkCollectionRegistered(collection);
+        String json = this.connection.sync().hget(this.hashKey(collection), path.getValue());
+        if (json == null) {
+            return Optional.empty();
+        }
+        return Optional.of(this.serializer.deserialize(collection, path, json));
     }
 
     @Override
-    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-        return this.getKnownIndexes().getOrDefault(collection.getValue(), Collections.emptySet()).stream()
-            .map(index -> this.dropIndex(collection, path, index))
-            .anyMatch(Predicate.isEqual(true));
-    }
-
-    @Override
-    public boolean dropIndex(@NonNull PersistenceCollection collection, @NonNull IndexProperty property) {
-
-        RedisCommands<String, String> sync = this.getConnection().sync();
-        long changes = 0;
-
-        // delete key to value mappings
-        String keyToValue = this.toIndexKeyToValue(collection, property).getValue();
-        changes += sync.del(keyToValue);
-
-        // gather all used values and delete set
-        String valuesSet = this.toValuesSet(collection, property).getValue();
-        Set<String> propertyValues = sync.smembers(valuesSet);
-        changes += sync.del(valuesSet);
-
-        // delete all value to keys mappings
-        if (!propertyValues.isEmpty()) {
-            changes += sync.del(propertyValues.stream()
-                .map(value -> this.toIndexValueToKeys(collection, property, value))
-                .map(PersistencePath::getValue)
-                .toArray(String[]::new));
+    public Map<PersistencePath, Document> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
+        this.checkCollectionRegistered(collection);
+        if (paths.isEmpty()) {
+            return Collections.emptyMap();
         }
 
-        return changes > 0;
-    }
+        RedisCommands<String, String> sync = this.connection.sync();
+        String hKey = this.hashKey(collection);
 
-    @Override
-    public Set<PersistencePath> findMissingIndexes(@NonNull PersistenceCollection collection, @NonNull Set<IndexProperty> indexProperties) {
-
-        String[] args = indexProperties.stream()
-            .map(index -> this.toIndexKeyToValue(collection, index))
-            .map(PersistencePath::getValue)
-            .toArray(String[]::new);
-
-        String script = "local collection = ARGV[1]\n" +
-            "local allKeys = redis.call('hkeys', collection)\n" +
-            "local indexes = KEYS\n" +
-            "local result = {}\n" +
-            "\n" +
-            "for _, key in ipairs(allKeys) do\n" +
-            "\n" +
-            "    local present = true\n" +
-            "\n" +
-            "    for _, index in ipairs(indexes) do\n" +
-            "        if (redis.call('hexists', index, key) == 0) then\n" +
-            "            present = false\n" +
-            "            break\n" +
-            "        end\n" +
-            "    end\n" +
-            "\n" +
-            "    if not present then\n" +
-            "        result[#result+1] = key\n" +
-            "    end\n" +
-            "end\n" +
-            "\n" +
-            "return result\n";
-
-        String hashKey = this.getBasePath().sub(collection).getValue();
-        List<String> out = this.getConnection().sync().eval(script, ScriptOutputType.MULTI, args, hashKey);
-
-        return out.stream()
-            .map(PersistencePath::of)
-            .collect(Collectors.toSet());
-    }
-
-    @Override
-    public Optional<String> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-        this.checkCollectionRegistered(collection);
-        String hKey = this.getBasePath().sub(collection).getValue();
-        return Optional.ofNullable(this.getConnection().sync().hget(hKey, path.getValue()));
-    }
-
-    @Override
-    public Map<PersistencePath, String> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
-
-        this.checkCollectionRegistered(collection);
-        String hKey = this.getBasePath().sub(collection).getValue();
-        RedisCommands<String, String> sync = this.getConnection().sync();
-        Map<PersistencePath, String> map = new LinkedHashMap<>();
-
+        // Use Lua script for atomic batch read
         String script = "local collection = ARGV[1]\n" +
             "local result = {}\n" +
-            "\n" +
             "for _, key in ipairs(KEYS) do\n" +
             "    result[#result+1] = key\n" +
             "    result[#result+1] = redis.call('hget', collection, key)\n" +
             "end\n" +
-            "\n" +
             "return result\n";
 
         String[] keys = paths.stream().map(PersistencePath::getValue).toArray(String[]::new);
         List<String> result = sync.eval(script, ScriptOutputType.MULTI, keys, hKey);
 
+        Map<PersistencePath, Document> map = new LinkedHashMap<>();
         for (int i = 0; i < result.size(); i += 2) {
             String key = result.get(i);
-            String value = result.get(i + 1);
-            if (value != null) {
-                map.put(PersistencePath.of(key), value);
+            String json = result.get(i + 1);
+            if (json != null) {
+                PersistencePath path = PersistencePath.of(key);
+                map.put(path, this.serializer.deserialize(collection, path, json));
             }
         }
-
         return map;
     }
 
     @Override
-    public Map<PersistencePath, String> readAll(@NonNull PersistenceCollection collection) {
+    public Map<PersistencePath, Document> readAll(@NonNull PersistenceCollection collection) {
         this.checkCollectionRegistered(collection);
-        String hKey = this.getBasePath().sub(collection).getValue();
-        return this.getConnection().sync().hgetall(hKey).entrySet().stream()
-            .collect(Collectors.toMap(entry -> PersistencePath.of(entry.getKey()), Map.Entry::getValue));
+        Map<String, String> all = this.connection.sync().hgetall(this.hashKey(collection));
+        return all.entrySet().stream()
+            .collect(Collectors.toMap(
+                e -> PersistencePath.of(e.getKey()),
+                e -> this.serializer.deserialize(collection, PersistencePath.of(e.getKey()), e.getValue())
+            ));
     }
 
-    @Override
-    public Stream<PersistenceEntity<String>> streamAll(@NonNull PersistenceCollection collection) {
-        // Delegate to stream() to ensure batched fetching instead of loading all at once
-        // Redis is single-threaded, so fetching large hashes all at once can cause issues
-        return this.stream(collection, 100);
-    }
+    // ==================== STREAMING ====================
 
     @Override
-    public Stream<PersistenceEntity<String>> stream(@NonNull PersistenceCollection collection, int batchSize) {
-
+    public Stream<PersistenceEntity<Document>> streamAll(@NonNull PersistenceCollection collection) {
         this.checkCollectionRegistered(collection);
-        RedisCommands<String, String> sync = this.getConnection().sync();
-        String hKey = this.getBasePath().sub(collection).getValue();
+        RedisCommands<String, String> sync = this.connection.sync();
+        String hKey = this.hashKey(collection);
 
-        ScanIterator<KeyValue<String, String>> iterator = ScanIterator.hscan(sync, hKey, ScanArgs.Builder.limit(batchSize));
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<PersistenceEntity<String>>() {
+        ScanIterator<KeyValue<String, String>> iterator = ScanIterator.hscan(sync, hKey, ScanArgs.Builder.limit(100));
+        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<PersistenceEntity<Document>>() {
             @Override
             public boolean hasNext() {
                 return iterator.hasNext();
             }
 
             @Override
-            public PersistenceEntity<String> next() {
-                KeyValue<String, String> next = iterator.next();
-                return new PersistenceEntity<>(PersistencePath.of(next.getKey()), next.getValue());
+            public PersistenceEntity<Document> next() {
+                KeyValue<String, String> kv = iterator.next();
+                PersistencePath path = PersistencePath.of(kv.getKey());
+                Document doc = RedisPersistence.this.serializer.deserialize(collection, path, kv.getValue());
+                return new PersistenceEntity<>(path, doc);
             }
         }, Spliterator.ORDERED), false);
     }
 
-    @Override
-    public long count(@NonNull PersistenceCollection collection) {
-        this.checkCollectionRegistered(collection);
-        String hKey = this.getBasePath().sub(collection).getValue();
-        return this.getConnection().sync().hlen(hKey);
-    }
+    // ==================== WRITE OPERATIONS ====================
 
     @Override
-    public boolean exists(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
+    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
         this.checkCollectionRegistered(collection);
-        String hKey = this.getBasePath().sub(collection).getValue();
-        return this.getConnection().sync().hexists(hKey, path.getValue());
-    }
-
-    @Override
-    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull String raw) {
-        this.checkCollectionRegistered(collection);
-        String hKey = this.getBasePath().sub(collection).getValue();
-        this.getConnection().sync().hset(hKey, path.getValue(), raw);
+        this.serializer.setupDocument(document, collection, path);
+        String json = this.serializer.serialize(document);
+        this.connection.sync().hset(this.hashKey(collection), path.getValue(), json);
         return true;
     }
 
     @Override
-    public boolean delete(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-
+    public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, Document> documents) {
+        if (documents.isEmpty()) {
+            return 0;
+        }
         this.checkCollectionRegistered(collection);
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
 
-        if (collectionIndexes != null) {
-            collectionIndexes.forEach(index -> this.dropIndex(collection, path));
+        Map<String, String> map = new LinkedHashMap<>();
+        for (Map.Entry<PersistencePath, Document> entry : documents.entrySet()) {
+            this.serializer.setupDocument(entry.getValue(), collection, entry.getKey());
+            map.put(entry.getKey().getValue(), this.serializer.serialize(entry.getValue()));
         }
 
-        String hKey = this.getBasePath().sub(collection).getValue();
-        return this.getConnection().sync().hdel(hKey, path.getValue()) > 0;
+        this.connection.sync().hset(this.hashKey(collection), map);
+        return documents.size();
+    }
+
+    // ==================== DELETE OPERATIONS ====================
+
+    @Override
+    public boolean delete(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
+        this.checkCollectionRegistered(collection);
+        return this.connection.sync().hdel(this.hashKey(collection), path.getValue()) > 0;
     }
 
     @Override
     public long delete(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
-
         this.checkCollectionRegistered(collection);
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
-
-        if (collectionIndexes != null) {
-            for (PersistencePath path : paths) {
-                collectionIndexes.forEach(index -> this.dropIndex(collection, path));
-            }
-        }
-
-        String hKey = this.getBasePath().sub(collection).getValue();
-        String[] keysToDelete = paths.stream().map(PersistencePath::getValue).toArray(String[]::new);
-
-        if (keysToDelete.length == 0) {
+        if (paths.isEmpty()) {
             return 0;
         }
-
-        return this.getConnection().sync().hdel(hKey, keysToDelete);
+        String[] keys = paths.stream().map(PersistencePath::getValue).toArray(String[]::new);
+        return this.connection.sync().hdel(this.hashKey(collection), keys);
     }
 
     @Override
     public boolean deleteAll(@NonNull PersistenceCollection collection) {
-
         this.checkCollectionRegistered(collection);
-        Set<IndexProperty> collectionIndexes = this.getKnownIndexes().get(collection.getValue());
-
-        if (collectionIndexes != null) {
-            collectionIndexes.forEach(index -> this.dropIndex(collection, index));
-        }
-
-        String hKey = this.getBasePath().sub(collection).getValue();
-        return this.getConnection().sync().del(hKey) > 0;
+        this.cleanupLegacyIndexes(collection);
+        return this.connection.sync().del(this.hashKey(collection)) > 0;
     }
 
     @Override
     public long deleteAll() {
-        return this.getConnection().sync().del(this.getKnownCollections().keySet().toArray(new String[0]));
+        this.knownCollections.values().forEach(this::cleanupLegacyIndexes);
+        String[] keys = this.knownCollections.values().stream()
+            .map(this::hashKey)
+            .toArray(String[]::new);
+        if (keys.length == 0) {
+            return 0;
+        }
+        return this.connection.sync().del(keys);
+    }
+
+    /**
+     * Cleanup legacy emulated index keys from pre-v3 persistence.
+     * Legacy keys follow pattern: basePath:collection:index:*
+     */
+    private void cleanupLegacyIndexes(@NonNull PersistenceCollection collection) {
+        RedisCommands<String, String> sync = this.connection.sync();
+        String indexPattern = this.basePath.sub(collection).sub("index").getValue() + ":*";
+
+        // Use SCAN to find all legacy index keys
+        ScanIterator<String> iterator = ScanIterator.scan(sync, ScanArgs.Builder.matches(indexPattern).limit(1000));
+        List<String> keysToDelete = new ArrayList<>();
+
+        while (iterator.hasNext()) {
+            keysToDelete.add(iterator.next());
+            // Delete in batches to avoid memory issues
+            if (keysToDelete.size() >= 1000) {
+                sync.del(keysToDelete.toArray(new String[0]));
+                keysToDelete.clear();
+            }
+        }
+
+        // Delete remaining keys
+        if (!keysToDelete.isEmpty()) {
+            sync.del(keysToDelete.toArray(new String[0]));
+        }
     }
 
     @Override
     public void close() throws IOException {
-        this.getConnection().close();
-        this.getClient().shutdown();
-    }
-
-    private PersistencePath toIndexValueToKeys(PersistenceCollection collection, PersistencePath property, String propertyValue) {
-        return this.getBasePath().sub(collection).sub("index").sub(property).sub("value_to_keys").sub(propertyValue);
-    }
-
-    private PersistencePath toIndexKeyToValue(PersistenceCollection collection, PersistencePath property) {
-        return this.getBasePath().sub(collection).sub("index").sub(property).sub("key_to_value");
-    }
-
-    private PersistencePath toValuesSet(PersistenceCollection collection, PersistencePath property) {
-        return this.getBasePath().sub(collection).sub("index").sub(property).sub("values");
+        this.connection.close();
+        this.client.shutdown();
     }
 }

@@ -472,7 +472,7 @@ public class UpdateOperationsE2ETest extends E2ETestBase {
             .pullAll("tags", "remove")  // PULL_ALL on tags
             .push("tags", "new")))      // PUSH on tags - CONFLICT!
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("multiple operations on the same field")
+            .hasMessageContaining("Multiple operations on same field(s)")
             .hasMessageContaining("tags");
     }
 
@@ -487,7 +487,7 @@ public class UpdateOperationsE2ETest extends E2ETestBase {
             .increment("exp", 50)    // INCREMENT on exp
             .multiply("exp", 2)))    // MULTIPLY on exp - CONFLICT!
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("multiple operations on the same field")
+            .hasMessageContaining("Multiple operations on same field(s)")
             .hasMessageContaining("exp");
     }
 
@@ -521,12 +521,12 @@ public class UpdateOperationsE2ETest extends E2ETestBase {
         alice.setTags(Arrays.asList("first", "middle1", "middle2", "last"));
         btc.getUserRepository().save(alice);
 
-        // Multiple operations on the same field should be rejected, even if same type
+        // Multiple operations on same field(s) should be rejected, even if same type
         assertThatThrownBy(() -> btc.getUserRepository().updateOne(alice.getId(), u -> u
             .popFirst("tags")      // POP_FIRST on tags
             .popFirst("tags")))    // POP_FIRST on tags again - CONFLICT!
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("multiple operations on the same field")
+            .hasMessageContaining("Multiple operations on same field(s)")
             .hasMessageContaining("tags");
     }
 

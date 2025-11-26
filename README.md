@@ -10,7 +10,7 @@ Object Document Mapping (ODM) library for Java - write your data layer once, run
 - **Write Once, Run Anywhere**: Swap databases with one line - the core Java philosophy (without the XML hell)
 - **Fluent Query DSL**: Basic filtering, ordering, and pagination across all backends (native translation for MongoDB/PostgreSQL, in-memory evaluation for others)
 - **Repository Pattern**: Annotate fields and get auto-implemented finders - simple but effective
-- **Unified Indexing**: Declare indexes once, backends create native indexes when supported or emulate them
+- **Unified Indexing**: Declare indexes once, backends create native indexes when supported
 - **Document-Based**: Store data as JSON/YAML documents - flexible but not schema-free
 - **Streaming Support**: Process large datasets with Java streams and automatic batching
 
@@ -41,15 +41,15 @@ Pick one (or multiple):
 | **MongoDB**    | `okaeri-persistence-mongo`  | Uses the official MongoDB driver. Native document store with automatic index creation and native filtering by properties.                    |
 | **PostgreSQL** | `okaeri-persistence-jdbc`   | Uses the official PostgreSQL JDBC driver with HikariCP. Stores documents as JSONB with native GIN indexes and JSONB operators for filtering. |
 
-**Emulated/Workaround Storage:**
+**Other Storage:**
 
-| Backend        | Artifact                    | Description                                                                                                                                                                                    |
-|----------------|-----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **H2**         | `okaeri-persistence-jdbc`   | Uses HikariCP with H2 in `mode=mysql`. Stores documents as native JSON type with native query translation using field reference syntax `(column)."field"`. Emulated indexes in separate table. |
-| **MariaDB**    | `okaeri-persistence-jdbc`   | Uses HikariCP with MariaDB. Stores documents using native JSON datatype with native query translation (`JSON_EXTRACT`, `JSON_UNQUOTE`). Emulated indexes in separate table.              |
-| **Redis**      | `okaeri-persistence-redis`  | Uses Lettuce client. Stores JSON as strings with Lua script-based filtering and hash/set secondary indexes. Filtering is slower than native document stores.                                   |
-| **Flat Files** | `okaeri-persistence-flat`   | File-based storage using any okaeri-configs format (YAML/JSON/HOCON). In-memory or file-based indexes.                                                                                         |
-| **In-Memory**  | `okaeri-persistence-core`   | Pure in-memory storage with HashMap-based indexes. Zero persistence, excellent performance.                                                                                                    |
+| Backend        | Artifact                    | Description                                                                                                                                                                                |
+|----------------|-----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **MariaDB**    | `okaeri-persistence-jdbc`   | Uses HikariCP with MariaDB. Stores documents using native JSON datatype with native query translation (`JSON_EXTRACT`, `JSON_UNQUOTE`). Native indexes via stored generated columns.       |
+| **H2**         | `okaeri-persistence-jdbc`   | Uses HikariCP with H2. Stores documents as native JSON type with native query translation using field reference syntax `(value)."field"`. No index support (no performance gain).            |
+| **Redis**      | `okaeri-persistence-redis`  | Uses Lettuce client. Stores JSON as strings in Redis hashes. No index support - filtering done in memory.                                                                                  |
+| **Flat Files** | `okaeri-persistence-flat`   | File-based storage using any okaeri-configs format (YAML/JSON/HOCON). In-memory indexes.                                                                                                   |
+| **In-Memory**  | `okaeri-persistence-core`   | Pure in-memory storage with in-memory indexes. Zero persistence, excellent performance.                                                                                               |
 
 ## Installation
 
@@ -108,7 +108,7 @@ public class User extends Document {
     path = "users",
     // keyLength auto-detected: UUID=36, Integer=11, Long=20, others=255
     indexes = {
-        @DocumentIndex(path = "name", maxLength = 32),  // Optional (default 255). Used only by H2/MariaDB
+        @DocumentIndex(path = "name", maxLength = 32),  // Optional (default 255). Used only by MariaDB
         @DocumentIndex(path = "level")
     }
 )
@@ -131,8 +131,7 @@ import static eu.okaeri.persistence.filter.predicate.SimplePredicate.*;
 // Setup (MongoDB example - swap for any backend)
 MongoClient mongo = MongoClients.create("mongodb://localhost");
 DocumentPersistence persistence = new DocumentPersistence(
-    new MongoPersistence(mongo, "mydb"),
-    JsonSimpleConfigurer::new
+    new MongoPersistence(mongo, "mydb", JsonSimpleConfigurer::new)
 );
 
 // Create repository (convenience method)
@@ -455,24 +454,79 @@ Change one line, everything else stays the same:
 
 ```java
 // MongoDB
-new DocumentPersistence(new MongoPersistence(mongoClient, "mydb"), JsonSimpleConfigurer::new);
+new DocumentPersistence(new MongoPersistence(mongoClient, "mydb", JsonSimpleConfigurer::new));
 
 // PostgreSQL
-new DocumentPersistence(new PostgresPersistence(hikariDataSource), JsonSimpleConfigurer::new);
+new DocumentPersistence(new PostgresPersistence(hikariDataSource, JsonSimpleConfigurer::new));
+
+// MariaDB
+new DocumentPersistence(new MariaDbPersistence(hikariDataSource, JsonSimpleConfigurer::new));
+
+// H2
+new DocumentPersistence(new H2Persistence(hikariDataSource, JsonSimpleConfigurer::new));
 
 // Redis
-new DocumentPersistence(new RedisPersistence(redisClient), JsonSimpleConfigurer::new);
+new DocumentPersistence(new RedisPersistence(redisClient, JsonSimpleConfigurer::new));
 
 // Flat files (YAML/JSON/HOCON)
-new DocumentPersistence(new FlatPersistence(new File("./data"), ".yml", YamlBukkitConfigurer::new), YamlBukkitConfigurer::new);
+new DocumentPersistence(new FlatPersistence(new File("./data"), YamlBukkitConfigurer::new));
 
 // In-memory (volatile, no persistence)
-new DocumentPersistence(new InMemoryDocumentPersistence(), JsonSimpleConfigurer::new);
+new DocumentPersistence(new InMemoryPersistence());
 ```
 
-**Namespace support**: Add `PersistencePath.of("prefix")` as first parameter to prevent collection name conflicts when multiple apps share storage (e.g., `new MongoPersistence(PersistencePath.of("app"), mongoClient, "mydb")`).
+**Namespace support**: Add `PersistencePath.of("prefix")` as first parameter to prevent collection name conflicts when multiple apps share storage (e.g., `new MongoPersistence(PersistencePath.of("app"), mongoClient, "mydb", JsonSimpleConfigurer::new)`).
 
 Your repositories, queries, and business logic stay the same.
+
+### Builder API
+
+All backends support a fluent builder pattern for more explicit configuration:
+
+```java
+// MongoDB with builder
+MongoPersistence.builder()
+    .client(mongoClient)
+    .databaseName("mydb")
+    .configurer(JsonSimpleConfigurer::new)
+    .serdes(new MySerdesPack())  // optional
+    .basePath("myapp")           // optional namespace prefix
+    .build();
+
+// PostgreSQL with builder
+PostgresPersistence.builder()
+    .hikariConfig(hikariConfig)  // or .dataSource(hikariDataSource)
+    .configurer(JsonSimpleConfigurer::new)
+    .serdes(new MySerdesPack())
+    .basePath("myapp")
+    .build();
+
+// MariaDB with builder
+MariaDbPersistence.builder()
+    .hikariConfig(hikariConfig)  // or .dataSource(hikariDataSource)
+    .configurer(JsonSimpleConfigurer::new)
+    .build();
+
+// H2 with builder
+H2Persistence.builder()
+    .hikariConfig(hikariConfig)  // or .dataSource(hikariDataSource)
+    .configurer(JsonSimpleConfigurer::new)
+    .build();
+
+// Redis with builder
+RedisPersistence.builder()
+    .client(redisClient)
+    .configurer(JsonSimpleConfigurer::new)
+    .basePath("myapp")
+    .build();
+
+// Flat files with builder
+FlatPersistence.builder()
+    .storageDir(new File("./data"))  // or .storageDir(Path.of("./data"))
+    .configurer(YamlBukkitConfigurer::new)
+    .extension("yml")                 // optional: override auto-detected extension
+    .build();
+```
 
 ## Indexing
 
@@ -483,7 +537,7 @@ Declare indexes once in your `@DocumentCollection`:
     path = "users",
     // keyLength auto-detected: UUID=36, Integer=11, Long=20, others=255 (override by specifying explicitly)
     indexes = {
-        @DocumentIndex(path = "username", maxLength = 32),  // Optional (default: 255). Used only by H2/MariaDB
+        @DocumentIndex(path = "username", maxLength = 32),  // Optional (default: 255). Used only by MariaDB
         @DocumentIndex(path = "email"),
         @DocumentIndex(path = "profile.age"),
         @DocumentIndex(path = "settings.notifications.email")
@@ -491,17 +545,17 @@ Declare indexes once in your `@DocumentCollection`:
 )
 ```
 
-| Backend         | keyLength Usage      | maxLength Usage          | Index Type                   |
-|-----------------|----------------------|--------------------------|------------------------------|
-| **MongoDB**     | Ignored              | Ignored                  | Native `createIndex()`       |
-| **PostgreSQL**  | Uses for key VARCHAR | Ignored (uses JSONB GIN) | Native JSONB GIN indexes     |
-| **H2**          | Uses for key VARCHAR | Uses for index VARCHAR   | Emulated (separate table)    |
-| **MariaDB**     | Uses for key VARCHAR | Uses for index VARCHAR   | Emulated (separate table)    |
-| **Redis**       | Ignored              | Ignored                  | Hash-based secondary indexes |
-| **Flat/Memory** | Ignored              | Ignored                  | In-memory HashMap            |
+| Backend         | keyLength Usage      | maxLength Usage                    | Index Type                              |
+|-----------------|----------------------|------------------------------------|-----------------------------------------|
+| **MongoDB**     | Ignored              | Ignored                            | Native `createIndex()`                  |
+| **PostgreSQL**  | Uses for key VARCHAR | Ignored (uses JSONB GIN)           | Native JSONB expression indexes         |
+| **MariaDB**     | Uses for key VARCHAR | Uses for generated column VARCHAR  | Native stored generated columns         |
+| **H2**          | Uses for key VARCHAR | Ignored                            | None (no performance gain)              |
+| **Redis**       | Ignored              | Ignored                            | None                                    |
+| **Flat/Memory** | Ignored              | Ignored                            | In-memory (TreeMap + HashMap, O(log n)) |
 
 - `keyLength` auto-detected (UUID=36, Integer=11, Long=20, others=255) - used by JDBC backends for primary key VARCHAR
-- `maxLength` only used by H2/MariaDB for emulated indexes - **NOT PostgreSQL!**
+- `maxLength` used by MariaDB for generated column VARCHAR size
 - Indexes speed up reads but slow writes - use sparingly
 
 ## Streaming Datasets
@@ -690,26 +744,26 @@ List<UserAccount> moderators = accounts.find(q -> q
 
 ## Backend Comparison
 
-| Backend        | Indexes        | Query DSL | Update DSL               | Best For                 |
-|----------------|----------------|-----------|--------------------------|--------------------------|
-| **MongoDB**    | Native         | Native    | Native (atomic)          | Document workloads       |
-| **PostgreSQL** | JSONB GIN      | Native    | Native (atomic)          | Already using Postgres   |
-| **MariaDB**    | Emulated table | Native    | Native (atomic)*         | Already using MariaDB    |
-| **H2**         | Emulated table | Native    | In-memory                | Testing/Embedded         |
-| **Redis**      | Hash+Set       | In-memory | In-memory                | Fast key-value access    |
-| **Flat Files** | File/Memory    | In-memory | In-memory                | Config files, small apps |
-| **In-Memory**  | HashMap        | In-memory | In-memory (synchronized) | Testing, temp state      |
+| Backend        | Indexes          | Query DSL | Update DSL               | Best For                 |
+|----------------|------------------|-----------|--------------------------|--------------------------|
+| **MongoDB**    | Native           | Native    | Native (atomic)          | Document workloads       |
+| **PostgreSQL** | Native (JSONB)   | Native    | Native (atomic)          | Already using Postgres   |
+| **MariaDB**    | Native (stored)  | Native    | Native (atomic)*         | Already using MariaDB    |
+| **H2**         | None             | Native    | In-memory                | Testing/Embedded         |
+| **Redis**      | None             | In-memory | In-memory                | Fast key-value access    |
+| **Flat Files** | In-memory        | In-memory | In-memory                | Config files, small apps |
+| **In-Memory**  | In-memory        | In-memory | In-memory (synchronized) | Testing, temp state      |
 
 ## Configurer Support
 
 Serialization formats from [okaeri-configs](https://github.com/OkaeriPoland/okaeri-configs):
 
 ```java
-// JSON (all backends)
-new DocumentPersistence(backend, JsonSimpleConfigurer::new)
+// JSON (all backends) - configurer passed to backend constructor
+new DocumentPersistence(new MongoPersistence(mongoClient, "mydb", JsonSimpleConfigurer::new))
 
 // YAML/HOCON/TOML (flat files only)
-new DocumentPersistence(new FlatPersistence(new File("./data"), ".yml", YamlBukkitConfigurer::new), YamlBukkitConfigurer::new)
+new DocumentPersistence(new FlatPersistence(new File("./data"), YamlBukkitConfigurer::new))
 ```
 
 MongoDB, PostgreSQL, Redis, and In-Memory use JSON. Flat Files support any format.

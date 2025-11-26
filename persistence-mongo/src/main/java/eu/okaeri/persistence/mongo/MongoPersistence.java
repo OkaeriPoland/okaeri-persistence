@@ -1,14 +1,18 @@
 package eu.okaeri.persistence.mongo;
 
 import com.mongodb.BasicDBObject;
+import com.mongodb.bulk.BulkWriteResult;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.*;
-import eu.okaeri.persistence.PersistenceCollection;
-import eu.okaeri.persistence.PersistenceEntity;
-import eu.okaeri.persistence.PersistencePath;
+import com.mongodb.client.result.UpdateResult;
+import eu.okaeri.configs.serdes.OkaeriSerdesPack;
+import eu.okaeri.persistence.*;
+import eu.okaeri.persistence.document.ConfigurerProvider;
+import eu.okaeri.persistence.document.Document;
+import eu.okaeri.persistence.document.DocumentSerializer;
 import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.filter.UpdateFilter;
@@ -16,82 +20,248 @@ import eu.okaeri.persistence.filter.operation.UpdateOperation;
 import eu.okaeri.persistence.filter.renderer.FilterRenderer;
 import eu.okaeri.persistence.mongo.filter.MongoFilterRenderer;
 import eu.okaeri.persistence.mongo.filter.MongoUpdateRenderer;
-import eu.okaeri.persistence.raw.NativeRawPersistence;
+import eu.okaeri.persistence.util.ConnectionRetry;
 import lombok.Getter;
 import lombok.NonNull;
-import lombok.SneakyThrows;
-import org.bson.Document;
 import org.bson.conversions.Bson;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class MongoPersistence extends NativeRawPersistence {
+/**
+ * MongoDB persistence backend with full native filtering, indexing, and updates.
+ */
+public class MongoPersistence implements Persistence, FilterablePersistence, StreamablePersistence, UpdatablePersistence {
 
+    private static final boolean DEBUG = Boolean.parseBoolean(System.getProperty("okaeri.platform.debug", "false"));
     private static final Logger LOGGER = Logger.getLogger(MongoPersistence.class.getSimpleName());
     private static final ReplaceOptions REPLACE_OPTIONS = new ReplaceOptions().upsert(true);
-    private static final FilterRenderer FILTER_RENDERER = new MongoFilterRenderer(); // TODO: allow customization
+    private static final FilterRenderer FILTER_RENDERER = new MongoFilterRenderer();
     private static final MongoUpdateRenderer UPDATE_RENDERER = new MongoUpdateRenderer();
 
-    @Getter private MongoClient client;
-    @Getter private MongoDatabase database;
+    private final @Getter PersistencePath basePath;
+    private @Getter MongoClient client;
+    private @Getter MongoDatabase database;
 
-    public MongoPersistence(@NonNull PersistencePath basePath, @NonNull MongoClient client, @NonNull String databaseName) {
-        super(basePath);
+    private final @Getter DocumentSerializer serializer;
+    private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
+
+    public MongoPersistence(@NonNull PersistencePath basePath, @NonNull MongoClient client, @NonNull String databaseName,
+                            @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+        this.basePath = basePath;
+        this.serializer = new DocumentSerializer(configurerProvider, serdesPacks);
         this.connect(client, databaseName);
     }
 
-    public MongoPersistence(@NonNull MongoClient client, @NonNull String databaseName) {
-        this(PersistencePath.of(""), client, databaseName);
+    public MongoPersistence(@NonNull MongoClient client, @NonNull String databaseName,
+                            @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+        this(PersistencePath.of(""), client, databaseName, configurerProvider, serdesPacks);
     }
 
-    @SneakyThrows
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private PersistencePath basePath;
+        private MongoClient client;
+        private String databaseName;
+        private ConfigurerProvider configurerProvider;
+        private OkaeriSerdesPack[] serdesPacks = new OkaeriSerdesPack[0];
+
+        public Builder basePath(@NonNull String basePath) {
+            this.basePath = PersistencePath.of(basePath);
+            return this;
+        }
+
+        public Builder basePath(@NonNull PersistencePath basePath) {
+            this.basePath = basePath;
+            return this;
+        }
+
+        public Builder client(@NonNull MongoClient client) {
+            this.client = client;
+            return this;
+        }
+
+        public Builder databaseName(@NonNull String databaseName) {
+            this.databaseName = databaseName;
+            return this;
+        }
+
+        public Builder configurer(@NonNull ConfigurerProvider configurerProvider) {
+            this.configurerProvider = configurerProvider;
+            return this;
+        }
+
+        public Builder serdes(@NonNull OkaeriSerdesPack... packs) {
+            this.serdesPacks = packs;
+            return this;
+        }
+
+        public MongoPersistence build() {
+            if (this.client == null) {
+                throw new IllegalStateException("client is required");
+            }
+            if (this.databaseName == null) {
+                throw new IllegalStateException("databaseName is required");
+            }
+            if (this.configurerProvider == null) {
+                throw new IllegalStateException("configurer is required");
+            }
+            PersistencePath path = (this.basePath != null) ? this.basePath : PersistencePath.of("");
+            return new MongoPersistence(path, this.client, this.databaseName, this.configurerProvider, this.serdesPacks);
+        }
+    }
+
     private void connect(@NonNull MongoClient client, @NonNull String databaseName) {
-        do {
-            try {
-                this.client = client;
+        this.client = client;
+        this.database = ConnectionRetry.of(this.basePath.getValue())
+            .connector(() -> {
                 MongoDatabase database = client.getDatabase(databaseName);
                 database.runCommand(new org.bson.Document("ping", 1));
-                this.database = database;
-            } catch (Exception exception) {
-                if (exception.getCause() != null) {
-                    LOGGER.severe("[" + this.getBasePath().getValue() + "] Cannot connect with database (waiting 30s): " + exception.getMessage() + " caused by " + exception.getCause().getMessage());
-                } else {
-                    LOGGER.severe("[" + this.getBasePath().getValue() + "] Cannot connect with database (waiting 30s): " + exception.getMessage());
-                }
-                Thread.sleep(30_000);
-            }
-        } while (this.database == null);
+                return database;
+            })
+            .connect();
     }
+
+    // ==================== COLLECTION MANAGEMENT ====================
 
     @Override
     public void registerCollection(@NonNull PersistenceCollection collection) {
+        this.knownCollections.computeIfAbsent(collection.getValue(), key -> {
+            // Create native indexes (only once per collection)
+            if (!collection.getIndexes().isEmpty()) {
+                List<IndexModel> indexModels = collection.getIndexes().stream()
+                    .map(index -> new IndexModel(Indexes.ascending(index.getValue())))
+                    .collect(Collectors.toList());
+                this.mongo(collection).createIndexes(indexModels);
+            }
+            return collection;
+        });
+    }
 
-        if (!collection.getIndexes().isEmpty()) {
-            List<IndexModel> indexModels = collection.getIndexes().stream()
-                .map(index -> new IndexModel(Indexes.ascending(index.getValue())))
-                .collect(Collectors.toList());
-            this.mongo(collection).createIndexes(indexModels);
+    private void checkCollectionRegistered(@NonNull PersistenceCollection collection) {
+        if (!this.knownCollections.containsKey(collection.getValue())) {
+            throw new IllegalArgumentException("Collection not registered: " + collection.getValue());
         }
+    }
 
-        super.registerCollection(collection);
+    private MongoCollection<BasicDBObject> mongo(@NonNull PersistenceCollection collection) {
+        String identifier = this.basePath.sub(collection).toSqlIdentifier();
+        return this.database.getCollection(identifier, BasicDBObject.class);
+    }
+
+    private String debugQuery(@NonNull String query) {
+        if (DEBUG) {
+            System.out.println("[MongoDB] " + query);
+        }
+        return query;
+    }
+
+    // ==================== READ OPERATIONS ====================
+
+    @Override
+    public boolean exists(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
+        this.checkCollectionRegistered(collection);
+        return this.read(collection, path).isPresent();
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> readByFilter(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
+    public long count(@NonNull PersistenceCollection collection) {
+        this.checkCollectionRegistered(collection);
+        return this.mongo(collection).countDocuments();
+    }
+
+    @Override
+    public Optional<Document> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
+        this.checkCollectionRegistered(collection);
+        BasicDBObject result = this.mongo(collection).find()
+            .filter(Filters.eq("_id", path.getValue()))
+            .first();
+
+        if (result == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(this.transformMongoObject(collection, path, result));
+    }
+
+    @Override
+    public Map<PersistencePath, Document> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
+        this.checkCollectionRegistered(collection);
+        if (paths.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<String> keys = paths.stream()
+            .map(PersistencePath::getValue)
+            .collect(Collectors.toList());
+
+        Map<PersistencePath, Document> result = new LinkedHashMap<>();
+        this.mongo(collection).find()
+            .filter(Filters.in("_id", keys))
+            .forEach(object -> {
+                PersistencePath path = PersistencePath.of(object.getString("_id"));
+                result.put(path, this.transformMongoObject(collection, path, object));
+            });
+
+        return result;
+    }
+
+    @Override
+    public Map<PersistencePath, Document> readAll(@NonNull PersistenceCollection collection) {
+        return this.streamAll(collection).collect(Collectors.toMap(
+            PersistenceEntity::getPath,
+            PersistenceEntity::getValue
+        ));
+    }
+
+    // ==================== STREAMING ====================
+
+    @Override
+    public Stream<PersistenceEntity<Document>> streamAll(@NonNull PersistenceCollection collection) {
+        this.checkCollectionRegistered(collection);
+        return StreamSupport.stream(this.mongo(collection).find()
+            .map(object -> {
+                PersistencePath path = PersistencePath.of(object.getString("_id"));
+                return new PersistenceEntity<>(path, this.transformMongoObject(collection, path, object));
+            })
+            .spliterator(), false);
+    }
+
+    @Override
+    public Stream<PersistenceEntity<Document>> stream(@NonNull PersistenceCollection collection, int batchSize) {
+        this.checkCollectionRegistered(collection);
+        return StreamSupport.stream(this.mongo(collection).find()
+            .batchSize(batchSize)
+            .map(object -> {
+                PersistencePath path = PersistencePath.of(object.getString("_id"));
+                return new PersistenceEntity<>(path, this.transformMongoObject(collection, path, object));
+            })
+            .spliterator(), false);
+    }
+
+    // ==================== FILTERING ====================
+
+    @Override
+    public Stream<PersistenceEntity<Document>> find(@NonNull PersistenceCollection collection, @NonNull FindFilter filter) {
+        this.checkCollectionRegistered(collection);
 
         FindIterable<BasicDBObject> findIterable = this.mongo(collection).find();
 
         if (filter.getWhere() != null) {
-            findIterable = findIterable.filter(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere()))));
+            findIterable = findIterable.filter(org.bson.Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere()))));
         }
 
         if (filter.hasOrderBy()) {
-            findIterable = findIterable.sort(Document.parse(this.debugQuery(FILTER_RENDERER.renderOrderBy(filter.getOrderBy()))));
+            findIterable = findIterable.sort(org.bson.Document.parse(this.debugQuery(FILTER_RENDERER.renderOrderBy(filter.getOrderBy()))));
         }
 
         if (filter.hasLimit()) {
@@ -102,166 +272,46 @@ public class MongoPersistence extends NativeRawPersistence {
             findIterable = findIterable.skip(filter.getSkip());
         }
 
-        Spliterator<PersistenceEntity<String>> iterator = findIterable
-            .map(object -> this.transformMongoObject(collection, object))
-            .spliterator();
-
-        return StreamSupport.stream(iterator, false);
-    }
-
-    @Override
-    public Optional<String> read(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-        return Optional.ofNullable(this.mongo(collection).find()
-            .filter(Filters.eq("_id", path.getValue()))
-            .map(object -> this.transformMongoObject(collection, object).getValue())
-            .first());
-    }
-
-    @Override
-    public Map<PersistencePath, String> read(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
-
-        if (paths.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        List<String> keys = paths.stream()
-            .map(PersistencePath::getValue)
-            .collect(Collectors.toList());
-
-        return this.mongo(collection).find()
-            .filter(Filters.in("_id", keys))
-            .map(object -> this.transformMongoObject(collection, object))
-            .into(new ArrayList<>())
-            .stream()
-            .collect(Collectors.toMap(PersistenceEntity::getPath, PersistenceEntity::getValue));
-    }
-
-    @Override
-    public Map<PersistencePath, String> readAll(@NonNull PersistenceCollection collection) {
-        return this.streamAll(collection).collect(Collectors.toMap(
-            PersistenceEntity::getPath,
-            PersistenceEntity::getValue
-        ));
-    }
-
-    @Override
-    public Stream<PersistenceEntity<String>> streamAll(@NonNull PersistenceCollection collection) {
-        return StreamSupport.stream(this.mongo(collection).find()
-            .map(object -> this.transformMongoObject(collection, object))
+        return StreamSupport.stream(findIterable
+            .map(object -> {
+                PersistencePath path = PersistencePath.of(object.getString("_id"));
+                return new PersistenceEntity<>(path, this.transformMongoObject(collection, path, object));
+            })
             .spliterator(), false);
     }
 
     @Override
-    public Stream<PersistenceEntity<String>> stream(@NonNull PersistenceCollection collection, int batchSize) {
-        return StreamSupport.stream(this.mongo(collection).find()
-            .batchSize(batchSize) // MongoDB driver cursor batch size hint
-            .map(object -> this.transformMongoObject(collection, object))
-            .spliterator(), false);
-    }
+    public long delete(@NonNull PersistenceCollection collection, @NonNull DeleteFilter filter) {
+        this.checkCollectionRegistered(collection);
 
-    @Override
-    public long count(@NonNull PersistenceCollection collection) {
-        return this.mongo(collection).countDocuments();
-    }
-
-    @Override
-    public boolean exists(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-        return this.read(collection, path).isPresent();
-    }
-
-    @Override
-    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull String document) {
-        BasicDBObject data = BasicDBObject.parse(document);
-        data.put("_id", path.getValue());
-        Bson filters = Filters.in("_id", path.getValue());
-        return this.mongo(collection).replaceOne(filters, data, REPLACE_OPTIONS).getModifiedCount() > 0;
-    }
-
-    @Override
-    public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, String> entities) {
-
-        if (entities.isEmpty()) {
-            return 0;
-        }
-
-        return this.mongo(collection)
-            .bulkWrite(entities.entrySet().stream()
-                .map(entry -> {
-                    BasicDBObject data = BasicDBObject.parse(entry.getValue());
-                    data.put("_id", entry.getKey().getValue());
-                    return data;
-                })
-                .map(document -> new ReplaceOneModel<>(
-                    Filters.in("_id", document.get("_id")),
-                    document,
-                    REPLACE_OPTIONS
-                ))
-                .collect(Collectors.toList()))
-            .getModifiedCount();
-    }
-
-    @Override
-    public boolean delete(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
-        return this.mongo(collection)
-            .deleteOne(Filters.eq("_id", path.getValue()))
-            .getDeletedCount() > 0;
-    }
-
-    @Override
-    public long delete(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
-
-        List<String> keys = paths.stream()
-            .map(PersistencePath::getValue)
-            .collect(Collectors.toList());
-
-        return this.mongo(collection)
-            .deleteMany(Filters.in("_id", keys))
-            .getDeletedCount();
-    }
-
-    @Override
-    public boolean deleteAll(@NonNull PersistenceCollection collection) {
-        // Use deleteMany instead of drop() to preserve indexes
-        return this.mongo(collection).deleteMany(new Document()).getDeletedCount() >= 0;
-    }
-
-    @Override
-    public long deleteAll() {
-        return this.getKnownCollections().values().stream()
-            .map(this::deleteAll)
-            .filter(Boolean::booleanValue)
-            .count();
-    }
-
-    @Override
-    public long deleteByFilter(@NonNull PersistenceCollection collection, @NonNull DeleteFilter filter) {
         if (filter.getWhere() == null) {
-            throw new IllegalArgumentException("deleteByFilter requires a WHERE condition - use deleteAll() to clear collection");
+            throw new IllegalArgumentException("DeleteFilter requires WHERE condition - use deleteAll() instead");
         }
+
         return this.mongo(collection)
-            .deleteMany(Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere()))))
+            .deleteMany(org.bson.Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere()))))
             .getDeletedCount();
     }
 
-    // ===== UPDATE OPERATIONS =====
+    // ==================== UPDATES ====================
 
     @Override
     public boolean updateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        this.checkCollectionRegistered(collection);
 
-        Document updateDoc = UPDATE_RENDERER.render(operations);
+        org.bson.Document updateDoc = UPDATE_RENDERER.render(operations);
         this.debugQuery(updateDoc.toJson());
 
-        // Use getMatchedCount() - returns true if document exists, even if no fields changed
-        // This is correct for operations like $min/$max where the value might not change
         return this.mongo(collection)
             .updateOne(Filters.eq("_id", path.getValue()), updateDoc)
             .getMatchedCount() > 0;
     }
 
     @Override
-    public Optional<String> updateOneAndGet(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+    public Optional<Document> updateOneAndGet(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        this.checkCollectionRegistered(collection);
 
-        Document updateDoc = UPDATE_RENDERER.render(operations);
+        org.bson.Document updateDoc = UPDATE_RENDERER.render(operations);
         this.debugQuery(updateDoc.toJson());
 
         BasicDBObject result = this.mongo(collection)
@@ -275,13 +325,14 @@ public class MongoPersistence extends NativeRawPersistence {
             return Optional.empty();
         }
 
-        return Optional.of(this.transformMongoObject(collection, result).getValue());
+        return Optional.of(this.transformMongoObject(collection, path, result));
     }
 
     @Override
-    public Optional<String> getAndUpdateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+    public Optional<Document> getAndUpdateOne(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull List<UpdateOperation> operations) {
+        this.checkCollectionRegistered(collection);
 
-        Document updateDoc = UPDATE_RENDERER.render(operations);
+        org.bson.Document updateDoc = UPDATE_RENDERER.render(operations);
         this.debugQuery(updateDoc.toJson());
 
         BasicDBObject result = this.mongo(collection)
@@ -295,38 +346,121 @@ public class MongoPersistence extends NativeRawPersistence {
             return Optional.empty();
         }
 
-        return Optional.of(this.transformMongoObject(collection, result).getValue());
+        return Optional.of(this.transformMongoObject(collection, path, result));
     }
 
     @Override
     public long update(@NonNull PersistenceCollection collection, @NonNull UpdateFilter filter) {
+        this.checkCollectionRegistered(collection);
 
         if (filter.getWhere() == null) {
             throw new IllegalArgumentException("update requires a WHERE condition - use updateOne() for single document updates");
         }
 
-        Document updateDoc = UPDATE_RENDERER.render(filter.getOperations());
+        org.bson.Document updateDoc = UPDATE_RENDERER.render(filter.getOperations());
         this.debugQuery(updateDoc.toJson());
-        Document whereDoc = Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere())));
+        org.bson.Document whereDoc = org.bson.Document.parse(this.debugQuery(FILTER_RENDERER.renderCondition(filter.getWhere())));
 
         return this.mongo(collection)
             .updateMany(whereDoc, updateDoc)
             .getModifiedCount();
     }
 
+    // ==================== WRITE OPERATIONS ====================
+
+    @Override
+    public boolean write(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull Document document) {
+        this.checkCollectionRegistered(collection);
+        this.serializer.setupDocument(document, collection, path);
+
+        String json = this.serializer.serialize(document);
+        BasicDBObject data = BasicDBObject.parse(json);
+        data.put("_id", path.getValue());
+        Bson filters = Filters.eq("_id", path.getValue());
+
+        UpdateResult result = this.mongo(collection).replaceOne(filters, data, REPLACE_OPTIONS);
+        return result.getModifiedCount() > 0 || result.getUpsertedId() != null;
+    }
+
+    @Override
+    public long write(@NonNull PersistenceCollection collection, @NonNull Map<PersistencePath, Document> documents) {
+        if (documents.isEmpty()) {
+            return 0;
+        }
+        this.checkCollectionRegistered(collection);
+
+        List<ReplaceOneModel<BasicDBObject>> operations = new ArrayList<>();
+        for (Map.Entry<PersistencePath, Document> entry : documents.entrySet()) {
+            PersistencePath path = entry.getKey();
+            Document document = entry.getValue();
+            this.serializer.setupDocument(document, collection, path);
+
+            String json = this.serializer.serialize(document);
+            BasicDBObject data = BasicDBObject.parse(json);
+            data.put("_id", path.getValue());
+
+            operations.add(new ReplaceOneModel<>(
+                Filters.eq("_id", data.get("_id")),
+                data,
+                REPLACE_OPTIONS
+            ));
+        }
+
+        BulkWriteResult result = this.mongo(collection).bulkWrite(operations);
+        return result.getModifiedCount() + result.getUpserts().size();
+    }
+
+    // ==================== DELETE OPERATIONS ====================
+
+    @Override
+    public boolean delete(@NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
+        this.checkCollectionRegistered(collection);
+        return this.mongo(collection)
+            .deleteOne(Filters.eq("_id", path.getValue()))
+            .getDeletedCount() > 0;
+    }
+
+    @Override
+    public long delete(@NonNull PersistenceCollection collection, @NonNull Collection<PersistencePath> paths) {
+        this.checkCollectionRegistered(collection);
+        if (paths.isEmpty()) {
+            return 0;
+        }
+
+        List<String> keys = paths.stream()
+            .map(PersistencePath::getValue)
+            .collect(Collectors.toList());
+
+        return this.mongo(collection)
+            .deleteMany(Filters.in("_id", keys))
+            .getDeletedCount();
+    }
+
+    @Override
+    public boolean deleteAll(@NonNull PersistenceCollection collection) {
+        this.checkCollectionRegistered(collection);
+        // Use deleteMany instead of drop() to preserve indexes
+        return this.mongo(collection).deleteMany(new org.bson.Document()).getDeletedCount() >= 0;
+    }
+
+    @Override
+    public long deleteAll() {
+        return this.knownCollections.values().stream()
+            .map(this::deleteAll)
+            .filter(Predicate.isEqual(true))
+            .count();
+    }
+
     @Override
     public void close() throws IOException {
-        this.getClient().close();
+        this.client.close();
     }
 
-    protected MongoCollection<BasicDBObject> mongo(PersistenceCollection collection) {
-        String identifier = this.getBasePath().sub(collection).toSqlIdentifier();
-        return this.getDatabase().getCollection(identifier, BasicDBObject.class);
-    }
+    // ==================== HELPERS ====================
 
-    protected PersistenceEntity<String> transformMongoObject(PersistenceCollection collection, BasicDBObject object) {
-        PersistencePath path = PersistencePath.of(object.getString("_id"));
-        object.remove("_id"); // don't need this anymore
-        return new PersistenceEntity<>(path, object.toJson());
+    private Document transformMongoObject(@NonNull PersistenceCollection collection, @NonNull PersistencePath path, @NonNull BasicDBObject object) {
+        object.remove("_id"); // Don't need this in the JSON
+        String json = object.toJson();
+        return this.serializer.deserialize(collection, path, json);
     }
 }

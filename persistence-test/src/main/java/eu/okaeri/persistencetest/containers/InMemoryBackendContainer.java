@@ -1,19 +1,13 @@
 package eu.okaeri.persistencetest.containers;
 
 import eu.okaeri.persistence.document.DocumentPersistence;
-import eu.okaeri.persistence.document.InMemoryDocumentPersistence;
+import eu.okaeri.persistence.document.InMemoryPersistence;
 
 /**
  * InMemory backend container for E2E tests.
  * Pure in-memory storage - fastest backend for testing.
  */
 public class InMemoryBackendContainer implements BackendContainer {
-
-    private final InMemoryDocumentPersistence persistence;
-
-    public InMemoryBackendContainer() {
-        this.persistence = new InMemoryDocumentPersistence();
-    }
 
     @Override
     public String getName() {
@@ -22,7 +16,7 @@ public class InMemoryBackendContainer implements BackendContainer {
 
     @Override
     public DocumentPersistence createPersistence() {
-        return persistence;
+        return new DocumentPersistence(new InMemoryPersistence());
     }
 
     @Override

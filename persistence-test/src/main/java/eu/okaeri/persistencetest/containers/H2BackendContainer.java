@@ -2,7 +2,6 @@ package eu.okaeri.persistencetest.containers;
 
 import com.zaxxer.hikari.HikariConfig;
 import eu.okaeri.configs.json.simple.JsonSimpleConfigurer;
-import eu.okaeri.persistence.PersistencePath;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.jdbc.H2Persistence;
 import eu.okaeri.persistence.jdbc.commons.JdbcHelper;
@@ -33,10 +32,7 @@ public class H2BackendContainer implements BackendContainer {
             "org.h2.Driver"
         );
 
-        return new DocumentPersistence(
-            new H2Persistence(PersistencePath.of(""), hikariConfig),
-            JsonSimpleConfigurer::new
-        );
+        return new DocumentPersistence(new H2Persistence(hikariConfig, JsonSimpleConfigurer::new));
     }
 
     @Override

@@ -26,9 +26,18 @@ public class IndexPerformanceTestContext {
         @DocumentIndex(path = "category", maxLength = 255),
         @DocumentIndex(path = "level"),
         @DocumentIndex(path = "active"),
-        @DocumentIndex(path = "rating")
+        @DocumentIndex(path = "rating"),
+        @DocumentIndex(path = "sequence")
     })
     public interface IndexedRepository extends DocumentRepository<UUID, IndexTestEntity> {
+
+        // ===== PRECISE CASE: Single document lookups =====
+
+        // Returns exactly 1 document (unique category + sequence combination)
+        List<IndexTestEntity> findByCategoryAndSequence(String category, int sequence);
+
+        // Returns exactly 1 document (unique level + sequence combination)
+        List<IndexTestEntity> findByLevelAndSequence(int level, int sequence);
 
         // ===== IDEAL CASE: Fully indexed queries =====
 
@@ -121,6 +130,11 @@ public class IndexPerformanceTestContext {
     public interface NonIndexedRepository extends DocumentRepository<UUID, IndexTestEntity> {
 
         // ===== Same queries as IndexedRepository but without index support =====
+
+        // Precise lookups (1 document)
+        List<IndexTestEntity> findByCategoryAndSequence(String category, int sequence);
+
+        List<IndexTestEntity> findByLevelAndSequence(int level, int sequence);
 
         // Simple equality
         List<IndexTestEntity> findByCategory(String category);

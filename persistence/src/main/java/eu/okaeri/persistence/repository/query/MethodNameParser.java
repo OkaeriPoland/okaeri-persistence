@@ -333,7 +333,7 @@ public final class MethodNameParser {
      * - Removes underscores
      * - Converts $ to . (for nested fields)
      * - Converts to camelCase (first letter lowercase)
-     *
+     * <p>
      * Note: This is the basic normalization without entity type validation.
      * Use resolveFieldPath() for full resolution with subfield discovery.
      */

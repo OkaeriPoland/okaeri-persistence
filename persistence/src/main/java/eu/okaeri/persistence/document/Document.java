@@ -18,13 +18,13 @@ import java.util.logging.Logger;
 @ToString(exclude = "cachedInto")
 public class Document extends OkaeriConfig {
 
-    @Exclude private static final boolean DEBUG = Boolean.parseBoolean(System.getProperty("okaeri.platform.debug", "false"));
-    @Exclude private static final Logger LOGGER = Logger.getLogger(Document.class.getSimpleName());
+    private static final @Exclude boolean DEBUG = Boolean.parseBoolean(System.getProperty("okaeri.platform.debug", "false"));
+    private static final @Exclude Logger LOGGER = Logger.getLogger(Document.class.getSimpleName());
 
-    @Exclude @Getter @Setter private DocumentPersistence persistence;
-    @Exclude @Getter private PersistencePath path;
-    @Exclude @Getter @Setter private PersistenceCollection collection;
-    @Exclude private Document cachedInto = this;
+    private @Exclude @Getter @Setter DocumentPersistence persistence;
+    private @Exclude @Getter PersistencePath path;
+    private @Exclude @Getter @Setter PersistenceCollection collection;
+    private @Exclude Document cachedInto = this;
 
     public void setPath(PersistencePath path) {
         this.path = path;

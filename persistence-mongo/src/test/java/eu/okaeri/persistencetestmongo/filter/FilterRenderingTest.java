@@ -96,4 +96,46 @@ public class FilterRenderingTest {
         assertThatCode(() -> Document.parse(orderBy)).doesNotThrowAnyException();
         assertThat(orderBy).isEqualTo("{\"user.profile.age\": 1}");
     }
+
+    // ==================== REGEX ESCAPING TESTS ====================
+
+    @Test
+    public void test_startsWith_with_dot() {
+        String condition = this.renderer.renderCondition(and("domain", startsWith("api.example")));
+        assertThatCode(() -> Document.parse(condition)).doesNotThrowAnyException();
+        // Dot escaped as \. for regex, then \\ for JSON = \\. in output
+        assertThat(condition).isEqualTo("{ \"domain\": { \"$regex\": \"^api\\\\.example\" }}");
+    }
+
+    @Test
+    public void test_endsWith_with_special_chars() {
+        String condition = this.renderer.renderCondition(and("filename", endsWith("file[1].txt")));
+        assertThatCode(() -> Document.parse(condition)).doesNotThrowAnyException();
+        // Square brackets and dot escaped for regex, then backslashes doubled for JSON
+        assertThat(condition).isEqualTo("{ \"filename\": { \"$regex\": \"file\\\\[1\\\\]\\\\.txt$\" }}");
+    }
+
+    @Test
+    public void test_contains_with_regex_metacharacters() {
+        String condition = this.renderer.renderCondition(and("query", contains("a*b+c?")));
+        assertThatCode(() -> Document.parse(condition)).doesNotThrowAnyException();
+        // *, +, ? escaped for regex, then backslashes doubled for JSON
+        assertThat(condition).isEqualTo("{ \"query\": { \"$regex\": \"a\\\\*b\\\\+c\\\\?\" }}");
+    }
+
+    @Test
+    public void test_eq_ignoreCase_with_special_chars() {
+        String condition = this.renderer.renderCondition(and("email", eqi("user@example.com")));
+        assertThatCode(() -> Document.parse(condition)).doesNotThrowAnyException();
+        // Dot escaped for regex, then backslash doubled for JSON
+        assertThat(condition).isEqualTo("{ \"email\": { \"$regex\": \"^user@example\\\\.com$\", \"$options\": \"i\" }}");
+    }
+
+    @Test
+    public void test_startsWith_ignoreCase_with_parentheses() {
+        String condition = this.renderer.renderCondition(and("name", startsWith("test(1)").ignoreCase()));
+        assertThatCode(() -> Document.parse(condition)).doesNotThrowAnyException();
+        // Parentheses escaped for regex, then backslashes doubled for JSON
+        assertThat(condition).isEqualTo("{ \"name\": { \"$regex\": \"^test\\\\(1\\\\)\", \"$options\": \"i\" }}");
+    }
 }

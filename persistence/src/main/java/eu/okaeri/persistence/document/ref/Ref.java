@@ -75,10 +75,10 @@ public abstract class Ref<T extends Document> {
      * If a referenced document is present, returns the document, otherwise throws an exception
      * produced by the exception supplying function.
      *
-     * @param <X> Type of the exception to be thrown
+     * @param <X>               Type of the exception to be thrown
      * @param exceptionSupplier the supplying function that produces an exception to be thrown
      * @return the non-{@code null} referenced document
-     * @throws X if the reference is not found
+     * @throws X                    if the reference is not found
      * @throws NullPointerException if the reference is not found and the exception supplying function is null
      */
     public <X extends Throwable> T orThrow(Supplier<? extends X> exceptionSupplier) throws X {
