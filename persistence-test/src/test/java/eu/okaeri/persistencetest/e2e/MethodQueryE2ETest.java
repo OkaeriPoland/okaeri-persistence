@@ -1,5 +1,6 @@
 package eu.okaeri.persistencetest.e2e;
 
+import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistencetest.MethodQueryTestContext;
 import eu.okaeri.persistencetest.containers.BackendContainer;
@@ -12,6 +13,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -626,5 +628,78 @@ public class MethodQueryE2ETest extends E2ETestBase {
         // Exists with 3-level nesting and automatic discovery
         assertThat(ctx.getProfileRepository().existsByProfileAddressCity("London")).isTrue();
         assertThat(ctx.getProfileRepository().existsByProfileAddressCity("Tokyo")).isFalse();
+    }
+
+    // ===== SET RETURN TYPE =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithUserData")
+    void test_findByExpAndName_returnsSet(MethodQueryBackendContext ctx) {
+        Set<User> users = ctx.getUserRepository().findByExpAndName(100, "alice");
+
+        assertThat(users).hasSize(1);
+        assertThat(users.iterator().next().getName()).isEqualTo("alice");
+    }
+
+    // ===== PERSISTENCE ENTITY WRAPPER RETURN TYPES =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithUserData")
+    void test_findByNameAndVerified_returnsEntity(MethodQueryBackendContext ctx) {
+        Optional<PersistenceEntity<User>> entity = ctx.getUserRepository()
+            .findByNameAndVerified("alice", true);
+
+        assertThat(entity).isPresent();
+        assertThat(entity.get().getPath()).isNotNull();
+        assertThat(entity.get().getValue().getName()).isEqualTo("alice");
+        assertThat(entity.get().getValue().getExp()).isEqualTo(100);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithUserData")
+    void test_findByNameAndVerified_notFound(MethodQueryBackendContext ctx) {
+        Optional<PersistenceEntity<User>> entity = ctx.getUserRepository()
+            .findByNameAndVerified("alice", false); // alice is verified=true
+        assertThat(entity).isEmpty();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithUserData")
+    void test_findByVerifiedAndExp_returnsEntityList(MethodQueryBackendContext ctx) {
+        List<PersistenceEntity<User>> entities = ctx.getUserRepository()
+            .findByVerifiedAndExp(true, 100);
+
+        assertThat(entities).hasSize(2); // alice and charlie
+        assertThat(entities).allSatisfy(e -> {
+            assertThat(e.getPath()).isNotNull();
+            assertThat(e.getValue()).isNotNull();
+            assertThat(e.getValue().isVerified()).isTrue();
+            assertThat(e.getValue().getExp()).isEqualTo(100);
+        });
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithUserData")
+    void test_streamByNameAndExp_returnsEntityStream(MethodQueryBackendContext ctx) {
+        List<PersistenceEntity<User>> entities = ctx.getUserRepository()
+            .streamByNameAndExp("alice", 100)
+            .toList();
+
+        assertThat(entities).hasSize(1);
+        assertThat(entities.get(0).getPath()).isNotNull();
+        assertThat(entities.get(0).getValue().getName()).isEqualTo("alice");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithUserData")
+    void test_findByVerifiedAndName_returnsEntitySet(MethodQueryBackendContext ctx) {
+        Set<PersistenceEntity<User>> entities = ctx.getUserRepository()
+            .findByVerifiedAndName(true, "alice");
+
+        assertThat(entities).hasSize(1);
+        PersistenceEntity<User> entity = entities.iterator().next();
+        assertThat(entity.getPath()).isNotNull();
+        assertThat(entity.getValue().getName()).isEqualTo("alice");
+        assertThat(entity.getValue().isVerified()).isTrue();
     }
 }

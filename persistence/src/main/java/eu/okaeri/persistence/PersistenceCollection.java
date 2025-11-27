@@ -137,18 +137,4 @@ public class PersistenceCollection extends PersistencePath {
         this.autofixIndexes = autofixIndexes;
         return this;
     }
-
-    public int getMaxIndexIdentityLength() {
-        return this.indexes.stream()
-            .mapToInt(IndexProperty::getMaxLength)
-            .max()
-            .orElse(255);
-    }
-
-    public int getMaxIndexPropertyLength() {
-        return this.indexes.stream()
-            .mapToInt(index -> index.getValue().length())
-            .max()
-            .orElse(255);
-    }
 }

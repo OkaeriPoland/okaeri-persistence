@@ -1,5 +1,6 @@
 package eu.okaeri.persistencetest;
 
+import eu.okaeri.persistence.PersistenceEntity;
 import eu.okaeri.persistence.repository.DocumentRepository;
 import eu.okaeri.persistence.repository.annotation.DocumentCollection;
 import eu.okaeri.persistence.repository.annotation.DocumentIndex;
@@ -9,6 +10,7 @@ import lombok.Getter;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -111,6 +113,20 @@ public class MethodQueryTestContext {
         Optional<User> findBy_name(String name);
 
         List<User> findBy_name_and_exp(String name, int exp);
+
+        // === Set return type ===
+        // Uses unique field combinations to avoid signature conflicts
+        Set<User> findByExpAndName(int exp, String name);
+
+        // === PersistenceEntity wrapper return types ===
+        // Return PersistenceEntity<T> instead of T to get path+value wrapper
+        Optional<PersistenceEntity<User>> findByNameAndVerified(String name, boolean verified);
+
+        List<PersistenceEntity<User>> findByVerifiedAndExp(boolean verified, int exp);
+
+        Stream<PersistenceEntity<User>> streamByNameAndExp(String name, int exp);
+
+        Set<PersistenceEntity<User>> findByVerifiedAndName(boolean verified, String name);
     }
 
     /**

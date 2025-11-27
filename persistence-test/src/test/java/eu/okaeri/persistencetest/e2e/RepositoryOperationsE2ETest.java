@@ -361,6 +361,34 @@ public class RepositoryOperationsE2ETest extends E2ETestBase {
         assertThat(btc.getUserRepository().count()).isEqualTo(3);
     }
 
+    // ========== Document save/load Tests ==========
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_document_save_and_load(BackendTestContext btc) {
+        UUID id = UUID.randomUUID();
+        User user = btc.getUserRepository().findOrCreateByPath(id);
+        user.setName("direct_save");
+        user.setExp(999);
+
+        // Use Document.save() directly
+        user.save();
+
+        // Verify via repository
+        User found = btc.getUserRepository().findByPath(id).orElse(null);
+        assertThat(found).isNotNull();
+        assertThat(found.getName()).isEqualTo("direct_save");
+        assertThat(found.getExp()).isEqualTo(999);
+
+        // Modify in database via repository
+        found.setExp(1000);
+        btc.getUserRepository().save(found);
+
+        // Use Document.load() to refresh
+        user.load();
+        assertThat(user.getExp()).isEqualTo(1000);
+    }
+
     @ParameterizedTest(name = "{0}")
     @MethodSource("allBackendsWithContext")
     void test_persistence_delete_all_collections(BackendTestContext btc) {
