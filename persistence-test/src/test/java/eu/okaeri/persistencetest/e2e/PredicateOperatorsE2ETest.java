@@ -429,6 +429,21 @@ public class PredicateOperatorsE2ETest extends E2ETestBase {
         assertThat(remaining).containsExactlyInAnyOrder("bob", "charlie", "diana", "eve");
     }
 
+    // ===== MULTI-PREDICATE (same field, multiple conditions) =====
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_multi_predicate_mixed_indexable(BackendTestContext btc) {
+        // This test catches bugs where unindexable predicates are silently skipped
+        // eq("alice") is indexable, startsWith("x") is NOT indexable
+        // With the bug: would return alice (only eq applied)
+        // Correct: should return nothing (alice doesn't start with "x")
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", eq("alice"), startsWith("x"))));
+        assertThat(deleted).isEqualTo(0);
+
+        assertThat(btc.getUserRepository().count()).isEqualTo(5); // all still present
+    }
+
     // ===== IS NULL / NOT NULL =====
 
     @ParameterizedTest(name = "{0}")
