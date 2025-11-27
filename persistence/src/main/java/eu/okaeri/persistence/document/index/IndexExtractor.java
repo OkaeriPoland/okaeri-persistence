@@ -28,7 +28,7 @@ public class IndexExtractor {
      *
      * @param collection Collection with index definitions
      * @param document   Document to extract values from
-     * @return Map of IndexProperty to value (null values excluded)
+     * @return Map of IndexProperty to value (null values included)
      */
     public Map<IndexProperty, Object> extract(@NonNull PersistenceCollection collection, @NonNull Document document) {
         Map<String, Object> documentMap = document.asMap(this.simplifier, true);
@@ -40,16 +40,14 @@ public class IndexExtractor {
      *
      * @param collection  Collection with index definitions
      * @param documentMap Document as a map (from document.asMap() or JSON parsing)
-     * @return Map of IndexProperty to value (null values excluded)
+     * @return Map of IndexProperty to value (null values included)
      */
     public Map<IndexProperty, Object> extract(@NonNull PersistenceCollection collection, @NonNull Map<String, Object> documentMap) {
         Map<IndexProperty, Object> result = new LinkedHashMap<>();
 
         for (IndexProperty index : collection.getIndexes()) {
             Object value = extractValue(documentMap, index.toParts());
-            if (value != null) {
-                result.put(index, value);
-            }
+            result.put(index, value);
         }
 
         return result;

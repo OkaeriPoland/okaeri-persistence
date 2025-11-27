@@ -377,11 +377,7 @@ public class InMemoryPersistence implements Persistence, FilterablePersistence, 
             if (index == null) continue;
 
             Object value = indexValues.get(indexProp);
-            if (value != null) {
-                index.put(path.getValue(), value);
-            } else {
-                index.remove(path.getValue());
-            }
+            index.put(path.getValue(), value);
         }
     }
 

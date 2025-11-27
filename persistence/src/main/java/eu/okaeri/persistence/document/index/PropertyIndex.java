@@ -4,6 +4,8 @@ import eu.okaeri.persistence.filter.condition.Condition;
 import eu.okaeri.persistence.filter.predicate.Predicate;
 import eu.okaeri.persistence.filter.predicate.collection.InPredicate;
 import eu.okaeri.persistence.filter.predicate.equality.EqPredicate;
+import eu.okaeri.persistence.filter.predicate.nullity.IsNullPredicate;
+import eu.okaeri.persistence.filter.predicate.nullity.NotNullPredicate;
 import eu.okaeri.persistence.filter.predicate.numeric.GtPredicate;
 import eu.okaeri.persistence.filter.predicate.numeric.GtePredicate;
 import eu.okaeri.persistence.filter.predicate.numeric.LtPredicate;
@@ -36,6 +38,9 @@ public class PropertyIndex {
     // lowercase string -> set of docIds (for case-insensitive string queries)
     private final ConcurrentHashMap<String, Set<String>> lowercaseToDocIds = new ConcurrentHashMap<>();
 
+    // docIds with null values (for isNull queries)
+    private final Set<String> nullDocIds = ConcurrentHashMap.newKeySet();
+
     // BigDecimal -> set of docIds (for numeric range queries, sorted)
     // Note: Not using synchronizedNavigableMap - we use synchronized(this) blocks instead
     private final NavigableMap<BigDecimal, Set<String>> numericIndex = new TreeMap<>();
@@ -62,8 +67,10 @@ public class PropertyIndex {
 
             if (value == null) {
                 this.docIdToValue.remove(docId);
-                return oldValue != null;
+                this.nullDocIds.add(docId);
+                return true;
             }
+            this.nullDocIds.remove(docId);
 
             // Store the value
             this.docIdToValue.put(docId, value);
@@ -101,7 +108,7 @@ public class PropertyIndex {
                 this.removeFromMaps(docId, value);
                 return true;
             }
-            return false;
+            return this.nullDocIds.remove(docId);
         }
     }
 
@@ -113,6 +120,7 @@ public class PropertyIndex {
             this.docIdToValue.clear();
             this.valueToDocIds.clear();
             this.lowercaseToDocIds.clear();
+            this.nullDocIds.clear();
             this.numericIndex.clear();
             this.docIdToNumeric.clear();
         }
@@ -140,12 +148,27 @@ public class PropertyIndex {
      * @param value the string value to find (case-insensitive)
      * @return set of document IDs (never null)
      */
-    public Set<String> findEqualsIgnoreCase(String value) {
-        if (value == null) {
-            return Collections.emptySet();
-        }
+    public Set<String> findEqualsIgnoreCase(@NonNull String value) {
         Set<String> result = this.lowercaseToDocIds.get(value.toLowerCase());
         return (result != null) ? new HashSet<>(result) : Collections.emptySet();
+    }
+
+    /**
+     * Find all documents with null values.
+     *
+     * @return set of document IDs (never null)
+     */
+    public Set<String> findNull() {
+        return new HashSet<>(this.nullDocIds);
+    }
+
+    /**
+     * Find all documents with non-null values.
+     *
+     * @return set of document IDs (never null)
+     */
+    public Set<String> findNotNull() {
+        return new HashSet<>(this.docIdToValue.keySet());
     }
 
     /**
@@ -312,23 +335,26 @@ public class PropertyIndex {
         }
 
         // Multiple predicates - intersect results from each
+        // ALL predicates must be indexable, otherwise fall back to full scan
         Set<String> result = null;
         for (Predicate p : predicates) {
             Optional<Set<String>> indexed = this.tryQueryPredicate(p);
-            if (indexed.isPresent()) {
-                if (result == null) {
-                    result = new HashSet<>(indexed.get());
-                } else {
-                    result.retainAll(indexed.get());
-                }
-                // Early exit if intersection is empty
-                if (result.isEmpty()) {
-                    return Optional.of(Collections.emptySet());
-                }
+            if (!indexed.isPresent()) {
+                // Can't index this predicate - must fall back to full scan
+                return Optional.empty();
+            }
+            if (result == null) {
+                result = new HashSet<>(indexed.get());
+            } else {
+                result.retainAll(indexed.get());
+            }
+            // Early exit if intersection is empty
+            if (result.isEmpty()) {
+                return Optional.of(Collections.emptySet());
             }
         }
 
-        return Optional.ofNullable(result);
+        return Optional.of(result);
     }
 
     /**
@@ -384,6 +410,14 @@ public class PropertyIndex {
             if (val instanceof Number) {
                 return Optional.of(this.findLessThanOrEqual((Number) val));
             }
+        }
+
+        if (predicate instanceof IsNullPredicate) {
+            return Optional.of(this.findNull());
+        }
+
+        if (predicate instanceof NotNullPredicate) {
+            return Optional.of(this.findNotNull());
         }
 
         // Cannot use index for this predicate

@@ -444,6 +444,33 @@ public class PredicateOperatorsE2ETest extends E2ETestBase {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("allBackendsWithContext")
+    void test_isNull_with_null_values(BackendTestContext btc) {
+        // Add users with null names
+        btc.getUserRepository().save(new User(null, 999));
+        btc.getUserRepository().save(new User(null, 888));
+
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", isNull())));
+        assertThat(deleted).isEqualTo(2);
+
+        var remaining = btc.getUserRepository().streamAll().map(User::getName).toList();
+        assertThat(remaining).containsExactlyInAnyOrder("alice", "bob", "charlie", "diana", "eve");
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
+    void test_notNull_with_null_values(BackendTestContext btc) {
+        // Add users with null names
+        btc.getUserRepository().save(new User(null, 999));
+        btc.getUserRepository().save(new User(null, 888));
+
+        long deleted = btc.getUserRepository().delete(q -> q.where(on("name", notNull())));
+        assertThat(deleted).isEqualTo(5); // only the original 5 with names
+
+        assertThat(btc.getUserRepository().count()).isEqualTo(2); // 2 with null names remain
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("allBackendsWithContext")
     void test_notNull_all_have_values(BackendTestContext btc) {
         // All users have non-null names
         long deleted = btc.getUserRepository().delete(q -> q.where(on("name", notNull())));
