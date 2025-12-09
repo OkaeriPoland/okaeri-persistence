@@ -1,6 +1,6 @@
 package eu.okaeri.persistence.redis;
 
-import eu.okaeri.configs.serdes.OkaeriSerdesPack;
+import eu.okaeri.configs.serdes.OkaeriSerdes;
 import eu.okaeri.persistence.*;
 import eu.okaeri.persistence.document.ConfigurerProvider;
 import eu.okaeri.persistence.document.Document;
@@ -43,15 +43,15 @@ public class RedisPersistence implements Persistence {
     private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
 
     public RedisPersistence(@NonNull PersistencePath basePath, @NonNull RedisClient client,
-                            @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+                            @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
         this.basePath = basePath;
-        this.serializer = new DocumentSerializer(configurerProvider, serdesPacks);
+        this.serializer = new DocumentSerializer(configurerProvider, serdes);
         this.connect(client);
     }
 
     public RedisPersistence(@NonNull RedisClient client, @NonNull ConfigurerProvider configurerProvider,
-                            @NonNull OkaeriSerdesPack... serdesPacks) {
-        this(PersistencePath.of(""), client, configurerProvider, serdesPacks);
+                            @NonNull OkaeriSerdes... serdes) {
+        this(PersistencePath.of(""), client, configurerProvider, serdes);
     }
 
     public static Builder builder() {
@@ -62,7 +62,7 @@ public class RedisPersistence implements Persistence {
         private PersistencePath basePath;
         private RedisClient client;
         private ConfigurerProvider configurerProvider;
-        private OkaeriSerdesPack[] serdesPacks = new OkaeriSerdesPack[0];
+        private OkaeriSerdes[] serdes = new OkaeriSerdes[0];
 
         public Builder basePath(@NonNull String basePath) {
             this.basePath = PersistencePath.of(basePath);
@@ -84,8 +84,8 @@ public class RedisPersistence implements Persistence {
             return this;
         }
 
-        public Builder serdes(@NonNull OkaeriSerdesPack... packs) {
-            this.serdesPacks = packs;
+        public Builder serdes(@NonNull OkaeriSerdes... packs) {
+            this.serdes = packs;
             return this;
         }
 
@@ -97,7 +97,7 @@ public class RedisPersistence implements Persistence {
                 throw new IllegalStateException("configurer is required");
             }
             PersistencePath path = (this.basePath != null) ? this.basePath : PersistencePath.of("");
-            return new RedisPersistence(path, this.client, this.configurerProvider, this.serdesPacks);
+            return new RedisPersistence(path, this.client, this.configurerProvider, this.serdes);
         }
     }
 

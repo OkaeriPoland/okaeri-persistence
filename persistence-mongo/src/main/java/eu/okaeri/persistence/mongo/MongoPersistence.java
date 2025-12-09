@@ -8,7 +8,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.*;
 import com.mongodb.client.result.UpdateResult;
-import eu.okaeri.configs.serdes.OkaeriSerdesPack;
+import eu.okaeri.configs.serdes.OkaeriSerdes;
 import eu.okaeri.persistence.*;
 import eu.okaeri.persistence.document.ConfigurerProvider;
 import eu.okaeri.persistence.document.Document;
@@ -53,15 +53,15 @@ public class MongoPersistence implements Persistence, FilterablePersistence, Str
     private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
 
     public MongoPersistence(@NonNull PersistencePath basePath, @NonNull MongoClient client, @NonNull String databaseName,
-                            @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+                            @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
         this.basePath = basePath;
-        this.serializer = new DocumentSerializer(configurerProvider, serdesPacks);
+        this.serializer = new DocumentSerializer(configurerProvider, serdes);
         this.connect(client, databaseName);
     }
 
     public MongoPersistence(@NonNull MongoClient client, @NonNull String databaseName,
-                            @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
-        this(PersistencePath.of(""), client, databaseName, configurerProvider, serdesPacks);
+                            @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
+        this(PersistencePath.of(""), client, databaseName, configurerProvider, serdes);
     }
 
     public static Builder builder() {
@@ -73,7 +73,7 @@ public class MongoPersistence implements Persistence, FilterablePersistence, Str
         private MongoClient client;
         private String databaseName;
         private ConfigurerProvider configurerProvider;
-        private OkaeriSerdesPack[] serdesPacks = new OkaeriSerdesPack[0];
+        private OkaeriSerdes[] serdes = new OkaeriSerdes[0];
 
         public Builder basePath(@NonNull String basePath) {
             this.basePath = PersistencePath.of(basePath);
@@ -100,8 +100,8 @@ public class MongoPersistence implements Persistence, FilterablePersistence, Str
             return this;
         }
 
-        public Builder serdes(@NonNull OkaeriSerdesPack... packs) {
-            this.serdesPacks = packs;
+        public Builder serdes(@NonNull OkaeriSerdes... packs) {
+            this.serdes = packs;
             return this;
         }
 
@@ -116,7 +116,7 @@ public class MongoPersistence implements Persistence, FilterablePersistence, Str
                 throw new IllegalStateException("configurer is required");
             }
             PersistencePath path = (this.basePath != null) ? this.basePath : PersistencePath.of("");
-            return new MongoPersistence(path, this.client, this.databaseName, this.configurerProvider, this.serdesPacks);
+            return new MongoPersistence(path, this.client, this.databaseName, this.configurerProvider, this.serdes);
         }
     }
 

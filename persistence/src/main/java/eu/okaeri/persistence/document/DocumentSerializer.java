@@ -2,7 +2,7 @@ package eu.okaeri.persistence.document;
 
 import eu.okaeri.configs.ConfigManager;
 import eu.okaeri.configs.configurer.Configurer;
-import eu.okaeri.configs.serdes.OkaeriSerdesPack;
+import eu.okaeri.configs.serdes.OkaeriSerdes;
 import eu.okaeri.configs.serdes.SerdesRegistry;
 import eu.okaeri.configs.serdes.commons.SerdesCommons;
 import eu.okaeri.configs.serdes.commons.serializer.InstantSerializer;
@@ -16,7 +16,6 @@ import lombok.NonNull;
 
 import java.time.Instant;
 import java.util.Map;
-import java.util.stream.Stream;
 
 /**
  * Utility for serializing/deserializing Documents.
@@ -34,20 +33,18 @@ public class DocumentSerializer {
     // Reference to persistence for LazyRef/EagerRef - set after construction
     private Object persistence;
 
-    public DocumentSerializer(@NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+    public DocumentSerializer(@NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
         this.configurerProvider = configurerProvider;
 
         // Build shared serdes registry
         this.serdesRegistry = new SerdesRegistry();
-        Stream.concat(
-                Stream.of(
-                    new StandardSerdes(),
-                    new SerdesCommons(),
-                    registry -> registry.registerExclusive(Instant.class, new InstantSerializer(true))
-                ),
-                Stream.of(serdesPacks)
-            )
-            .forEach(pack -> pack.register(this.serdesRegistry));
+        this.serdesRegistry.register(new StandardSerdes());
+        this.serdesRegistry.register(new SerdesCommons());
+        this.serdesRegistry.registerExclusive(Instant.class, new InstantSerializer(true));
+
+        for (OkaeriSerdes pack : serdes) {
+            this.serdesRegistry.register(pack);
+        }
 
         // Simplifier for document-to-map conversion
         this.simplifier = configurerProvider.get();

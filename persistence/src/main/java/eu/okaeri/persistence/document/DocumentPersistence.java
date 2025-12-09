@@ -1,6 +1,6 @@
 package eu.okaeri.persistence.document;
 
-import eu.okaeri.configs.serdes.OkaeriSerdesPack;
+import eu.okaeri.configs.serdes.OkaeriSerdes;
 import eu.okaeri.persistence.*;
 import eu.okaeri.persistence.filter.*;
 import eu.okaeri.persistence.filter.operation.UpdateOperation;
@@ -56,13 +56,13 @@ public class DocumentPersistence implements Persistence, FilterablePersistence, 
      *
      * @param backend            The underlying persistence backend
      * @param configurerProvider Configurer for document serialization
-     * @param serdesPacks        Additional serialization packs
+     * @param serdes             Additional serialization packs
      */
     public DocumentPersistence(@NonNull Persistence backend,
                                @NonNull ConfigurerProvider configurerProvider,
-                               @NonNull OkaeriSerdesPack... serdesPacks) {
+                               @NonNull OkaeriSerdes... serdes) {
         this.backend = backend;
-        this.serializer = new DocumentSerializer(configurerProvider, serdesPacks);
+        this.serializer = new DocumentSerializer(configurerProvider, serdes);
         this.serializer.setPersistence(this);
         this.filterEvaluator = new InMemoryFilterEvaluator(this.serializer.getSimplifier());
         this.updateEvaluator = new InMemoryUpdateEvaluator(configurerProvider, this.serializer.getSerdesRegistry());

@@ -2,7 +2,7 @@ package eu.okaeri.persistence.jdbc;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
-import eu.okaeri.configs.serdes.OkaeriSerdesPack;
+import eu.okaeri.configs.serdes.OkaeriSerdes;
 import eu.okaeri.persistence.*;
 import eu.okaeri.persistence.document.ConfigurerProvider;
 import eu.okaeri.persistence.document.Document;
@@ -50,29 +50,29 @@ public class MariaDbPersistence implements Persistence, FilterablePersistence, S
     private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
 
     public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig,
-                              @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+                              @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
         this.basePath = basePath;
-        this.serializer = new DocumentSerializer(configurerProvider, serdesPacks);
+        this.serializer = new DocumentSerializer(configurerProvider, serdes);
         this.filterRenderer = new MariaDbFilterRenderer(STRING_RENDERER);
         this.connect(hikariConfig);
     }
 
     public MariaDbPersistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource,
-                              @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
+                              @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
         this.basePath = basePath;
         this.dataSource = dataSource;
-        this.serializer = new DocumentSerializer(configurerProvider, serdesPacks);
+        this.serializer = new DocumentSerializer(configurerProvider, serdes);
         this.filterRenderer = new MariaDbFilterRenderer(STRING_RENDERER);
     }
 
     public MariaDbPersistence(@NonNull HikariConfig hikariConfig,
-                              @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
-        this(PersistencePath.of(""), hikariConfig, configurerProvider, serdesPacks);
+                              @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
+        this(PersistencePath.of(""), hikariConfig, configurerProvider, serdes);
     }
 
     public MariaDbPersistence(@NonNull HikariDataSource dataSource,
-                              @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdesPack... serdesPacks) {
-        this(PersistencePath.of(""), dataSource, configurerProvider, serdesPacks);
+                              @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
+        this(PersistencePath.of(""), dataSource, configurerProvider, serdes);
     }
 
     public static Builder builder() {
@@ -84,7 +84,7 @@ public class MariaDbPersistence implements Persistence, FilterablePersistence, S
         private HikariConfig hikariConfig;
         private HikariDataSource dataSource;
         private ConfigurerProvider configurerProvider;
-        private OkaeriSerdesPack[] serdesPacks = new OkaeriSerdesPack[0];
+        private OkaeriSerdes[] serdes = new OkaeriSerdes[0];
 
         public Builder basePath(@NonNull String basePath) {
             this.basePath = PersistencePath.of(basePath);
@@ -111,8 +111,8 @@ public class MariaDbPersistence implements Persistence, FilterablePersistence, S
             return this;
         }
 
-        public Builder serdes(@NonNull OkaeriSerdesPack... packs) {
-            this.serdesPacks = packs;
+        public Builder serdes(@NonNull OkaeriSerdes... packs) {
+            this.serdes = packs;
             return this;
         }
 
@@ -126,11 +126,11 @@ public class MariaDbPersistence implements Persistence, FilterablePersistence, S
             if (this.configurerProvider == null) {
                 throw new IllegalStateException("configurer is required");
             }
-            PersistencePath path = this.basePath != null ? this.basePath : PersistencePath.of("");
+            PersistencePath path = (this.basePath != null) ? this.basePath : PersistencePath.of("");
             if (this.dataSource != null) {
-                return new MariaDbPersistence(path, this.dataSource, this.configurerProvider, this.serdesPacks);
+                return new MariaDbPersistence(path, this.dataSource, this.configurerProvider, this.serdes);
             }
-            return new MariaDbPersistence(path, this.hikariConfig, this.configurerProvider, this.serdesPacks);
+            return new MariaDbPersistence(path, this.hikariConfig, this.configurerProvider, this.serdes);
         }
     }
 
