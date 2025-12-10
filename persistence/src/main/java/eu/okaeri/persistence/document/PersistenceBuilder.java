@@ -4,6 +4,7 @@ import eu.okaeri.configs.OkaeriConfigOptions;
 import eu.okaeri.configs.configurer.Configurer;
 import eu.okaeri.configs.serdes.OkaeriSerdes;
 import eu.okaeri.configs.validator.ConfigValidator;
+import eu.okaeri.persistence.Persistence;
 import eu.okaeri.persistence.PersistencePath;
 import lombok.NonNull;
 
@@ -19,7 +20,7 @@ import java.util.function.Consumer;
  * @param <T> The builder type (for fluent API)
  * @param <P> The persistence type being built
  */
-public abstract class PersistenceBuilder<T extends PersistenceBuilder<T, P>, P> {
+public abstract class PersistenceBuilder<T extends PersistenceBuilder<T, P>, P extends Persistence> {
 
     protected PersistencePath basePath;
     protected Configurer configurer;
@@ -132,4 +133,16 @@ public abstract class PersistenceBuilder<T extends PersistenceBuilder<T, P>, P> 
      * Build the persistence backend.
      */
     public abstract P build();
+
+    /**
+     * Build and wrap the persistence backend with DocumentPersistence.
+     * <p>
+     * DocumentPersistence provides polyfills for features not natively supported
+     * by the backend (filtering, updates, streaming) and enables repository creation.
+     * <p>
+     * Example: {@code H2Persistence.builder().hikariConfig(config).configurer(new JsonSimpleConfigurer()).polyfill()}
+     */
+    public DocumentPersistence polyfill() {
+        return new DocumentPersistence(this.build());
+    }
 }
