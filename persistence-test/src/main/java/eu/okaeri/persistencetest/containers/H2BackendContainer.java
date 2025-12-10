@@ -32,7 +32,7 @@ public class H2BackendContainer implements BackendContainer {
             "org.h2.Driver"
         );
 
-        return new DocumentPersistence(new H2Persistence(hikariConfig, JsonSimpleConfigurer::new));
+        return new DocumentPersistence(new H2Persistence(hikariConfig, new JsonSimpleConfigurer()));
     }
 
     @Override

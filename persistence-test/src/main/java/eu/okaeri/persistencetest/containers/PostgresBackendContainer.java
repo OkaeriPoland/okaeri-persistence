@@ -41,7 +41,7 @@ public class PostgresBackendContainer implements BackendContainer {
         hikariConfig.setMinimumIdle(1);
         hikariConfig.setConnectionTimeout(30000);
 
-        return new DocumentPersistence(new PostgresPersistence(hikariConfig, JsonSimpleConfigurer::new));
+        return new DocumentPersistence(new PostgresPersistence(hikariConfig, new JsonSimpleConfigurer()));
     }
 
     @Override

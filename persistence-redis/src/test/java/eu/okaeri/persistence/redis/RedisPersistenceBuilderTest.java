@@ -14,7 +14,7 @@ class RedisPersistenceBuilderTest {
     void build_throws_when_client_missing() {
         assertThatThrownBy(() -> RedisPersistence.builder()
             .basePath("myapp")
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .build())
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("client");

@@ -1,5 +1,6 @@
 package eu.okaeri.persistence.document;
 
+import eu.okaeri.configs.configurer.Configurer;
 import eu.okaeri.configs.configurer.InMemoryConfigurer;
 import eu.okaeri.configs.serdes.OkaeriSerdes;
 import eu.okaeri.persistence.*;
@@ -40,11 +41,15 @@ public class InMemoryPersistence implements Persistence, FilterablePersistence, 
     private final Map<String, Map<PersistencePath, Document>> documents = new ConcurrentHashMap<>();
     private final Map<String, Map<PersistencePath, Object>> documentLocks = new ConcurrentHashMap<>();
 
+    public InMemoryPersistence(@NonNull Configurer configurer, @NonNull OkaeriSerdes... serdes) {
+        this.serializer = new DocumentSerializer(configurer, serdes);
+        this.indexExtractor = new IndexExtractor(this.serializer.getConfigurer());
+        this.filterEvaluator = new InMemoryFilterEvaluator(this.serializer.getConfigurer());
+        this.updateEvaluator = new InMemoryUpdateEvaluator(this.serializer.getSerdesRegistry());
+    }
+
     public InMemoryPersistence(@NonNull OkaeriSerdes... serdes) {
-        this.serializer = new DocumentSerializer(InMemoryConfigurer::new, serdes);
-        this.indexExtractor = new IndexExtractor(this.serializer.getSimplifier());
-        this.filterEvaluator = new InMemoryFilterEvaluator(this.serializer.getSimplifier());
-        this.updateEvaluator = new InMemoryUpdateEvaluator(InMemoryConfigurer::new, this.serializer.getSerdesRegistry());
+        this(new InMemoryConfigurer(), serdes);
     }
 
     /**

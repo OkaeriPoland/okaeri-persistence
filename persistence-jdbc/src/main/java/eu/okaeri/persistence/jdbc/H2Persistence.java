@@ -2,11 +2,13 @@ package eu.okaeri.persistence.jdbc;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import eu.okaeri.configs.configurer.Configurer;
 import eu.okaeri.configs.serdes.OkaeriSerdes;
 import eu.okaeri.persistence.*;
-import eu.okaeri.persistence.document.ConfigurerProvider;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentSerializer;
+import eu.okaeri.persistence.document.DocumentSerializerConfig;
+import eu.okaeri.persistence.document.PersistenceBuilder;
 import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.jdbc.filter.H2FilterRenderer;
@@ -43,51 +45,54 @@ public class H2Persistence implements Persistence, FilterablePersistence, Stream
     private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
 
     public H2Persistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig,
-                         @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
+                         @NonNull Configurer configurer, @NonNull OkaeriSerdes... serdes) {
         this.basePath = basePath;
-        this.serializer = new DocumentSerializer(configurerProvider, serdes);
+        this.serializer = new DocumentSerializer(configurer, serdes);
         this.filterRenderer = new H2FilterRenderer(new SqlStringRenderer());
         this.connect(hikariConfig);
     }
 
     public H2Persistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource,
-                         @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
+                         @NonNull Configurer configurer, @NonNull OkaeriSerdes... serdes) {
         this.basePath = basePath;
         this.dataSource = dataSource;
-        this.serializer = new DocumentSerializer(configurerProvider, serdes);
+        this.serializer = new DocumentSerializer(configurer, serdes);
         this.filterRenderer = new H2FilterRenderer(new SqlStringRenderer());
     }
 
     public H2Persistence(@NonNull HikariConfig hikariConfig,
-                         @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
-        this(PersistencePath.of(""), hikariConfig, configurerProvider, serdes);
+                         @NonNull Configurer configurer, @NonNull OkaeriSerdes... serdes) {
+        this(PersistencePath.of(""), hikariConfig, configurer, serdes);
     }
 
     public H2Persistence(@NonNull HikariDataSource dataSource,
-                         @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
-        this(PersistencePath.of(""), dataSource, configurerProvider, serdes);
+                         @NonNull Configurer configurer, @NonNull OkaeriSerdes... serdes) {
+        this(PersistencePath.of(""), dataSource, configurer, serdes);
+    }
+
+    public H2Persistence(@NonNull PersistencePath basePath, @NonNull HikariConfig hikariConfig,
+                         @NonNull DocumentSerializerConfig serializerConfig) {
+        this.basePath = basePath;
+        this.serializer = new DocumentSerializer(serializerConfig);
+        this.filterRenderer = new H2FilterRenderer(new SqlStringRenderer());
+        this.connect(hikariConfig);
+    }
+
+    public H2Persistence(@NonNull PersistencePath basePath, @NonNull HikariDataSource dataSource,
+                         @NonNull DocumentSerializerConfig serializerConfig) {
+        this.basePath = basePath;
+        this.dataSource = dataSource;
+        this.serializer = new DocumentSerializer(serializerConfig);
+        this.filterRenderer = new H2FilterRenderer(new SqlStringRenderer());
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public static class Builder {
-        private PersistencePath basePath;
+    public static class Builder extends PersistenceBuilder<Builder, H2Persistence> {
         private HikariConfig hikariConfig;
         private HikariDataSource dataSource;
-        private ConfigurerProvider configurerProvider;
-        private OkaeriSerdes[] serdes = new OkaeriSerdes[0];
-
-        public Builder basePath(@NonNull String basePath) {
-            this.basePath = PersistencePath.of(basePath);
-            return this;
-        }
-
-        public Builder basePath(@NonNull PersistencePath basePath) {
-            this.basePath = basePath;
-            return this;
-        }
 
         public Builder hikariConfig(@NonNull HikariConfig hikariConfig) {
             this.hikariConfig = hikariConfig;
@@ -99,16 +104,7 @@ public class H2Persistence implements Persistence, FilterablePersistence, Stream
             return this;
         }
 
-        public Builder configurer(@NonNull ConfigurerProvider configurerProvider) {
-            this.configurerProvider = configurerProvider;
-            return this;
-        }
-
-        public Builder serdes(@NonNull OkaeriSerdes... packs) {
-            this.serdes = packs;
-            return this;
-        }
-
+        @Override
         public H2Persistence build() {
             if ((this.hikariConfig == null) && (this.dataSource == null)) {
                 throw new IllegalStateException("hikariConfig or dataSource is required");
@@ -116,14 +112,14 @@ public class H2Persistence implements Persistence, FilterablePersistence, Stream
             if ((this.hikariConfig != null) && (this.dataSource != null)) {
                 throw new IllegalStateException("hikariConfig and dataSource are mutually exclusive");
             }
-            if (this.configurerProvider == null) {
-                throw new IllegalStateException("configurer is required");
-            }
-            PersistencePath path = (this.basePath != null) ? this.basePath : PersistencePath.of("");
+
+            DocumentSerializerConfig serializerConfig = this.buildSerializerConfig();
+            PersistencePath path = this.resolveBasePath();
+
             if (this.dataSource != null) {
-                return new H2Persistence(path, this.dataSource, this.configurerProvider, this.serdes);
+                return new H2Persistence(path, this.dataSource, serializerConfig);
             }
-            return new H2Persistence(path, this.hikariConfig, this.configurerProvider, this.serdes);
+            return new H2Persistence(path, this.hikariConfig, serializerConfig);
         }
     }
 

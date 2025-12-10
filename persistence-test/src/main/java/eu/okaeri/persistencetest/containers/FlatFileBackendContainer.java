@@ -38,7 +38,7 @@ public class FlatFileBackendContainer implements BackendContainer {
 
         return new DocumentPersistence(FlatPersistence.builder()
             .storageDir(this.tempDir.toFile())
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .build());
     }
 

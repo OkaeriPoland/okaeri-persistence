@@ -2,7 +2,6 @@ package eu.okaeri.persistence.filter;
 
 import eu.okaeri.configs.migrate.view.RawConfigView;
 import eu.okaeri.configs.serdes.SerdesRegistry;
-import eu.okaeri.persistence.document.ConfigurerProvider;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.filter.operation.*;
 import lombok.NonNull;
@@ -22,7 +21,6 @@ import static eu.okaeri.persistence.document.DocumentValueUtils.compareForSort;
 @RequiredArgsConstructor
 public class InMemoryUpdateEvaluator {
 
-    private final ConfigurerProvider configurerProvider;
     private final SerdesRegistry serdesRegistry;
 
     /**

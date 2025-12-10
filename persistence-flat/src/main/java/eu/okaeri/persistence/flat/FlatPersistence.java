@@ -1,10 +1,12 @@
 package eu.okaeri.persistence.flat;
 
+import eu.okaeri.configs.configurer.Configurer;
 import eu.okaeri.configs.serdes.OkaeriSerdes;
 import eu.okaeri.persistence.*;
-import eu.okaeri.persistence.document.ConfigurerProvider;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentSerializer;
+import eu.okaeri.persistence.document.DocumentSerializerConfig;
+import eu.okaeri.persistence.document.PersistenceBuilder;
 import eu.okaeri.persistence.document.index.IndexExtractor;
 import eu.okaeri.persistence.document.index.IndexProperty;
 import eu.okaeri.persistence.document.index.PropertyIndex;
@@ -61,25 +63,37 @@ public class FlatPersistence implements Persistence, FilterablePersistence, Stre
         return name.substring(0, name.length() - FlatPersistence.this.fileSuffix.length());
     };
 
-    public FlatPersistence(@NonNull File storageDir, @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
-        this(PersistencePath.of(storageDir), resolveFileSuffix(configurerProvider), configurerProvider, serdes);
+    public FlatPersistence(@NonNull File storageDir, @NonNull Configurer configurer, @NonNull OkaeriSerdes... serdes) {
+        this(PersistencePath.of(storageDir), resolveFileSuffix(configurer), configurer, serdes);
     }
 
     private FlatPersistence(
         @NonNull PersistencePath basePath,
         @NonNull String fileSuffix,
-        @NonNull ConfigurerProvider configurerProvider,
+        @NonNull Configurer configurer,
         @NonNull OkaeriSerdes[] serdes
     ) {
         this.basePath = basePath;
         this.fileSuffix = fileSuffix;
-        this.serializer = new DocumentSerializer(configurerProvider, serdes);
-        this.indexExtractor = new IndexExtractor(this.serializer.getSimplifier());
-        this.filterEvaluator = new InMemoryFilterEvaluator(this.serializer.getSimplifier());
+        this.serializer = new DocumentSerializer(configurer, serdes);
+        this.indexExtractor = new IndexExtractor(this.serializer.getConfigurer());
+        this.filterEvaluator = new InMemoryFilterEvaluator(this.serializer.getConfigurer());
     }
 
-    private static String resolveFileSuffix(@NonNull ConfigurerProvider configurerProvider) {
-        List<String> extensions = configurerProvider.get().getExtensions();
+    private FlatPersistence(
+        @NonNull PersistencePath basePath,
+        @NonNull String fileSuffix,
+        @NonNull DocumentSerializerConfig serializerConfig
+    ) {
+        this.basePath = basePath;
+        this.fileSuffix = fileSuffix;
+        this.serializer = new DocumentSerializer(serializerConfig);
+        this.indexExtractor = new IndexExtractor(this.serializer.getConfigurer());
+        this.filterEvaluator = new InMemoryFilterEvaluator(this.serializer.getConfigurer());
+    }
+
+    private static String resolveFileSuffix(@NonNull Configurer configurer) {
+        List<String> extensions = configurer.getExtensions();
         if (extensions.isEmpty()) {
             throw new IllegalArgumentException("Configurer has no extensions - use builder with explicit suffix()");
         }
@@ -90,11 +104,9 @@ public class FlatPersistence implements Persistence, FilterablePersistence, Stre
         return new Builder();
     }
 
-    public static class Builder {
+    public static class Builder extends PersistenceBuilder<Builder, FlatPersistence> {
         private PersistencePath storageDir;
         private String fileSuffix;
-        private ConfigurerProvider configurerProvider;
-        private OkaeriSerdes[] serdes = new OkaeriSerdes[0];
 
         public Builder storageDir(@NonNull File dir) {
             this.storageDir = PersistencePath.of(dir);
@@ -116,26 +128,24 @@ public class FlatPersistence implements Persistence, FilterablePersistence, Stre
             return this;
         }
 
-        public Builder configurer(@NonNull ConfigurerProvider configurerProvider) {
-            this.configurerProvider = configurerProvider;
-            return this;
-        }
-
-        public Builder serdes(@NonNull OkaeriSerdes... packs) {
-            this.serdes = packs;
-            return this;
-        }
-
+        @Override
         public FlatPersistence build() {
             if (this.storageDir == null) {
                 throw new IllegalStateException("storageDir is required");
             }
-            if (this.configurerProvider == null) {
-                throw new IllegalStateException("configurer is required");
-            }
-            String suffix = (this.fileSuffix != null) ? this.fileSuffix : resolveFileSuffix(this.configurerProvider);
-            return new FlatPersistence(this.storageDir, suffix, this.configurerProvider, this.serdes);
+
+            DocumentSerializerConfig serializerConfig = this.buildSerializerConfig();
+            String suffix = (this.fileSuffix != null) ? this.fileSuffix : resolveFileSuffix(serializerConfig);
+            return new FlatPersistence(this.storageDir, suffix, serializerConfig);
         }
+    }
+
+    private static String resolveFileSuffix(@NonNull DocumentSerializerConfig serializerConfig) {
+        List<String> extensions = serializerConfig.getConfigurer().getExtensions();
+        if (extensions.isEmpty()) {
+            throw new IllegalArgumentException("Configurer has no extensions - use builder with explicit suffix()");
+        }
+        return "." + extensions.get(0);
     }
 
     /**

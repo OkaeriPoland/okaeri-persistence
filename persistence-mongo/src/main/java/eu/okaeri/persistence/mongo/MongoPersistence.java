@@ -8,11 +8,10 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.*;
 import com.mongodb.client.result.UpdateResult;
+import eu.okaeri.configs.configurer.Configurer;
 import eu.okaeri.configs.serdes.OkaeriSerdes;
 import eu.okaeri.persistence.*;
-import eu.okaeri.persistence.document.ConfigurerProvider;
-import eu.okaeri.persistence.document.Document;
-import eu.okaeri.persistence.document.DocumentSerializer;
+import eu.okaeri.persistence.document.*;
 import eu.okaeri.persistence.filter.DeleteFilter;
 import eu.okaeri.persistence.filter.FindFilter;
 import eu.okaeri.persistence.filter.UpdateFilter;
@@ -53,37 +52,31 @@ public class MongoPersistence implements Persistence, FilterablePersistence, Str
     private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
 
     public MongoPersistence(@NonNull PersistencePath basePath, @NonNull MongoClient client, @NonNull String databaseName,
-                            @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
+                            @NonNull Configurer configurer, @NonNull OkaeriSerdes... serdes) {
         this.basePath = basePath;
-        this.serializer = new DocumentSerializer(configurerProvider, serdes);
+        this.serializer = new DocumentSerializer(configurer, serdes);
         this.connect(client, databaseName);
     }
 
     public MongoPersistence(@NonNull MongoClient client, @NonNull String databaseName,
-                            @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
-        this(PersistencePath.of(""), client, databaseName, configurerProvider, serdes);
+                            @NonNull Configurer configurer, @NonNull OkaeriSerdes... serdes) {
+        this(PersistencePath.of(""), client, databaseName, configurer, serdes);
+    }
+
+    public MongoPersistence(@NonNull PersistencePath basePath, @NonNull MongoClient client, @NonNull String databaseName,
+                            @NonNull DocumentSerializerConfig serializerConfig) {
+        this.basePath = basePath;
+        this.serializer = new DocumentSerializer(serializerConfig);
+        this.connect(client, databaseName);
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public static class Builder {
-        private PersistencePath basePath;
+    public static class Builder extends PersistenceBuilder<Builder, MongoPersistence> {
         private MongoClient client;
         private String databaseName;
-        private ConfigurerProvider configurerProvider;
-        private OkaeriSerdes[] serdes = new OkaeriSerdes[0];
-
-        public Builder basePath(@NonNull String basePath) {
-            this.basePath = PersistencePath.of(basePath);
-            return this;
-        }
-
-        public Builder basePath(@NonNull PersistencePath basePath) {
-            this.basePath = basePath;
-            return this;
-        }
 
         public Builder client(@NonNull MongoClient client) {
             this.client = client;
@@ -95,16 +88,7 @@ public class MongoPersistence implements Persistence, FilterablePersistence, Str
             return this;
         }
 
-        public Builder configurer(@NonNull ConfigurerProvider configurerProvider) {
-            this.configurerProvider = configurerProvider;
-            return this;
-        }
-
-        public Builder serdes(@NonNull OkaeriSerdes... packs) {
-            this.serdes = packs;
-            return this;
-        }
-
+        @Override
         public MongoPersistence build() {
             if (this.client == null) {
                 throw new IllegalStateException("client is required");
@@ -112,11 +96,11 @@ public class MongoPersistence implements Persistence, FilterablePersistence, Str
             if (this.databaseName == null) {
                 throw new IllegalStateException("databaseName is required");
             }
-            if (this.configurerProvider == null) {
-                throw new IllegalStateException("configurer is required");
-            }
-            PersistencePath path = (this.basePath != null) ? this.basePath : PersistencePath.of("");
-            return new MongoPersistence(path, this.client, this.databaseName, this.configurerProvider, this.serdes);
+
+            DocumentSerializerConfig serializerConfig = this.buildSerializerConfig();
+            PersistencePath path = this.resolveBasePath();
+
+            return new MongoPersistence(path, this.client, this.databaseName, serializerConfig);
         }
     }
 
@@ -379,7 +363,7 @@ public class MongoPersistence implements Persistence, FilterablePersistence, Str
         Bson filters = Filters.eq("_id", path.getValue());
 
         UpdateResult result = this.mongo(collection).replaceOne(filters, data, REPLACE_OPTIONS);
-        return result.getModifiedCount() > 0 || result.getUpsertedId() != null;
+        return (result.getModifiedCount() > 0) || (result.getUpsertedId() != null);
     }
 
     @Override

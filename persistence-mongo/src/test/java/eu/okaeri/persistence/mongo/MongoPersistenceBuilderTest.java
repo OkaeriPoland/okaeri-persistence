@@ -15,7 +15,7 @@ class MongoPersistenceBuilderTest {
         assertThatThrownBy(() -> MongoPersistence.builder()
             .basePath("myapp")
             .databaseName("testdb")
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .build())
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("client");
@@ -28,7 +28,7 @@ class MongoPersistenceBuilderTest {
         assertThatThrownBy(() -> MongoPersistence.builder()
             .basePath("myapp")
             .client(mockClient)
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .build())
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("databaseName");

@@ -1,5 +1,6 @@
 package eu.okaeri.persistence.document;
 
+import eu.okaeri.configs.configurer.Configurer;
 import eu.okaeri.configs.serdes.OkaeriSerdes;
 import eu.okaeri.persistence.*;
 import eu.okaeri.persistence.filter.*;
@@ -46,26 +47,40 @@ public class DocumentPersistence implements Persistence, FilterablePersistence, 
         this.backend = backend;
         this.serializer = backend.getSerializer();
         this.serializer.setPersistence(this);
-        this.filterEvaluator = new InMemoryFilterEvaluator(this.serializer.getSimplifier());
-        this.updateEvaluator = new InMemoryUpdateEvaluator(
-            this.serializer.getConfigurerProvider(), this.serializer.getSerdesRegistry());
+        this.filterEvaluator = new InMemoryFilterEvaluator(this.serializer.getConfigurer());
+        this.updateEvaluator = new InMemoryUpdateEvaluator(this.serializer.getSerdesRegistry());
     }
 
     /**
      * Wrap a persistence backend with document handling capabilities.
      *
-     * @param backend            The underlying persistence backend
-     * @param configurerProvider Configurer for document serialization
-     * @param serdes             Additional serialization packs
+     * @param backend    The underlying persistence backend
+     * @param configurer Configurer for document serialization
+     * @param serdes     Additional serialization packs
      */
     public DocumentPersistence(@NonNull Persistence backend,
-                               @NonNull ConfigurerProvider configurerProvider,
+                               @NonNull Configurer configurer,
                                @NonNull OkaeriSerdes... serdes) {
         this.backend = backend;
-        this.serializer = new DocumentSerializer(configurerProvider, serdes);
+        this.serializer = new DocumentSerializer(configurer, serdes);
         this.serializer.setPersistence(this);
-        this.filterEvaluator = new InMemoryFilterEvaluator(this.serializer.getSimplifier());
-        this.updateEvaluator = new InMemoryUpdateEvaluator(configurerProvider, this.serializer.getSerdesRegistry());
+        this.filterEvaluator = new InMemoryFilterEvaluator(this.serializer.getConfigurer());
+        this.updateEvaluator = new InMemoryUpdateEvaluator(this.serializer.getSerdesRegistry());
+    }
+
+    /**
+     * Wrap a persistence backend with document handling capabilities.
+     *
+     * @param backend         The underlying persistence backend
+     * @param serializerConfig Configuration for document serialization
+     */
+    public DocumentPersistence(@NonNull Persistence backend,
+                               @NonNull DocumentSerializerConfig serializerConfig) {
+        this.backend = backend;
+        this.serializer = new DocumentSerializer(serializerConfig);
+        this.serializer.setPersistence(this);
+        this.filterEvaluator = new InMemoryFilterEvaluator(this.serializer.getConfigurer());
+        this.updateEvaluator = new InMemoryUpdateEvaluator(this.serializer.getSerdesRegistry());
     }
 
     /**

@@ -15,7 +15,7 @@ class MariaDbPersistenceBuilderTest {
     void build_throws_when_hikariConfig_and_dataSource_missing() {
         assertThatThrownBy(() -> MariaDbPersistence.builder()
             .basePath("myapp")
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .build())
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("hikariConfig or dataSource is required");
@@ -29,7 +29,7 @@ class MariaDbPersistenceBuilderTest {
         assertThatThrownBy(() -> MariaDbPersistence.builder()
             .hikariConfig(mockConfig)
             .dataSource(mockDataSource)
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .build())
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("mutually exclusive");

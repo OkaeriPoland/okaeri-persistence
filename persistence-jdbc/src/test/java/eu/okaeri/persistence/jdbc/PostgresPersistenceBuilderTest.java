@@ -15,7 +15,7 @@ class PostgresPersistenceBuilderTest {
     void build_throws_when_hikariConfig_and_dataSource_missing() {
         assertThatThrownBy(() -> PostgresPersistence.builder()
             .basePath("myapp")
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .build())
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("hikariConfig or dataSource is required");
@@ -29,7 +29,7 @@ class PostgresPersistenceBuilderTest {
         assertThatThrownBy(() -> PostgresPersistence.builder()
             .hikariConfig(mockConfig)
             .dataSource(mockDataSource)
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .build())
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("mutually exclusive");

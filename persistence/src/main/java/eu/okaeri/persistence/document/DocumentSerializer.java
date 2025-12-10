@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.NonNull;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -24,17 +25,21 @@ import java.util.Map;
 public class DocumentSerializer {
 
     @Getter
-    private final ConfigurerProvider configurerProvider;
+    private final DocumentSerializerConfig config;
     @Getter
     private final SerdesRegistry serdesRegistry;
     @Getter
-    private final Configurer simplifier;
+    private final Configurer configurer;
 
     // Reference to persistence for LazyRef/EagerRef - set after construction
     private Object persistence;
 
-    public DocumentSerializer(@NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
-        this.configurerProvider = configurerProvider;
+    /**
+     * Create with full configuration.
+     */
+    public DocumentSerializer(@NonNull DocumentSerializerConfig config) {
+        this.config = config;
+        this.configurer = config.getConfigurer();
 
         // Build shared serdes registry
         this.serdesRegistry = new SerdesRegistry();
@@ -42,13 +47,22 @@ public class DocumentSerializer {
         this.serdesRegistry.register(new SerdesCommons());
         this.serdesRegistry.registerExclusive(Instant.class, new InstantSerializer(true));
 
-        for (OkaeriSerdes pack : serdes) {
+        for (OkaeriSerdes pack : config.getSerdesPacks()) {
             this.serdesRegistry.register(pack);
         }
 
-        // Simplifier for document-to-map conversion
-        this.simplifier = configurerProvider.get();
-        this.simplifier.setRegistry(this.serdesRegistry);
+        // Set registry on the reusable configurer
+        this.configurer.setRegistry(this.serdesRegistry);
+    }
+
+    /**
+     * Convenience constructor for the most common use case.
+     */
+    public DocumentSerializer(@NonNull Configurer configurer, @NonNull OkaeriSerdes... serdes) {
+        this(DocumentSerializerConfig.builder()
+            .configurer(configurer)
+            .serdesPacks(Arrays.asList(serdes))
+            .build());
     }
 
     /**
@@ -94,12 +108,8 @@ public class DocumentSerializer {
      */
     public void setupDocument(@NonNull Document document, @NonNull PersistenceCollection collection, @NonNull PersistencePath path) {
         // OkaeriConfig setup
-        if (document.getDeclaration() == null) {
-            document.updateDeclaration();
-        }
         if (document.getConfigurer() == null) {
-            document.setConfigurer(this.configurerProvider.get());
-            document.getConfigurer().setRegistry(this.serdesRegistry);
+            document.setConfigurer(this.configurer);
         }
 
         // Document-specific setup
@@ -108,22 +118,23 @@ public class DocumentSerializer {
         if (this.persistence instanceof DocumentPersistence) {
             document.setPersistence((DocumentPersistence) this.persistence);
         }
+
+        // Apply custom document configuration hook
+        this.config.getDocumentConfigurator().configure(document);
     }
 
     /**
      * Convert document to a map for index extraction or other processing.
      */
     public Map<String, Object> toMap(@NonNull Document document) {
-        return document.asMap(this.simplifier, true);
+        return document.asMap(this.configurer, true);
     }
 
     /**
      * Deep copy a document.
      */
     public Document deepCopy(@NonNull Document source) {
-        Configurer copyConfigurer = this.configurerProvider.get();
-        copyConfigurer.setRegistry(this.serdesRegistry);
-        Document copy = ConfigManager.deepCopy(source, copyConfigurer, Document.class);
+        Document copy = ConfigManager.deepCopy(source, this.configurer, Document.class);
         copy.setPath(source.getPath());
         copy.setCollection(source.getCollection());
         if (this.persistence instanceof DocumentPersistence) {

@@ -37,7 +37,7 @@ public class RedisBackendContainer implements BackendContainer {
 
         RedisClient redisClient = RedisClient.create(redisUri);
 
-        return new DocumentPersistence(new RedisPersistence(redisClient, JsonSimpleConfigurer::new));
+        return new DocumentPersistence(new RedisPersistence(redisClient, new JsonSimpleConfigurer()));
     }
 
     @Override

@@ -1,10 +1,12 @@
 package eu.okaeri.persistence.redis;
 
+import eu.okaeri.configs.configurer.Configurer;
 import eu.okaeri.configs.serdes.OkaeriSerdes;
 import eu.okaeri.persistence.*;
-import eu.okaeri.persistence.document.ConfigurerProvider;
 import eu.okaeri.persistence.document.Document;
 import eu.okaeri.persistence.document.DocumentSerializer;
+import eu.okaeri.persistence.document.DocumentSerializerConfig;
+import eu.okaeri.persistence.document.PersistenceBuilder;
 import io.lettuce.core.*;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
@@ -43,61 +45,46 @@ public class RedisPersistence implements Persistence {
     private final Map<String, PersistenceCollection> knownCollections = new ConcurrentHashMap<>();
 
     public RedisPersistence(@NonNull PersistencePath basePath, @NonNull RedisClient client,
-                            @NonNull ConfigurerProvider configurerProvider, @NonNull OkaeriSerdes... serdes) {
+                            @NonNull Configurer configurer, @NonNull OkaeriSerdes... serdes) {
         this.basePath = basePath;
-        this.serializer = new DocumentSerializer(configurerProvider, serdes);
+        this.serializer = new DocumentSerializer(configurer, serdes);
         this.connect(client);
     }
 
-    public RedisPersistence(@NonNull RedisClient client, @NonNull ConfigurerProvider configurerProvider,
+    public RedisPersistence(@NonNull RedisClient client, @NonNull Configurer configurer,
                             @NonNull OkaeriSerdes... serdes) {
-        this(PersistencePath.of(""), client, configurerProvider, serdes);
+        this(PersistencePath.of(""), client, configurer, serdes);
+    }
+
+    public RedisPersistence(@NonNull PersistencePath basePath, @NonNull RedisClient client,
+                            @NonNull DocumentSerializerConfig serializerConfig) {
+        this.basePath = basePath;
+        this.serializer = new DocumentSerializer(serializerConfig);
+        this.connect(client);
     }
 
     public static Builder builder() {
         return new Builder();
     }
 
-    public static class Builder {
-        private PersistencePath basePath;
+    public static class Builder extends PersistenceBuilder<Builder, RedisPersistence> {
         private RedisClient client;
-        private ConfigurerProvider configurerProvider;
-        private OkaeriSerdes[] serdes = new OkaeriSerdes[0];
-
-        public Builder basePath(@NonNull String basePath) {
-            this.basePath = PersistencePath.of(basePath);
-            return this;
-        }
-
-        public Builder basePath(@NonNull PersistencePath basePath) {
-            this.basePath = basePath;
-            return this;
-        }
 
         public Builder client(@NonNull RedisClient client) {
             this.client = client;
             return this;
         }
 
-        public Builder configurer(@NonNull ConfigurerProvider configurerProvider) {
-            this.configurerProvider = configurerProvider;
-            return this;
-        }
-
-        public Builder serdes(@NonNull OkaeriSerdes... packs) {
-            this.serdes = packs;
-            return this;
-        }
-
+        @Override
         public RedisPersistence build() {
             if (this.client == null) {
                 throw new IllegalStateException("client is required");
             }
-            if (this.configurerProvider == null) {
-                throw new IllegalStateException("configurer is required");
-            }
-            PersistencePath path = (this.basePath != null) ? this.basePath : PersistencePath.of("");
-            return new RedisPersistence(path, this.client, this.configurerProvider, this.serdes);
+
+            DocumentSerializerConfig serializerConfig = this.buildSerializerConfig();
+            PersistencePath path = this.resolveBasePath();
+
+            return new RedisPersistence(path, this.client, serializerConfig);
         }
     }
 

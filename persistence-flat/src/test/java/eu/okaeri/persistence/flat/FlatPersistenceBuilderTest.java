@@ -4,7 +4,6 @@ import eu.okaeri.configs.json.simple.JsonSimpleConfigurer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.File;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,7 +18,7 @@ class FlatPersistenceBuilderTest {
     void build_with_file_storageDir() {
         FlatPersistence persistence = FlatPersistence.builder()
             .storageDir(this.tempDir.toFile())
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .build();
 
         assertThat(persistence).isNotNull();
@@ -30,7 +29,7 @@ class FlatPersistenceBuilderTest {
     void build_with_path_storageDir() {
         FlatPersistence persistence = FlatPersistence.builder()
             .storageDir(this.tempDir)
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .build();
 
         assertThat(persistence).isNotNull();
@@ -41,7 +40,7 @@ class FlatPersistenceBuilderTest {
     void build_with_suffix() {
         FlatPersistence persistence = FlatPersistence.builder()
             .storageDir(this.tempDir)
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .suffix(".data")
             .build();
 
@@ -52,7 +51,7 @@ class FlatPersistenceBuilderTest {
     void build_with_extension() {
         FlatPersistence persistence = FlatPersistence.builder()
             .storageDir(this.tempDir)
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .extension("yaml")
             .build();
 
@@ -63,7 +62,7 @@ class FlatPersistenceBuilderTest {
     void build_uses_configurer_extension_as_default() {
         FlatPersistence persistence = FlatPersistence.builder()
             .storageDir(this.tempDir)
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .build();
 
         assertThat(persistence.getFileSuffix()).isEqualTo(".json");
@@ -72,7 +71,7 @@ class FlatPersistenceBuilderTest {
     @Test
     void build_throws_when_storageDir_missing() {
         assertThatThrownBy(() -> FlatPersistence.builder()
-            .configurer(JsonSimpleConfigurer::new)
+            .configurer(new JsonSimpleConfigurer())
             .build())
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("storageDir");
@@ -91,7 +90,7 @@ class FlatPersistenceBuilderTest {
     void constructor_with_file_and_configurer() {
         FlatPersistence persistence = new FlatPersistence(
             this.tempDir.toFile(),
-            JsonSimpleConfigurer::new
+            new JsonSimpleConfigurer()
         );
 
         assertThat(persistence).isNotNull();

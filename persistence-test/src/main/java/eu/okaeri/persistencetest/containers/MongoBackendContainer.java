@@ -32,7 +32,7 @@ public class MongoBackendContainer implements BackendContainer {
         MongoClient mongoClient = MongoClients.create(MONGO.getConnectionString());
 
         return new DocumentPersistence(
-            new MongoPersistence(mongoClient, "okaeri_persistence", JsonSimpleConfigurer::new)
+            new MongoPersistence(mongoClient, "okaeri_persistence", new JsonSimpleConfigurer())
         );
     }
 
