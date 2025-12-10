@@ -31,7 +31,7 @@ public class PostgresBackendContainer implements BackendContainer {
     }
 
     @Override
-    public DocumentPersistence createPersistence() {
+    public PostgresPersistence.Builder createPersistenceBuilder() {
         HikariConfig hikariConfig = new HikariConfig();
         hikariConfig.setJdbcUrl(POSTGRES.getJdbcUrl());
         hikariConfig.setUsername(POSTGRES.getUsername());
@@ -41,7 +41,15 @@ public class PostgresBackendContainer implements BackendContainer {
         hikariConfig.setMinimumIdle(1);
         hikariConfig.setConnectionTimeout(30000);
 
-        return new DocumentPersistence(new PostgresPersistence(hikariConfig, new JsonSimpleConfigurer()));
+        return PostgresPersistence.builder()
+            .hikariConfig(hikariConfig);
+    }
+
+    @Override
+    public DocumentPersistence createPersistence() {
+        return new DocumentPersistence(this.createPersistenceBuilder()
+            .configurer(new JsonSimpleConfigurer())
+            .build());
     }
 
     @Override

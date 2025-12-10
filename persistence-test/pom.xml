@@ -57,6 +57,13 @@
             <version>${okaeri-configs.version}</version>
         </dependency>
 
+        <!-- Validator for document injection testing -->
+        <dependency>
+            <groupId>eu.okaeri</groupId>
+            <artifactId>okaeri-configs-validator-okaeri</artifactId>
+            <version>${okaeri-configs.version}</version>
+        </dependency>
+
         <!-- Database drivers -->
         <dependency>
             <groupId>com.h2database</groupId>

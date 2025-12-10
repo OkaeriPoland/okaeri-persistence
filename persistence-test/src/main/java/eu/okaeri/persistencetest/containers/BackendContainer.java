@@ -23,6 +23,15 @@ public interface BackendContainer extends AutoCloseable {
     DocumentPersistence createPersistence();
 
     /**
+     * Create a builder for this backend's persistence implementation.
+     * Allows tests to customize configuration (e.g., add validators).
+     * Returns null for backends that don't support builders.
+     */
+    default Object createPersistenceBuilder() {
+        return null;
+    }
+
+    /**
      * Whether this backend requires Docker testcontainers.
      * Informational only - does not affect test execution.
      */

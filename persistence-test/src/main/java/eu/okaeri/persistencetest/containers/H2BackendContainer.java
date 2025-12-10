@@ -26,13 +26,21 @@ public class H2BackendContainer implements BackendContainer {
     }
 
     @Override
-    public DocumentPersistence createPersistence() {
+    public H2Persistence.Builder createPersistenceBuilder() {
         HikariConfig hikariConfig = JdbcHelper.configureHikari(
             "jdbc:h2:" + this.dbPath + ";mode=mysql",
             "org.h2.Driver"
         );
 
-        return new DocumentPersistence(new H2Persistence(hikariConfig, new JsonSimpleConfigurer()));
+        return H2Persistence.builder()
+            .hikariConfig(hikariConfig);
+    }
+
+    @Override
+    public DocumentPersistence createPersistence() {
+        return new DocumentPersistence(this.createPersistenceBuilder()
+            .configurer(new JsonSimpleConfigurer())
+            .build());
     }
 
     @Override
@@ -60,6 +68,6 @@ public class H2BackendContainer implements BackendContainer {
 
     @Override
     public String toString() {
-        return getName();
+        return this.getName();
     }
 }

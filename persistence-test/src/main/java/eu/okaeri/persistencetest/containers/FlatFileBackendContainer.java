@@ -29,15 +29,20 @@ public class FlatFileBackendContainer implements BackendContainer {
     }
 
     @Override
-    public DocumentPersistence createPersistence() {
+    public FlatPersistence.Builder createPersistenceBuilder() {
         try {
             this.tempDir = Files.createTempDirectory("okaeri-persistence-test-");
         } catch (IOException e) {
             throw new RuntimeException("Failed to create temp directory for flat file persistence", e);
         }
 
-        return new DocumentPersistence(FlatPersistence.builder()
-            .storageDir(this.tempDir.toFile())
+        return FlatPersistence.builder()
+            .storageDir(this.tempDir.toFile());
+    }
+
+    @Override
+    public DocumentPersistence createPersistence() {
+        return new DocumentPersistence(this.createPersistenceBuilder()
             .configurer(new JsonSimpleConfigurer())
             .build());
     }

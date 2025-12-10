@@ -1,5 +1,6 @@
 package eu.okaeri.persistencetest.containers;
 
+import eu.okaeri.configs.json.simple.JsonSimpleConfigurer;
 import eu.okaeri.persistence.document.DocumentPersistence;
 import eu.okaeri.persistence.document.InMemoryPersistence;
 
@@ -15,8 +16,15 @@ public class InMemoryBackendContainer implements BackendContainer {
     }
 
     @Override
+    public InMemoryPersistence.Builder createPersistenceBuilder() {
+        return InMemoryPersistence.builder();
+    }
+
+    @Override
     public DocumentPersistence createPersistence() {
-        return new DocumentPersistence(new InMemoryPersistence());
+        return new DocumentPersistence(this.createPersistenceBuilder()
+            .configurer(new JsonSimpleConfigurer())
+            .build());
     }
 
     @Override
@@ -36,6 +44,6 @@ public class InMemoryBackendContainer implements BackendContainer {
 
     @Override
     public String toString() {
-        return getName();
+        return this.getName();
     }
 }

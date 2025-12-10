@@ -28,12 +28,19 @@ public class MongoBackendContainer implements BackendContainer {
     }
 
     @Override
-    public DocumentPersistence createPersistence() {
+    public MongoPersistence.Builder createPersistenceBuilder() {
         MongoClient mongoClient = MongoClients.create(MONGO.getConnectionString());
 
-        return new DocumentPersistence(
-            new MongoPersistence(mongoClient, "okaeri_persistence", new JsonSimpleConfigurer())
-        );
+        return MongoPersistence.builder()
+            .client(mongoClient)
+            .databaseName("okaeri_persistence");
+    }
+
+    @Override
+    public DocumentPersistence createPersistence() {
+        return new DocumentPersistence(this.createPersistenceBuilder()
+            .configurer(new JsonSimpleConfigurer())
+            .build());
     }
 
     @Override
@@ -53,6 +60,6 @@ public class MongoBackendContainer implements BackendContainer {
 
     @Override
     public String toString() {
-        return getName();
+        return this.getName();
     }
 }

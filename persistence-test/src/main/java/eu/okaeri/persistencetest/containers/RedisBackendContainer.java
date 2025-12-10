@@ -29,7 +29,7 @@ public class RedisBackendContainer implements BackendContainer {
     }
 
     @Override
-    public DocumentPersistence createPersistence() {
+    public RedisPersistence.Builder createPersistenceBuilder() {
         RedisURI redisUri = RedisURI.builder()
             .withHost(REDIS.getHost())
             .withPort(REDIS.getMappedPort(6379))
@@ -37,7 +37,15 @@ public class RedisBackendContainer implements BackendContainer {
 
         RedisClient redisClient = RedisClient.create(redisUri);
 
-        return new DocumentPersistence(new RedisPersistence(redisClient, new JsonSimpleConfigurer()));
+        return RedisPersistence.builder()
+            .client(redisClient);
+    }
+
+    @Override
+    public DocumentPersistence createPersistence() {
+        return new DocumentPersistence(this.createPersistenceBuilder()
+            .configurer(new JsonSimpleConfigurer())
+            .build());
     }
 
     @Override
@@ -57,6 +65,6 @@ public class RedisBackendContainer implements BackendContainer {
 
     @Override
     public String toString() {
-        return getName();
+        return this.getName();
     }
 }

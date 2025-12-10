@@ -48,8 +48,33 @@ public class InMemoryPersistence implements Persistence, FilterablePersistence, 
         this.updateEvaluator = new InMemoryUpdateEvaluator(this.serializer.getSerdesRegistry());
     }
 
+    public InMemoryPersistence(@NonNull DocumentSerializerConfig serializerConfig) {
+        this.serializer = new DocumentSerializer(serializerConfig);
+        this.indexExtractor = new IndexExtractor(this.serializer.getConfigurer());
+        this.filterEvaluator = new InMemoryFilterEvaluator(this.serializer.getConfigurer());
+        this.updateEvaluator = new InMemoryUpdateEvaluator(this.serializer.getSerdesRegistry());
+    }
+
     public InMemoryPersistence(@NonNull OkaeriSerdes... serdes) {
         this(new InMemoryConfigurer(), serdes);
+    }
+
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder extends PersistenceBuilder<Builder, InMemoryPersistence> {
+
+        @Override
+        protected Builder self() {
+            return this;
+        }
+
+        @Override
+        public InMemoryPersistence build() {
+            DocumentSerializerConfig serializerConfig = this.buildSerializerConfig();
+            return new InMemoryPersistence(serializerConfig);
+        }
     }
 
     /**
@@ -296,6 +321,7 @@ public class InMemoryPersistence implements Persistence, FilterablePersistence, 
         synchronized (this.getLockFor(collection, path)) {
             this.checkCollectionRegistered(collection);
             this.serializer.setupDocument(document, collection, path);
+            document.validate();
             this.updateIndexes(collection, path, document);
             return this.documents.get(collection.getValue()).put(path, document) != null;
         }

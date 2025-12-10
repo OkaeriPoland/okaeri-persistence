@@ -36,7 +36,7 @@ public class MariaDbBackendContainer implements BackendContainer {
     }
 
     @Override
-    public DocumentPersistence createPersistence() {
+    public MariaDbPersistence.Builder createPersistenceBuilder() {
         HikariConfig hikariConfig = new HikariConfig();
         hikariConfig.setJdbcUrl(MARIADB.getJdbcUrl());
         hikariConfig.setUsername(MARIADB.getUsername());
@@ -49,7 +49,15 @@ public class MariaDbBackendContainer implements BackendContainer {
         hikariConfig.setMaxLifetime(600000);
         hikariConfig.setKeepaliveTime(60000);
 
-        return new DocumentPersistence(new MariaDbPersistence(hikariConfig, new JsonSimpleConfigurer()));
+        return MariaDbPersistence.builder()
+            .hikariConfig(hikariConfig);
+    }
+
+    @Override
+    public DocumentPersistence createPersistence() {
+        return new DocumentPersistence(this.createPersistenceBuilder()
+            .configurer(new JsonSimpleConfigurer())
+            .build());
     }
 
     @Override

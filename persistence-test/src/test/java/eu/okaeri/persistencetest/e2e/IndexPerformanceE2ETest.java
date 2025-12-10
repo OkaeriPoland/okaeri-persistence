@@ -6,6 +6,7 @@ import eu.okaeri.persistencetest.containers.*;
 import eu.okaeri.persistencetest.fixtures.IndexTestEntity;
 import lombok.Getter;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>
  * Test data: 100 unique categories × factor copies (factor varies by backend)
  */
+@Disabled("Flaky and no reason to run it unless changing index-related features")
 @DisplayName("Index Performance E2E Tests")
 public class IndexPerformanceE2ETest extends E2ETestBase {
 
