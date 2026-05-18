@@ -22,11 +22,19 @@ public class MethodNameParserTest {
         private int level;
         private boolean active;
         private TestMeta meta;
+        // Fields whose camelCase contains And/Or/Asc/Desc as a substring,
+        // exercising keyword-collision handling in the parser.
+        private String authorId;
+        private String workerName;
+        private String brandName;
+        private String descriptor;
+        private boolean ascending;
     }
 
     public static class TestMeta extends OkaeriConfig {
         private String name;
         private int score;
+        private String authorId;
     }
 
     // Mock repository interface for method extraction
@@ -114,6 +122,23 @@ public class MethodNameParserTest {
         Optional<TestDocument> getByEmail(String email);
 
         List<TestDocument> queryByLevel(int level);
+
+        // Field names whose camelCase embeds a parser keyword (And/Or/Asc/Desc)
+        // as a substring — must resolve to the whole field, not split on the keyword.
+        Optional<TestDocument> findByAuthorId(String authorId);
+        Optional<TestDocument> findByWorkerName(String workerName);
+        Optional<TestDocument> findByBrandName(String brandName);
+        Optional<TestDocument> findByAuthorIdAndLevel(String authorId, int level);
+        Optional<TestDocument> findByLevelOrAuthorId(int level, String authorId);
+        Optional<TestDocument> findByBrandNameAndLevel(String brandName, int level);
+        Optional<TestDocument> findByLevelOrBrandName(int level, String brandName);
+        Optional<TestDocument> findByMeta$AuthorId(String authorId);
+
+        // OrderBy on fields whose names start with Asc/Desc.
+        List<TestDocument> findAllOrderByDescriptor();
+        List<TestDocument> findAllOrderByAscending();
+        List<TestDocument> findByActiveOrderByDescriptorDesc(boolean active);
+        List<TestDocument> findByActiveOrderByAscendingAsc(boolean active);
     }
 
     @Test
@@ -395,6 +420,122 @@ public class MethodNameParserTest {
         assertThat(queryParsed.getOperation()).isEqualTo(MethodOperation.FIND);
     }
 
+    // Keyword collisions: field names that embed And/Or/Asc/Desc must resolve
+    // to the whole field rather than splitting on the keyword substring.
+
+    @Test
+    public void test_parse_field_containing_or_substring() throws Exception {
+        Method method = TestRepository.class.getMethod("findByAuthorId", String.class);
+        ParsedMethod parsed = MethodNameParser.parse(method, TestDocument.class);
+        assertThat(parsed.getQueryParts()).hasSize(1);
+        assertThat(parsed.getQueryParts().get(0).getField()).isEqualTo("authorId");
+    }
+
+    @Test
+    public void test_parse_field_containing_lowercase_or_substring() throws Exception {
+        Method method = TestRepository.class.getMethod("findByWorkerName", String.class);
+        ParsedMethod parsed = MethodNameParser.parse(method, TestDocument.class);
+        assertThat(parsed.getQueryParts()).hasSize(1);
+        assertThat(parsed.getQueryParts().get(0).getField()).isEqualTo("workerName");
+    }
+
+    @Test
+    public void test_parse_field_containing_and_substring() throws Exception {
+        Method method = TestRepository.class.getMethod("findByBrandName", String.class);
+        ParsedMethod parsed = MethodNameParser.parse(method, TestDocument.class);
+        assertThat(parsed.getQueryParts()).hasSize(1);
+        assertThat(parsed.getQueryParts().get(0).getField()).isEqualTo("brandName");
+    }
+
+    @Test
+    public void test_parse_field_with_or_substring_and_real_and_operator() throws Exception {
+        Method method = TestRepository.class.getMethod("findByAuthorIdAndLevel", String.class, int.class);
+        ParsedMethod parsed = MethodNameParser.parse(method, TestDocument.class);
+        assertThat(parsed.getQueryParts()).hasSize(2);
+        assertThat(parsed.getQueryParts().get(0).getField()).isEqualTo("authorId");
+        assertThat(parsed.getQueryParts().get(0).getLogicalOperator()).isNull();
+        assertThat(parsed.getQueryParts().get(1).getField()).isEqualTo("level");
+        assertThat(parsed.getQueryParts().get(1).getLogicalOperator()).isEqualTo(LogicalOperator.AND);
+    }
+
+    @Test
+    public void test_parse_field_with_or_substring_as_second_condition() throws Exception {
+        Method method = TestRepository.class.getMethod("findByLevelOrAuthorId", int.class, String.class);
+        ParsedMethod parsed = MethodNameParser.parse(method, TestDocument.class);
+        assertThat(parsed.getQueryParts()).hasSize(2);
+        assertThat(parsed.getQueryParts().get(0).getField()).isEqualTo("level");
+        assertThat(parsed.getQueryParts().get(1).getField()).isEqualTo("authorId");
+        assertThat(parsed.getQueryParts().get(1).getLogicalOperator()).isEqualTo(LogicalOperator.OR);
+    }
+
+    @Test
+    public void test_parse_field_with_and_substring_and_real_and_operator() throws Exception {
+        Method method = TestRepository.class.getMethod("findByBrandNameAndLevel", String.class, int.class);
+        ParsedMethod parsed = MethodNameParser.parse(method, TestDocument.class);
+        assertThat(parsed.getQueryParts()).hasSize(2);
+        assertThat(parsed.getQueryParts().get(0).getField()).isEqualTo("brandName");
+        assertThat(parsed.getQueryParts().get(1).getField()).isEqualTo("level");
+        assertThat(parsed.getQueryParts().get(1).getLogicalOperator()).isEqualTo(LogicalOperator.AND);
+    }
+
+    @Test
+    public void test_parse_field_with_and_substring_as_second_condition() throws Exception {
+        Method method = TestRepository.class.getMethod("findByLevelOrBrandName", int.class, String.class);
+        ParsedMethod parsed = MethodNameParser.parse(method, TestDocument.class);
+        assertThat(parsed.getQueryParts()).hasSize(2);
+        assertThat(parsed.getQueryParts().get(0).getField()).isEqualTo("level");
+        assertThat(parsed.getQueryParts().get(1).getField()).isEqualTo("brandName");
+        assertThat(parsed.getQueryParts().get(1).getLogicalOperator()).isEqualTo(LogicalOperator.OR);
+    }
+
+    @Test
+    public void test_parse_nested_field_containing_or_substring() throws Exception {
+        Method method = TestRepository.class.getMethod("findByMeta$AuthorId", String.class);
+        ParsedMethod parsed = MethodNameParser.parse(method, TestDocument.class);
+        assertThat(parsed.getQueryParts()).hasSize(1);
+        assertThat(parsed.getQueryParts().get(0).getField()).isEqualTo("meta.authorId");
+    }
+
+    @Test
+    public void test_parse_order_by_field_starting_with_desc() throws Exception {
+        Method method = TestRepository.class.getMethod("findAllOrderByDescriptor");
+        ParsedMethod parsed = MethodNameParser.parse(method, TestDocument.class);
+        assertThat(parsed.getOrderParts()).hasSize(1);
+        assertThat(parsed.getOrderParts().get(0).getField()).isEqualTo("descriptor");
+        assertThat(parsed.getOrderParts().get(0).isAscending()).isTrue();
+    }
+
+    @Test
+    public void test_parse_order_by_field_starting_with_asc() throws Exception {
+        Method method = TestRepository.class.getMethod("findAllOrderByAscending");
+        ParsedMethod parsed = MethodNameParser.parse(method, TestDocument.class);
+        assertThat(parsed.getOrderParts()).hasSize(1);
+        assertThat(parsed.getOrderParts().get(0).getField()).isEqualTo("ascending");
+        assertThat(parsed.getOrderParts().get(0).isAscending()).isTrue();
+    }
+
+    @Test
+    public void test_parse_order_by_desc_field_with_explicit_desc_direction() throws Exception {
+        Method method = TestRepository.class.getMethod("findByActiveOrderByDescriptorDesc", boolean.class);
+        ParsedMethod parsed = MethodNameParser.parse(method, TestDocument.class);
+        assertThat(parsed.getQueryParts()).hasSize(1);
+        assertThat(parsed.getQueryParts().get(0).getField()).isEqualTo("active");
+        assertThat(parsed.getOrderParts()).hasSize(1);
+        assertThat(parsed.getOrderParts().get(0).getField()).isEqualTo("descriptor");
+        assertThat(parsed.getOrderParts().get(0).isAscending()).isFalse();
+    }
+
+    @Test
+    public void test_parse_order_by_asc_field_with_explicit_asc_direction() throws Exception {
+        Method method = TestRepository.class.getMethod("findByActiveOrderByAscendingAsc", boolean.class);
+        ParsedMethod parsed = MethodNameParser.parse(method, TestDocument.class);
+        assertThat(parsed.getQueryParts()).hasSize(1);
+        assertThat(parsed.getQueryParts().get(0).getField()).isEqualTo("active");
+        assertThat(parsed.getOrderParts()).hasSize(1);
+        assertThat(parsed.getOrderParts().get(0).getField()).isEqualTo("ascending");
+        assertThat(parsed.getOrderParts().get(0).isAscending()).isTrue();
+    }
+
     @Test
     public void test_validate_stream_prefix_requires_stream_return() throws Exception {
         Method method = TestRepository.class.getMethod("streamByActive", boolean.class);
@@ -460,7 +601,7 @@ public class MethodNameParserTest {
     }
 
     @Test
-    public void test_error_empty_field_name() {
+    public void test_error_unresolvable_field_name() {
         interface BadRepository {
             Optional<TestDocument> findByAnd(String name);
         }
@@ -470,7 +611,7 @@ public class MethodNameParserTest {
             MethodNameParser.parse(method, TestDocument.class);
         })
             .isInstanceOf(MethodParseException.class)
-            .hasMessageContaining("Empty field name");
+            .hasMessageContaining("Unknown field");
     }
 
     @Test

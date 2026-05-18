@@ -227,46 +227,25 @@ public final class MethodNameParser {
         while (pos < conditionsPart.length()) {
             String remaining = conditionsPart.substring(pos);
 
-            // Find next And/Or keyword at a valid word boundary
-            int andPos = findKeywordAtWordBoundary(remaining, AND_KEYWORD);
-            int orPos = findKeywordAtWordBoundary(remaining, OR_KEYWORD);
+            // Pick the next field segment + the operator that follows it (if any).
+            // We try every word-boundary And/Or split point in order, and the first one
+            // whose left side resolves to a real entity field wins. If none of the split
+            // points yield a resolvable left side, we fall back to consuming the entire
+            // remaining string as one field. This way, compound field names like
+            // "authorId" or "brandName" (which contain "Or"/"And" as substrings followed
+            // by uppercase) are not mis-tokenized into two fragments.
+            FieldSplit split = findNextField(remaining, entityType);
 
-            int nextOperatorPos = -1;
-            LogicalOperator nextOperator = null;
-            int keywordLength = 0;
-
-            if ((andPos >= 0) && ((orPos < 0) || (andPos < orPos))) {
-                nextOperatorPos = andPos;
-                nextOperator = LogicalOperator.AND;
-                keywordLength = AND_KEYWORD.length();
-            } else if (orPos >= 0) {
-                nextOperatorPos = orPos;
-                nextOperator = LogicalOperator.OR;
-                keywordLength = OR_KEYWORD.length();
-            }
-
-            String rawFieldName;
-            if (nextOperatorPos >= 0) {
-                rawFieldName = remaining.substring(0, nextOperatorPos);
-            } else {
-                rawFieldName = remaining;
-            }
-
-            if (rawFieldName.isEmpty()) {
-                throw new MethodParseException("Empty field name in conditions: " + conditionsPart);
-            }
-
-            // Resolve field path with validation and subfield discovery
-            String fieldPath = resolveFieldPath(rawFieldName, entityType);
+            String fieldPath = resolveFieldPath(split.rawFieldName, entityType);
 
             // Use pending operator from previous iteration (null for first field)
             parts.add(new QueryPart(fieldPath, paramIndex++, pendingOperator));
 
             // Save this operator for the next field
-            pendingOperator = nextOperator;
+            pendingOperator = split.nextOperator;
 
-            if (nextOperatorPos >= 0) {
-                pos = pos + nextOperatorPos + keywordLength;
+            if (split.consumedLength < remaining.length()) {
+                pos = pos + split.consumedLength;
             } else {
                 break;
             }
@@ -280,6 +259,77 @@ public final class MethodNameParser {
     }
 
     /**
+     * Result of choosing a field segment off the front of a conditions string:
+     * the raw (unnormalized) field-name segment, the operator that immediately
+     * follows it (or null if the segment runs to end-of-string), and how many
+     * characters of the input were consumed (field + operator if present).
+     */
+    private static final class FieldSplit {
+        final String rawFieldName;
+        final LogicalOperator nextOperator;
+        final int consumedLength;
+
+        FieldSplit(String rawFieldName, LogicalOperator nextOperator, int consumedLength) {
+            this.rawFieldName = rawFieldName;
+            this.nextOperator = nextOperator;
+            this.consumedLength = consumedLength;
+        }
+    }
+
+    /**
+     * Pick the leading field segment by trying every And/Or boundary in order and
+     * keeping the first whose left side resolves as a real entity field. Falls
+     * back to "consume everything as one field" if no boundary yields a hit —
+     * the subsequent resolveFieldPath() call will then surface a descriptive
+     * "Unknown field" error if that whole-string field also doesn't exist.
+     */
+    private static FieldSplit findNextField(String remaining, Class<?> entityType) {
+        int searchPos = 0;
+        while (searchPos < remaining.length()) {
+            int andPos = findKeywordAtWordBoundary(remaining, AND_KEYWORD, searchPos);
+            int orPos = findKeywordAtWordBoundary(remaining, OR_KEYWORD, searchPos);
+
+            int candidatePos;
+            LogicalOperator candidateOp;
+            int keywordLength;
+
+            if ((andPos >= 0) && ((orPos < 0) || (andPos < orPos))) {
+                candidatePos = andPos;
+                candidateOp = LogicalOperator.AND;
+                keywordLength = AND_KEYWORD.length();
+            } else if (orPos >= 0) {
+                candidatePos = orPos;
+                candidateOp = LogicalOperator.OR;
+                keywordLength = OR_KEYWORD.length();
+            } else {
+                break;
+            }
+
+            String candidateField = remaining.substring(0, candidatePos);
+            if (!candidateField.isEmpty() && fieldResolves(candidateField, entityType)) {
+                return new FieldSplit(candidateField, candidateOp, candidatePos + keywordLength);
+            }
+
+            // Left side doesn't resolve — this boundary is a false positive
+            // (And/Or is part of a compound field name). Try the next one.
+            searchPos = candidatePos + 1;
+        }
+
+        // No usable boundary — consume the whole remaining string as one field.
+        return new FieldSplit(remaining, null, remaining.length());
+    }
+
+    /** Non-throwing variant of resolveFieldPath used for split-point validation. */
+    private static boolean fieldResolves(String rawFieldName, Class<?> entityType) {
+        try {
+            resolveFieldPath(rawFieldName, entityType);
+            return true;
+        } catch (MethodParseException e) {
+            return false;
+        }
+    }
+
+    /**
      * Find a keyword (And/Or) at a valid word boundary.
      * Valid boundary means:
      * - Followed by uppercase letter (camelCase: CategoryAndLevel)
@@ -290,7 +340,11 @@ public final class MethodNameParser {
      * @return position of keyword, or -1 if not found at valid boundary
      */
     private static int findKeywordAtWordBoundary(String text, String keyword) {
-        int searchPos = 0;
+        return findKeywordAtWordBoundary(text, keyword, 0);
+    }
+
+    private static int findKeywordAtWordBoundary(String text, String keyword, int fromIndex) {
+        int searchPos = fromIndex;
         while (searchPos < text.length()) {
             // Find next occurrence (case-insensitive)
             int pos = indexOfIgnoreCase(text, keyword, searchPos);
@@ -513,41 +567,18 @@ public final class MethodNameParser {
         int pos = 0;
 
         while (pos < orderByPart.length()) {
-            // Find next direction keyword
-            int ascPos = orderByPart.indexOf(ASC_KEYWORD, pos);
-            int descPos = orderByPart.indexOf(DESC_KEYWORD, pos);
+            String remaining = orderByPart.substring(pos);
 
-            int nextDirPos = -1;
-            boolean isAscending = true;
+            // Same resolution-aware strategy as parseConditions: try each Asc/Desc
+            // boundary in order and keep the first whose left side resolves to a
+            // real entity field. This lets fields like "descriptor" or "ascending"
+            // pass through without being mis-tokenized.
+            OrderSplit split = findNextOrderField(remaining, entityType);
 
-            if ((ascPos >= 0) && ((descPos < 0) || (ascPos < descPos))) {
-                nextDirPos = ascPos;
-                isAscending = true;
-            } else if (descPos >= 0) {
-                nextDirPos = descPos;
-                isAscending = false;
-            }
+            String fieldPath = resolveFieldPath(split.rawFieldName, entityType);
+            parts.add(new OrderPart(fieldPath, split.isAscending));
 
-            String fieldName;
-            if (nextDirPos >= 0) {
-                fieldName = orderByPart.substring(pos, nextDirPos);
-                String keyword = isAscending ? ASC_KEYWORD : DESC_KEYWORD;
-                pos = nextDirPos + keyword.length();
-            } else {
-                // No direction specified, default to ascending
-                fieldName = orderByPart.substring(pos);
-                isAscending = true;
-                pos = orderByPart.length();
-            }
-
-            if (fieldName.isEmpty()) {
-                throw new MethodParseException("Empty field name in OrderBy: " + orderByPart);
-            }
-
-            // Resolve field path with validation and subfield discovery
-            String fieldPath = resolveFieldPath(fieldName, entityType);
-
-            parts.add(new OrderPart(fieldPath, isAscending));
+            pos = pos + split.consumedLength;
         }
 
         if (parts.isEmpty()) {
@@ -555,6 +586,87 @@ public final class MethodNameParser {
         }
 
         return parts;
+    }
+
+    /**
+     * Result of choosing an ordering segment off the front of an OrderBy string:
+     * the raw field name, its direction, and how many characters were consumed
+     * (field + Asc/Desc suffix if present).
+     */
+    private static final class OrderSplit {
+        final String rawFieldName;
+        final boolean isAscending;
+        final int consumedLength;
+
+        OrderSplit(String rawFieldName, boolean isAscending, int consumedLength) {
+            this.rawFieldName = rawFieldName;
+            this.isAscending = isAscending;
+            this.consumedLength = consumedLength;
+        }
+    }
+
+    /**
+     * Pick the leading ordering segment by trying every Asc/Desc boundary in
+     * order and keeping the first whose left side resolves as a real entity
+     * field. Falls back to "consume everything, default ascending" if no
+     * boundary yields a hit.
+     */
+    private static OrderSplit findNextOrderField(String remaining, Class<?> entityType) {
+        int searchPos = 0;
+        while (searchPos < remaining.length()) {
+            int ascPos = findOrderKeyword(remaining, ASC_KEYWORD, searchPos);
+            int descPos = findOrderKeyword(remaining, DESC_KEYWORD, searchPos);
+
+            int candidatePos;
+            boolean isAscending;
+            int keywordLength;
+
+            if ((ascPos >= 0) && ((descPos < 0) || (ascPos < descPos))) {
+                candidatePos = ascPos;
+                isAscending = true;
+                keywordLength = ASC_KEYWORD.length();
+            } else if (descPos >= 0) {
+                candidatePos = descPos;
+                isAscending = false;
+                keywordLength = DESC_KEYWORD.length();
+            } else {
+                break;
+            }
+
+            String candidateField = remaining.substring(0, candidatePos);
+            if (!candidateField.isEmpty() && fieldResolves(candidateField, entityType)) {
+                return new OrderSplit(candidateField, isAscending, candidatePos + keywordLength);
+            }
+
+            searchPos = candidatePos + 1;
+        }
+
+        // No direction suffix usable — whole remaining string is the field,
+        // default to ascending.
+        return new OrderSplit(remaining, true, remaining.length());
+    }
+
+    /**
+     * Find Asc/Desc at a position where it's plausibly a direction suffix:
+     * either at end-of-string or immediately followed by another uppercase
+     * letter (start of the next field in a multi-field OrderBy clause).
+     */
+    private static int findOrderKeyword(String text, String keyword, int fromIndex) {
+        int pos = fromIndex;
+        while (pos <= text.length() - keyword.length()) {
+            int hit = text.indexOf(keyword, pos);
+            if (hit < 0) {
+                return -1;
+            }
+            int afterKeyword = hit + keyword.length();
+            boolean validFollowing = (afterKeyword >= text.length()) ||
+                Character.isUpperCase(text.charAt(afterKeyword));
+            if (validFollowing) {
+                return hit;
+            }
+            pos = hit + 1;
+        }
+        return -1;
     }
 
     /**
